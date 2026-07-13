@@ -15,6 +15,12 @@ const DATA_DIR = path.join(BACKEND_DIR, 'data')
 /** 并发保护：更新任务是否正在运行 */
 let _updateRunning = false
 
+/** 上次抓取完成时间戳，防止短时间内重复抓取（如初始化后立即被定时任务触发） */
+let _lastScrapeTime = 0
+
+/** 抓取冷却期（毫秒），此时间内拒绝新的抓取 */
+const SCRAPE_COOLDOWN = 5 * 60 * 1000 // 5 分钟
+
 /**
  * 检查图鉴是否已完成初始化
  * @returns {boolean}
@@ -95,6 +101,7 @@ export function runScrape (games = ['gi', 'hsr', 'zzz'], locales = ['zh']) {
       timeout: 1800000 // 30 分钟超时
     })
     logger?.info('[Atlas][Updater] 全量抓取完成')
+    _lastScrapeTime = Date.now()
     return { ok: true, stdout }
   } catch (err) {
     const msg = err.stderr || err.message || String(err)
@@ -155,9 +162,22 @@ export async function runIncrementalScrapeAsync () {
     logger?.warn('[Atlas][Updater] 更新任务已在运行中，跳过重复触发')
     return { ok: false, error: '更新任务已在运行中，请稍后再试' }
   }
+
+  // 冷却检查：上次抓取完成不久，跳过（防止初始化后立即被定时任务触发）
+  if (_lastScrapeTime > 0) {
+    const elapsed = Date.now() - _lastScrapeTime
+    if (elapsed < SCRAPE_COOLDOWN) {
+      const remainMin = Math.ceil((SCRAPE_COOLDOWN - elapsed) / 60000)
+      logger?.info(`[Atlas][Updater] 距上次抓取仅 ${Math.floor(elapsed / 1000)}s，冷却中，剩余约 ${remainMin} 分钟`)
+      return { ok: false, error: `抓取冷却中，剩余约 ${remainMin} 分钟` }
+    }
+  }
+
   _updateRunning = true
   try {
-    return await runIncrementalScrape()
+    const result = await runIncrementalScrape()
+    if (result.ok) _lastScrapeTime = Date.now()
+    return result
   } finally {
     _updateRunning = false
   }
