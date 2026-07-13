@@ -4,9 +4,10 @@ import plugin from '../../../lib/plugins/plugin.js'
 import { getPluginConfig } from '../components/config.js'
 import {
   isInitialized,
+  isDataIntact,
   initSubmodule,
   installDeps,
-  runScrape,
+  runScrapeAsync,
   runIncrementalScrapeAsync,
   getDataStatus,
   BACKEND_DIR
@@ -24,6 +25,7 @@ export class AtlasAdmin extends plugin {
       priority: config.priority ? config.priority - 10 : 9990,
       rule: [
         { reg: /^#图鉴初始化$/, fnc: 'handleInit', permission: 'master' },
+        { reg: /^#图鉴强制初始化$/, fnc: 'handleForceInit', permission: 'master' },
         { reg: /^#图鉴更新$/, fnc: 'handleUpdate', permission: 'master' }
       ]
     })
@@ -43,12 +45,25 @@ export class AtlasAdmin extends plugin {
    * #图鉴初始化 — 两阶段：环境准备 → 数据抓取
    */
   async handleInit (e) {
-    // 已初始化则跳过
+    // 已初始化 + 数据完整 → 跳过
     if (isInitialized()) {
-      await e.reply('[Atlas] 图鉴数据已初始化，无需重复操作', true)
-      return true
+      if (isDataIntact()) {
+        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复操作。如需强制重新初始化请使用 #图鉴强制初始化', true)
+        return true
+      }
+      // map.json 存在但数据异常（上次超时/崩溃残留），自动允许重新初始化
+      logger?.warn('[Atlas][管理] 检测到数据不完整（上次可能异常中断），自动重新初始化')
+      await e.reply('[Atlas] 检测到上次初始化未完整完成，自动重新抓取...', true)
     }
 
+    return await this._doInit(e)
+  }
+
+  /**
+   * 初始化核心流程：环境准备 → 异步抓取
+   * handleInit / handleForceInit 共用
+   */
+  async _doInit (e) {
     // ---- 阶段一：环境准备 ----
     const gitFile = path.join(BACKEND_DIR, '.git')
 
@@ -71,37 +86,52 @@ export class AtlasAdmin extends plugin {
       }
     }
 
-    // 阶段一完成，发确认消息
-    await e.reply('[Atlas] 环境准备完成，开始抓取图鉴数据（含图片），预计耗时较长，请耐心等待...', true)
+    // 阶段一完成，发确认消息，启动后台抓取
+    await e.reply('[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知主人', true)
 
-    // ---- 阶段二：数据抓取 ----
-    const scrapeRet = runScrape()
-    if (!scrapeRet.ok) {
-      await e.reply(`[Atlas] 数据抓取失败：${scrapeRet.error}`, true)
-      return true
-    }
+    // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
+    runScrapeAsync().then(async (ret) => {
+      if (!ret.ok) {
+        Bot.sendMasterMsg(`[Atlas] 图鉴初始化失败：${ret.error}`)
+        return
+      }
 
-    // 重建索引
-    try {
-      reloadIndex()
-    } catch (err) {
-      logger?.error('[Atlas][管理] 索引重载失败:', err.message)
-      await e.reply(`[Atlas] 数据抓取完成但索引加载失败：${err.message}`, true)
-      return true
-    }
+      // 重建索引
+      try {
+        reloadIndex()
+      } catch (err) {
+        logger?.error('[Atlas][管理] 初始化后索引重载失败:', err.message)
+        Bot.sendMasterMsg(`[Atlas] 图鉴初始化完成但索引加载失败：${err.message}`)
+        return
+      }
 
-    // 统计结果
-    const status = getDataStatus()
-    const gameStats = status.games
-    const gameLines = gameStats
-      ? Object.entries(gameStats).map(([, g]) => `· ${g.name} ${g.recordCount} 条`).join('\n')
-      : '抓取完成'
+      // 统计结果
+      const status = getDataStatus()
+      const gameStats = status.games
+      const gameLines = gameStats
+        ? Object.entries(gameStats).map(([, g]) => `· ${g.name} ${g.recordCount} 条`).join('\n')
+        : '抓取完成'
 
-    const imgInfo = status.images
-      ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载 / ${status.images.placeholder} 占位`
-      : ''
+      const imgInfo = status.images
+        ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载 / ${status.images.placeholder} 占位`
+        : ''
 
-    await e.reply(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`, true)
+      Bot.sendMasterMsg(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
+    }).catch((err) => {
+      logger?.error('[Atlas][管理] 初始化异常:', err)
+      Bot.sendMasterMsg(`[Atlas] 图鉴初始化异常：${err.message}`)
+    })
+
+    return true
+  }
+
+  /**
+   * #图鉴强制初始化 — 跳过完整性检查，直接全量抓取
+   */
+  async handleForceInit (e) {
+    await e.reply('[Atlas] 强制重新初始化，跳过已有数据...', true)
+    // 直接走完整流程（不检查 isInitialized）
+    await this._doInit(e)
     return true
   }
 
