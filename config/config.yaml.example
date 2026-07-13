@@ -1,0 +1,13 @@
+# Atlas-Plugin 配置文件
+# 优先级：数字越小越先执行（建议不低于10000，避免干扰 miao-plugin 等）
+priority: 10000
+
+# 渲染缩放比例
+renderScale: 1.5
+
+# ---------- 自动更新 ----------
+autoUpdate:
+  # 是否启用每日自动抓取更新
+  enabled: true
+  # 自动更新 cron 表达式（6字段：秒 分 时 日 月 周）
+  cron: '0 0 5 * * *'

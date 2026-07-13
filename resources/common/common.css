@@ -1,0 +1,147 @@
+/* Atlas-Plugin 通用样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #0f1117;
+  color: #e0e0e0;
+  width: 720px;
+  padding: 24px 28px;
+  line-height: 1.6;
+}
+
+/* 顶部标题区 */
+.header {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.header .game-name {
+  font-size: 13px;
+  color: #8890a8;
+  margin-bottom: 4px;
+}
+.header .title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+}
+.header .subtitle {
+  font-size: 13px;
+  color: #606880;
+  margin-top: 4px;
+}
+
+/* 搜索结果列表 */
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 分类组 */
+.group-box {
+  /* empty - gap handles spacing */
+}
+.group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8890a8;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 4px;
+}
+.group-item {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 14px;
+  color: #c8d0e0;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 详情页 */
+.detail-box {
+  margin-top: 8px;
+}
+.detail-section {
+  margin-bottom: 16px;
+}
+.detail-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #b0b8d0;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.detail-table td {
+  padding: 5px 10px;
+  vertical-align: top;
+}
+.detail-table .label {
+  color: #707888;
+  width: 30%;
+  white-space: nowrap;
+  text-align: right;
+}
+.detail-table .value {
+  color: #c8d0e0;
+  word-break: break-all;
+}
+
+/* 空结果 */
+.empty-box {
+  text-align: center;
+  padding: 40px 0;
+  color: #606880;
+  font-size: 15px;
+}
+.empty-box .keyword {
+  color: #9098b0;
+  font-weight: 600;
+}
+
+/* 描述文本 */
+.desc-text {
+  font-size: 13px;
+  color: #b0b8c8;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 底部 */
+.copyright {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  color: #505870;
+  text-align: center;
+}
+
+/* 提示信息 */
+.hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #606880;
+  text-align: center;
+}

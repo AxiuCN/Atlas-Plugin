@@ -1,0 +1,10 @@
+{
+  "name": "Atlas-Plugin",
+  "version": "1.0.0",
+  "description": "TRSS-Yunzai v3 多游戏图鉴查询插件，支持原神/星铁/绝区零角色、武器、圣遗物、材料、敌人、成就、挑战查询",
+  "author": "阿修Axiu",
+  "type": "module",
+  "dependencies": {
+    "yaml": "^2.4.5"
+  }
+}

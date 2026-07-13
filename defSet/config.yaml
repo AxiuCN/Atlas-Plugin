@@ -1,0 +1,13 @@
+# Atlas-Plugin 配置模板
+# 优先级：数字越小越先执行（建议不低于10000，避免干扰 miao-plugin 等）
+priority: ${atlas_priority}
+
+# 渲染缩放比例
+renderScale: ${atlas_renderScale}
+
+# ---------- 自动更新 ----------
+autoUpdate:
+  # 是否启用每日自动抓取更新
+  enabled: ${atlas_autoUpdate_enabled}
+  # 自动更新 cron 表达式（6字段：秒 分 时 日 月 周）
+  cron: "${atlas_autoUpdate_cron}"

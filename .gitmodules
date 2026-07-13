@@ -1,0 +1,3 @@
+[submodule "tool/nanoka-atlas-backend/nanoka-atlas-backend"]
+	path = tool/nanoka-atlas-backend/nanoka-atlas-backend
+	url = https://github.com/MOPELotus/nanoka-atlas-backend.git

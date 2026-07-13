@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+  <style>
+    .status-card {
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .status-card h3 {
+      font-size: 15px;
+      color: #b0b8d0;
+      margin: 0 0 10px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      font-size: 13px;
+    }
+    .status-label {
+      color: #707888;
+    }
+    .status-value {
+      color: #c8d0e0;
+    }
+    .image-stats {
+      display: flex;
+      gap: 28px;
+      margin-top: 6px;
+      justify-content: center;
+    }
+    .image-stat {
+      text-align: center;
+    }
+    .image-stat .num {
+      font-size: 22px;
+      font-weight: 700;
+      color: #d3bc8e;
+    }
+    .image-stat .lbl {
+      font-size: 11px;
+      color: #707888;
+      margin-top: 2px;
+    }
+    .status-meta {
+      font-size: 12px;
+      color: #606880;
+      text-align: center;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">Atlas图鉴</div>
+    <div class="title">数据状态</div>
+    {{if fetchedAt}}
+    <div class="subtitle">更新时间：{{fetchedAt}} · {{mode}}{{if !imageDownloads}}（仅文本）{{/if}}</div>
+    {{/if}}
+  </div>
+
+  {{each games game}}
+  <div class="status-card">
+    <h3>{{game.name}}</h3>
+    <div class="status-row">
+      <span class="status-label">版本</span>
+      <span class="status-value">{{game.version}}</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">条目数</span>
+      <span class="status-value">{{game.recordCount}}</span>
+    </div>
+  </div>
+  {{/each}}
+
+  {{if images && images.total > 0}}
+  <div class="status-card">
+    <h3>图片资源</h3>
+    <div class="image-stats">
+      <div class="image-stat">
+        <div class="num">{{images.total}}</div>
+        <div class="lbl">总计</div>
+      </div>
+      <div class="image-stat">
+        <div class="num">{{images.downloaded}}</div>
+        <div class="lbl">已下载</div>
+      </div>
+      <div class="image-stat">
+        <div class="num">{{images.placeholder}}</div>
+        <div class="lbl">占位图</div>
+      </div>
+      <div class="image-stat">
+        <div class="num">{{images.missing}}</div>
+        <div class="lbl">缺失</div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if !images || images.total == 0}}
+  <div class="status-meta">图片尚未下载，请使用 #图鉴初始化 执行首次抓取</div>
+  {{/if}}
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

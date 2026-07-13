@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · 图鉴查询</div>
+    <div class="title">"{{keyword}}" 的搜索结果</div>
+    {{if total > results.length}}
+    <div class="subtitle">共 {{total}} 条，显示前 {{results.length}} 条</div>
+    {{/if}}
+  </div>
+
+  <div class="result-list">
+    {{each groups group}}
+    <div class="group-box">
+      <div class="group-title">{{group.title}}（{{group.items.length}}）</div>
+      <div class="group-items">
+        {{each group.items item}}
+        <span class="group-item">{{item.name}}{{if item.rarity}} · {{item.rarity}}{{/if}}</span>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  {{if total > results.length}}
+  <div class="hint">结果较多，请使用更精确的名称查询</div>
+  {{/if}}
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>
