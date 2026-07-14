@@ -17,7 +17,8 @@ const defaultConfig = {
     enabled: true,
     cron: '0 0 5 * * *'
   },
-  notifyGroups: []
+  notifyGroups: [],
+  notifyMode: 'all'
 }
 
 /**

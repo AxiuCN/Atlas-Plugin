@@ -88,8 +88,10 @@ export class AtlasAdmin extends plugin {
 
     // 阶段一完成，发确认消息，启动后台抓取
     const cfg = getPluginConfig()
-    const hasGroups = cfg?.notifyGroups?.length > 0
-    const notifyHint = hasGroups ? '主人和配置群' : '主人'
+    const mode = cfg?.notifyMode || 'all'
+    const hasGroups = mode === 'all' && parseGroupList(cfg?.notifyGroups).length > 0
+    const notifyHint = mode === 'first_master' ? '第一位主人'
+      : hasGroups ? '主人和配置群' : '主人'
     await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, true)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
@@ -148,8 +150,10 @@ export class AtlasAdmin extends plugin {
     }
 
     const cfg = getPluginConfig()
-    const hasGroups = cfg?.notifyGroups?.length > 0
-    const notifyHint = hasGroups ? '主人和配置群' : '主人'
+    const mode = cfg?.notifyMode || 'all'
+    const hasGroups = mode === 'all' && parseGroupList(cfg?.notifyGroups).length > 0
+    const notifyHint = mode === 'first_master' ? '第一位主人'
+      : hasGroups ? '主人和配置群' : '主人'
     await e.reply(`[Atlas] 更新任务已启动，完成后将通知${notifyHint}`, true)
 
     // 异步执行，不阻塞
@@ -189,22 +193,35 @@ export class AtlasAdmin extends plugin {
   }
 
   /**
-   * 发送更新结果通知（主人 + 配置群聊）
+   * 发送更新结果通知
    * @param {string} msg - 通知消息
    */
   _notifyResult (msg) {
-    Bot.sendMasterMsg(msg)
     const cfg = getPluginConfig()
-    const groups = cfg?.notifyGroups || []
-    // 兼容 YAML 字符串（逗号分隔）和数组两种格式
-    const list = Array.isArray(groups)
-      ? groups
-      : String(groups).split(/[,，\s]+/).filter(Boolean)
+    const mode = cfg?.notifyMode || 'all'
+
+    if (mode === 'first_master') {
+      // 仅通知第一位主人
+      const first = firstMaster()
+      if (first) {
+        Bot.sendFriendMsg(first.botId, first.userId, msg).catch(() => {
+          logger?.warn('[Atlas][管理] 通知第一位主人失败')
+        })
+      }
+      return
+    }
+
+    // all / master_only：通知全部主人
+    Bot.sendMasterMsg(msg)
+
+    // master_only 跳过群通知
+    if (mode === 'master_only') return
+
+    // all 模式：额外通知配置群
+    const list = parseGroupList(cfg?.notifyGroups)
     for (const gid of list) {
-      const id = String(gid).trim()
-      if (!id) continue
-      Bot.sendGroupMsg(id, msg).catch(() => {
-        logger?.warn(`[Atlas][管理] 通知群 ${id} 失败`)
+      Bot.sendGroupMsg(gid, msg).catch(() => {
+        logger?.warn(`[Atlas][管理] 通知群 ${gid} 失败`)
       })
     }
   }
@@ -240,5 +257,34 @@ export class AtlasAdmin extends plugin {
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }
+  }
+}
+
+/**
+ * 解析群号列表 — 兼容 YAML 数字/字符串/数组三种格式
+ * YAML 可能将单群号 "notifyGroups: 123" 解析为数字，导致 .length 不可用
+ * @param {*} groups — 配置中的 notifyGroups 值
+ * @returns {string[]}
+ */
+function parseGroupList (groups) {
+  if (!groups && groups !== 0) return []
+  const raw = Array.isArray(groups) ? groups.join(',') : String(groups)
+  return raw.split(/[,，\s]+/).filter(Boolean).map(s => s.trim())
+}
+
+/**
+ * 获取第一位主人（bot_id + user_id）
+ * cfg.master 结构: { bot_id: [user_id, ...], ... }
+ * @returns {{botId: string, userId: string}|null}
+ */
+function firstMaster () {
+  try {
+    const map = cfg.master
+    const botId = Object.keys(map)[0]
+    const userId = map[botId]?.[0]
+    if (botId && userId) return { botId, userId }
+    return null
+  } catch {
+    return null
   }
 }

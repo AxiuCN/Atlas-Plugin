@@ -23,7 +23,8 @@ const TEMPLATE_VARS = {
   renderScale: 'atlas_renderScale',
   'autoUpdate.enabled': 'atlas_autoUpdate_enabled',
   'autoUpdate.cron': 'atlas_autoUpdate_cron',
-  notifyGroups: 'atlas_notifyGroups'
+  notifyGroups: 'atlas_notifyGroups',
+  notifyMode: 'atlas_notifyMode'
 }
 
 /** 默认值（模板变量替换时的兜底） */
@@ -32,7 +33,8 @@ const DEFAULTS = {
   atlas_renderScale: '1.5',
   atlas_autoUpdate_enabled: 'true',
   atlas_autoUpdate_cron: '0 0 5 * * *',
-  atlas_notifyGroups: ''
+  atlas_notifyGroups: '',
+  atlas_notifyMode: 'all'
 }
 
 /**
@@ -122,6 +124,21 @@ export function supportGuoba () {
           bottomHelpMessage: '可多选，留空则仅通知主人',
           component: 'GSelectGroup',
           componentProps: { placeholder: '请选择群聊' }
+        },
+        {
+          field: 'notifyMode',
+          label: '通知模式',
+          helpMessage: '选择通知的发送范围',
+          bottomHelpMessage: '默认 all，通知全部主人及上方配置的群聊',
+          component: 'Select',
+          required: true,
+          componentProps: {
+            options: [
+              { label: '全部通知（全部主人+群聊）', value: 'all' },
+              { label: '仅通知全部主人', value: 'master_only' },
+              { label: '仅通知第一位主人', value: 'first_master' }
+            ]
+          }
         }
       ],
 
@@ -135,7 +152,8 @@ export function supportGuoba () {
           'autoUpdate.cron': au.cron ?? '0 0 5 * * *',
           notifyGroups: (cfg.notifyGroups || '')
             ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
-            : []
+            : [],
+          notifyMode: cfg.notifyMode || 'all'
         }
       },
 

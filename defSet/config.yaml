@@ -7,7 +7,10 @@ renderScale: ${atlas_renderScale}
 
 # ---------- 通知 ----------
 # 更新完成后通知的群号列表（逗号分隔），留空仅通知主人
-notifyGroups: ${atlas_notifyGroups}
+notifyGroups: "${atlas_notifyGroups}"
+
+# 通知模式：all = 主人+配置群 / master_only = 仅主人
+notifyMode: ${atlas_notifyMode}
 
 # ---------- 自动更新 ----------
 autoUpdate:

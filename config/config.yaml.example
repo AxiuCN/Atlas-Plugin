@@ -8,6 +8,8 @@ renderScale: 1.5
 # ---------- 通知 ----------
 # 更新完成后通知的群号列表（逗号分隔），留空仅通知主人
 notifyGroups: []
+# 通知模式：all=全部主人+配置群 / master_only=全部主人 / first_master=第一位主人
+notifyMode: 'all'
 
 # ---------- 自动更新 ----------
 autoUpdate:
