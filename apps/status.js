@@ -25,7 +25,7 @@ export class AtlasStatus extends plugin {
     const status = getDataStatus()
 
     if (!status.initialized) {
-      await e.reply('[Atlas] 图鉴数据未初始化，请主人使用 #图鉴初始化 完成数据准备', true)
+      await e.reply('[Atlas] 图鉴数据未初始化，请主人使用 #图鉴初始化 完成数据准备')
       return true
     }
 
@@ -63,7 +63,7 @@ export class AtlasStatus extends plugin {
       if (img) {
         await e.reply(img)
       } else {
-        await e.reply('[Atlas] 状态图生成失败', true)
+        await e.reply('[Atlas] 状态图生成失败')
       }
     } catch (err) {
       logger?.error('[Atlas][状态] 渲染失败:', err)
@@ -76,7 +76,7 @@ export class AtlasStatus extends plugin {
         lines.push(`图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载 / ${status.images.placeholder} 占位`)
       }
       if (fetchedAt) lines.push(`更新时间：${fetchedAt}`)
-      await e.reply(lines.join('\n'), true)
+      await e.reply(lines.join('\n'))
     }
 
     return true

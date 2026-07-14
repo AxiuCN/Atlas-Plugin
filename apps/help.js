@@ -54,8 +54,7 @@ export class AtlasHelp extends plugin {
         '查询：#<关键词> / *<关键词> / %<关键词>\n' +
         '成就：#成就 / *成就 / %成就\n' +
         '挑战：#深渊 / *混沌 / %危局\n' +
-        '管理：#图鉴状态 / #图鉴帮助 / #图鉴初始化 / #图鉴更新',
-        true
+        '管理：#图鉴状态 / #图鉴帮助 / #图鉴初始化 / #图鉴更新'
       )
     }
 
@@ -73,6 +72,6 @@ export class AtlasHelp extends plugin {
         lines.push(`${item.title}：${item.desc}`)
       }
     }
-    await e.reply(lines.join('\n'), true)
+    await e.reply(lines.join('\n'))
   }
 }

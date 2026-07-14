@@ -55,7 +55,7 @@ export class atlas extends plugin {
       switch (result.type) {
         case 'empty':
           if (result.keyword) {
-            await e.reply(`[Atlas] 未在${GAME_NAMES[gameId]}中找到与"${result.keyword}"匹配的条目`, true)
+            await e.reply(`[Atlas] 未在${GAME_NAMES[gameId]}中找到与"${result.keyword}"匹配的条目`)
           }
           return true
 
@@ -63,7 +63,7 @@ export class atlas extends plugin {
           const data = this._buildDetailData(gameId, result.results[0])
           const img = await renderAtlas('detail', data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
-          else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`, true)
+          else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`)
           return true
         }
 
@@ -72,7 +72,7 @@ export class atlas extends plugin {
           const data = this._buildListData(gameId, result)
           const img = await renderAtlas('list', data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
-          else await e.reply(`[Atlas] 列表渲染失败`, true)
+          else await e.reply(`[Atlas] 列表渲染失败`)
           return true
         }
 
@@ -84,7 +84,7 @@ export class atlas extends plugin {
       }
     } catch (err) {
       logger?.error(`[Atlas] 查询出错: ${err.message}`)
-      await e.reply(`[Atlas] 查询出错: ${err.message}`, true)
+      await e.reply(`[Atlas] 查询出错: ${err.message}`)
       return true
     }
   }
@@ -97,7 +97,7 @@ export class atlas extends plugin {
       // 成就等列表型页面：显示所有子项
       const records = getPageRecords(gameId, result.pageKey)
       if (records.length === 0) {
-        await e.reply(`[Atlas] ${result.pageTitle}数据为空`, true)
+        await e.reply(`[Atlas] ${result.pageTitle}数据为空`)
         return true
       }
 
@@ -122,7 +122,7 @@ export class atlas extends plugin {
       // 挑战类页面：取第一条记录渲染详情
       const records = getPageRecords(gameId, result.pageKey)
       if (records.length === 0) {
-        await e.reply(`[Atlas] ${result.pageTitle}数据为空`, true)
+        await e.reply(`[Atlas] ${result.pageTitle}数据为空`)
         return true
       }
 

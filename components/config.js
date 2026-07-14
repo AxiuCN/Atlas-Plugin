@@ -16,7 +16,8 @@ const defaultConfig = {
   autoUpdate: {
     enabled: true,
     cron: '0 0 5 * * *'
-  }
+  },
+  notifyGroups: []
 }
 
 /**

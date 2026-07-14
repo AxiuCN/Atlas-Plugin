@@ -3,7 +3,8 @@
  *
  * 对应 defSet/config.yaml 模板变量:
  *   atlas_priority, atlas_renderScale,
- *   atlas_autoUpdate_enabled, atlas_autoUpdate_cron
+ *   atlas_autoUpdate_enabled, atlas_autoUpdate_cron,
+ *   atlas_notifyGroups
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -21,7 +22,8 @@ const TEMPLATE_VARS = {
   priority: 'atlas_priority',
   renderScale: 'atlas_renderScale',
   'autoUpdate.enabled': 'atlas_autoUpdate_enabled',
-  'autoUpdate.cron': 'atlas_autoUpdate_cron'
+  'autoUpdate.cron': 'atlas_autoUpdate_cron',
+  notifyGroups: 'atlas_notifyGroups'
 }
 
 /** 默认值（模板变量替换时的兜底） */
@@ -29,7 +31,8 @@ const DEFAULTS = {
   atlas_priority: '10000',
   atlas_renderScale: '1.5',
   atlas_autoUpdate_enabled: 'true',
-  atlas_autoUpdate_cron: '0 0 5 * * *'
+  atlas_autoUpdate_cron: '0 0 5 * * *',
+  atlas_notifyGroups: ''
 }
 
 /**
@@ -95,7 +98,7 @@ export function supportGuoba () {
           field: 'autoUpdate.enabled',
           label: '启用自动更新',
           helpMessage: '开启后每天定时增量更新图鉴数据',
-          bottomHelpMessage: '仅已初始化时运行（需先执行 #图鉴初始化），完成后通知主人',
+          bottomHelpMessage: '仅已初始化时运行（需先执行 #图鉴初始化），完成后通知主人和配置群',
           component: 'Switch',
           required: true,
           componentProps: { defaultValue: true }
@@ -108,6 +111,17 @@ export function supportGuoba () {
           component: 'Input',
           required: true,
           componentProps: { placeholder: '0 0 5 * * *' }
+        },
+
+        // ==================== 通知设置 ====================
+        { label: '通知设置', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'notifyGroups',
+          label: '通知群聊',
+          helpMessage: '更新完成后发送通知的目标群',
+          bottomHelpMessage: '可多选，留空则仅通知主人',
+          component: 'GSelectGroup',
+          componentProps: { placeholder: '请选择群聊' }
         }
       ],
 
@@ -118,7 +132,10 @@ export function supportGuoba () {
           priority: cfg.priority ?? 10000,
           renderScale: cfg.renderScale ?? 1.5,
           'autoUpdate.enabled': au.enabled ?? true,
-          'autoUpdate.cron': au.cron ?? '0 0 5 * * *'
+          'autoUpdate.cron': au.cron ?? '0 0 5 * * *',
+          notifyGroups: (cfg.notifyGroups || '')
+            ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
+            : []
         }
       },
 

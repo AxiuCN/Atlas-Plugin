@@ -73,6 +73,7 @@ renderScale: 1.5      # 渲染缩放比例
 autoUpdate:
   enabled: true       # 是否启用每日自动更新
   cron: '0 0 5 * * *' # 自动更新 cron（6字段：秒 分 时 日 月 周）
+notifyGroups: []      # 更新完成后通知的群号列表，留空仅通知主人
 ```
 
 > 首次启动时自动从 `config/config.yaml.example` 复制默认配置。

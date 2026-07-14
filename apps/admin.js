@@ -87,12 +87,15 @@ export class AtlasAdmin extends plugin {
     }
 
     // 阶段一完成，发确认消息，启动后台抓取
-    await e.reply('[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知主人', true)
+    const cfg = getPluginConfig()
+    const hasGroups = cfg?.notifyGroups?.length > 0
+    const notifyHint = hasGroups ? '主人和配置群' : '主人'
+    await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, true)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
     runScrapeAsync().then(async (ret) => {
       if (!ret.ok) {
-        Bot.sendMasterMsg(`[Atlas] 图鉴初始化失败：${ret.error}`)
+        this._notifyResult(`[Atlas] 图鉴初始化失败：${ret.error}`)
         return
       }
 
@@ -101,7 +104,7 @@ export class AtlasAdmin extends plugin {
         reloadIndex()
       } catch (err) {
         logger?.error('[Atlas][管理] 初始化后索引重载失败:', err.message)
-        Bot.sendMasterMsg(`[Atlas] 图鉴初始化完成但索引加载失败：${err.message}`)
+        this._notifyResult(`[Atlas] 图鉴初始化完成但索引加载失败：${err.message}`)
         return
       }
 
@@ -116,10 +119,10 @@ export class AtlasAdmin extends plugin {
         ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载 / ${status.images.placeholder} 占位`
         : ''
 
-      Bot.sendMasterMsg(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
+      this._notifyResult(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
     }).catch((err) => {
       logger?.error('[Atlas][管理] 初始化异常:', err)
-      Bot.sendMasterMsg(`[Atlas] 图鉴初始化异常：${err.message}`)
+      this._notifyResult(`[Atlas] 图鉴初始化异常：${err.message}`)
     })
 
     return true
@@ -144,12 +147,15 @@ export class AtlasAdmin extends plugin {
       return true
     }
 
-    await e.reply('[Atlas] 更新任务已启动，完成后将通知主人', true)
+    const cfg = getPluginConfig()
+    const hasGroups = cfg?.notifyGroups?.length > 0
+    const notifyHint = hasGroups ? '主人和配置群' : '主人'
+    await e.reply(`[Atlas] 更新任务已启动，完成后将通知${notifyHint}`, true)
 
     // 异步执行，不阻塞
     runIncrementalScrapeAsync().then(async (ret) => {
       if (!ret.ok) {
-        Bot.sendMasterMsg(`[Atlas] 图鉴更新失败：${ret.error}`)
+        this._notifyResult(`[Atlas] 图鉴更新失败：${ret.error}`)
         return
       }
 
@@ -158,7 +164,7 @@ export class AtlasAdmin extends plugin {
         reloadIndex()
       } catch (err) {
         logger?.error('[Atlas][管理] 更新后索引重载失败:', err.message)
-        Bot.sendMasterMsg(`[Atlas] 图鉴更新完成但索引加载失败：${err.message}`)
+        this._notifyResult(`[Atlas] 图鉴更新完成但索引加载失败：${err.message}`)
         return
       }
 
@@ -173,13 +179,34 @@ export class AtlasAdmin extends plugin {
         ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载`
         : ''
 
-      Bot.sendMasterMsg(`[Atlas] 图鉴更新完成\n${gameLines}${imgInfo}`)
+      this._notifyResult(`[Atlas] 图鉴更新完成\n${gameLines}${imgInfo}`)
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
-      Bot.sendMasterMsg(`[Atlas] 图鉴更新异常：${err.message}`)
+      this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
     })
 
     return true
+  }
+
+  /**
+   * 发送更新结果通知（主人 + 配置群聊）
+   * @param {string} msg - 通知消息
+   */
+  _notifyResult (msg) {
+    Bot.sendMasterMsg(msg)
+    const cfg = getPluginConfig()
+    const groups = cfg?.notifyGroups || []
+    // 兼容 YAML 字符串（逗号分隔）和数组两种格式
+    const list = Array.isArray(groups)
+      ? groups
+      : String(groups).split(/[,，\s]+/).filter(Boolean)
+    for (const gid of list) {
+      const id = String(gid).trim()
+      if (!id) continue
+      Bot.sendGroupMsg(id, msg).catch(() => {
+        logger?.warn(`[Atlas][管理] 通知群 ${id} 失败`)
+      })
+    }
   }
 
   /**
@@ -196,7 +223,7 @@ export class AtlasAdmin extends plugin {
     try {
       const ret = await runIncrementalScrapeAsync()
       if (!ret.ok) {
-        Bot.sendMasterMsg(`[Atlas] 定时更新失败：${ret.error}`)
+        this._notifyResult(`[Atlas] 定时更新失败：${ret.error}`)
         return
       }
 
@@ -209,7 +236,7 @@ export class AtlasAdmin extends plugin {
         : '更新完成'
 
       logger?.info('[Atlas][管理] 定时更新完成')
-      Bot.sendMasterMsg(`[Atlas] 每日自动更新完成：${gameLines}`)
+      this._notifyResult(`[Atlas] 每日自动更新完成：${gameLines}`)
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }
