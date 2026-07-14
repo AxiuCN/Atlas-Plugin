@@ -89,8 +89,10 @@ export class AtlasAdmin extends plugin {
     // 阶段一完成，发确认消息，启动后台抓取
     const cfg = getPluginConfig()
     const mode = cfg?.notifyMode || 'all'
-    const hasGroups = mode === 'all' && parseGroupList(cfg?.notifyGroups).length > 0
-    const notifyHint = mode === 'first_master' ? '第一位主人'
+    const hasGroups = (mode === 'all' || mode === 'first_master_groups')
+      && parseGroupList(cfg?.notifyGroups).length > 0
+    const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
+      ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
       : hasGroups ? '主人和配置群' : '主人'
     await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, true)
 
@@ -151,8 +153,10 @@ export class AtlasAdmin extends plugin {
 
     const cfg = getPluginConfig()
     const mode = cfg?.notifyMode || 'all'
-    const hasGroups = mode === 'all' && parseGroupList(cfg?.notifyGroups).length > 0
-    const notifyHint = mode === 'first_master' ? '第一位主人'
+    const hasGroups = (mode === 'all' || mode === 'first_master_groups')
+      && parseGroupList(cfg?.notifyGroups).length > 0
+    const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
+      ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
       : hasGroups ? '主人和配置群' : '主人'
     await e.reply(`[Atlas] 更新任务已启动，完成后将通知${notifyHint}`, true)
 
@@ -200,7 +204,7 @@ export class AtlasAdmin extends plugin {
     const cfg = getPluginConfig()
     const mode = cfg?.notifyMode || 'all'
 
-    if (mode === 'first_master') {
+    if (mode === 'first_master' || mode === 'first_master_groups') {
       // 仅通知第一位主人
       const first = firstMaster()
       if (first) {
@@ -208,16 +212,15 @@ export class AtlasAdmin extends plugin {
           logger?.warn('[Atlas][管理] 通知第一位主人失败')
         })
       }
-      return
+      // first_master_groups 续行群通知
+      if (mode === 'first_master') return
+    } else {
+      // all / master_only：通知全部主人
+      Bot.sendMasterMsg(msg)
+      if (mode === 'master_only') return
     }
 
-    // all / master_only：通知全部主人
-    Bot.sendMasterMsg(msg)
-
-    // master_only 跳过群通知
-    if (mode === 'master_only') return
-
-    // all 模式：额外通知配置群
+    // 发送配置群（all / first_master_groups）
     const list = parseGroupList(cfg?.notifyGroups)
     for (const gid of list) {
       Bot.sendGroupMsg(gid, msg).catch(() => {

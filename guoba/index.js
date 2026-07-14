@@ -136,7 +136,8 @@ export function supportGuoba () {
             options: [
               { label: '全部通知（全部主人+群聊）', value: 'all' },
               { label: '仅通知全部主人', value: 'master_only' },
-              { label: '仅通知第一位主人', value: 'first_master' }
+              { label: '仅通知第一位主人', value: 'first_master' },
+              { label: '第一位主人+群聊', value: 'first_master_groups' }
             ]
           }
         }

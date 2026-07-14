@@ -74,7 +74,7 @@ autoUpdate:
   enabled: true       # 是否启用每日自动更新
   cron: '0 0 5 * * *' # 自动更新 cron（6字段：秒 分 时 日 月 周）
 notifyGroups: []      # 更新完成后通知的群号列表，留空仅通知主人
-notifyMode: 'all'     # 通知模式：all=全部主人+配置群 / master_only=全部主人 / first_master=第一位主人
+notifyMode: 'all'     # all=全部主人+群聊 / master_only=全部主人 / first_master=第一位主人 / first_master_groups=第一位主人+群聊
 ```
 
 > 首次启动时自动从 `config/config.yaml.example` 复制默认配置。
