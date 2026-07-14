@@ -1,5 +1,5 @@
 import plugin from '../../../lib/plugins/plugin.js'
-import { search, getPageRecords } from '../model/AtlasService.js'
+import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas } from '../components/render.js'
 import { getPluginConfig } from '../components/config.js'
 import {
@@ -74,15 +74,20 @@ export class atlas extends plugin {
           return true
 
         case 'exact': {
-          const data = this._buildDetailData(gameId, result.results[0])
+          const entry = result.results[0]
+          const record = loadRecord(entry.filePath)
+          if (!record) {
+            await e.reply(`[Atlas] ${entry.name} 的数据文件缺失，请执行数据抓取`)
+            return true
+          }
+          const data = this._buildDetailData(gameId, { ...entry, record })
           const img = await renderAtlas('detail', data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
           else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`)
           return true
         }
 
-        case 'multi':
-        case 'fuzzy': {
+        case 'list': {
           const data = this._buildListData(gameId, result)
           const img = await renderAtlas('list', data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
