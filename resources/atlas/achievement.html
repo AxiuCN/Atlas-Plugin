@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+  <style>
+    /* 成就分类卡片网格 */
+    .card-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .ach-card {
+      flex: 0 0 calc(33.33% - 7px);
+      padding: 14px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s;
+    }
+    .ach-card:hover {
+      background: rgba(255, 255, 255, 0.09);
+    }
+    .ach-card .card-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e0e0e0;
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+    .ach-card .card-meta {
+      font-size: 12px;
+      color: #707888;
+    }
+    .ach-card .card-count {
+      font-size: 13px;
+      color: #b0b8c8;
+      margin-top: 2px;
+    }
+
+    /* 缺失文件卡片 */
+    .ach-card.missing {
+      opacity: 0.5;
+      border-color: rgba(255, 80, 80, 0.3);
+    }
+    .ach-card.missing .card-name {
+      color: #8890a8;
+    }
+
+    /* 顶部缺失提示 */
+    .missing-banner {
+      padding: 8px 12px;
+      background: rgba(255, 200, 40, 0.1);
+      border: 1px solid rgba(255, 200, 40, 0.25);
+      border-radius: 6px;
+      font-size: 13px;
+      color: #d4a830;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    /* 底部操作提示 */
+    .action-hint {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #606880;
+      text-align: center;
+    }
+    .action-hint code {
+      color: #a0a8b8;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · 成就目录</div>
+    <div class="title">成就分类</div>
+    <div class="subtitle">共 {{totalCategories}} 个分类</div>
+  </div>
+
+  {{if !allOnDisk}}
+  <div class="missing-banner">⚠ 部分成就分类的数据文件缺失，请执行对应游戏的图鉴更新</div>
+  {{/if}}
+
+  <div class="card-grid">
+    {{each categories cat}}
+    <div class="ach-card {{cat.cardClass}}">
+      <div class="card-name">{{cat.name}}</div>
+      <div class="card-count">{{cat.countDisplay}}</div>
+      {{if cat.rarity}}
+      <div class="card-meta">{{cat.rarity}}</div>
+      {{/if}}
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="action-hint">发送 <code>{{prefix}}成就&lt;分类名&gt;</code> 查看分类下全部成就</div>
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

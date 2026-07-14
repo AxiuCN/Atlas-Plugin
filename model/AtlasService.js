@@ -205,4 +205,13 @@ export function reloadIndex () {
   ensureIndex()
 }
 
+/**
+ * 获取 map.json 缓存（供外部模块复用，避免重复解析）
+ * @returns {object}
+ */
+export function loadMap () {
+  ensureIndex()
+  return mapCache
+}
+
 export { dataDir }

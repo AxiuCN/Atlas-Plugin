@@ -55,14 +55,12 @@ export const PAGE_LABELS = {
 // 特殊页面触发词（不受常规搜索覆盖，触发特殊逻辑）
 export const SPECIAL_TRIGGERS = {
   gi: {
-    '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
     '深渊': { pageKey: 'tower', type: 'page_detail' },
     '深境螺旋': { pageKey: 'tower', type: 'page_detail' },
     '剧诗': { pageKey: 'rolecombat', type: 'page_detail' },
     '幻想真境剧诗': { pageKey: 'rolecombat', type: 'page_detail' }
   },
   hsr: {
-    '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
     '混沌': { pageKey: 'maze', type: 'page_detail' },
     '混沌回忆': { pageKey: 'maze', type: 'page_detail' },
     '末日': { pageKey: 'maze_boss', type: 'page_detail' },
@@ -71,7 +69,6 @@ export const SPECIAL_TRIGGERS = {
     '虚构叙事': { pageKey: 'maze_extra', type: 'page_detail' }
   },
   zzz: {
-    '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
     '防卫战': { pageKey: 'shiyu', type: 'page_detail' },
     '式舆': { pageKey: 'shiyu', type: 'page_detail' },
     '危局': { pageKey: 'boss', type: 'page_detail' },
