@@ -372,10 +372,10 @@ export function getDataStatus () {
     // 图片统计
     const imgMeta = gallery?.meta || {}
     const images = {
-      total: imgMeta.imageCount || 0,
-      downloaded: imgMeta.downloadedCount || 0,
-      placeholder: imgMeta.placeholderCount || 0,
-      missing: imgMeta.missingCount || imgMeta.imageCount || 0
+      total: imgMeta.imageCount ?? 0,
+      downloaded: imgMeta.downloadedCount ?? 0,
+      placeholder: imgMeta.placeholderCount ?? 0,
+      missing: imgMeta.missingCount ?? imgMeta.imageCount ?? 0
     }
 
     const meta = map.meta || {}
