@@ -10,23 +10,34 @@ export class achievement extends plugin {
       event: 'message',
       priority: 9990,
       rule: [
+        // GI: #成就 → 不触发框架前缀转换
         { reg: /^#成就(.*)$/, fnc: 'achievementGI', permission: 'all', log: false },
-        { reg: /^\*成就(.*)$/, fnc: 'achievementHSR', permission: 'all', log: false },
-        { reg: /^%成就(.*)$/, fnc: 'achievementZZZ', permission: 'all', log: false }
+        // HSR: *成就 → 框架转换为 #星铁成就，此正则匹配转换后形态
+        { reg: /^#星铁成就(.*)$/, fnc: 'achievementHSR', permission: 'all', log: false },
+        // ZZZ: %成就 → 框架转换为 #绝区零成就
+        { reg: /^#绝区零成就(.*)$/, fnc: 'achievementZZZ', permission: 'all', log: false }
       ]
     })
   }
 
+  /** GI: 参数从 e.msg 提取 "成就" 后的部分 */
   async achievementGI (e) {
-    return this._handle(e, 'gi', e.msg.replace(/^#成就/, '').trim())
+    const categoryName = e.msg.replace(/^#成就/, '').trim()
+    return this._handle(e, 'gi', categoryName)
   }
 
+  /** HSR: 参数为捕获组 1（转换后 #星铁成就 之后的部分） */
   async achievementHSR (e) {
-    return this._handle(e, 'hsr', e.msg.replace(/^\*成就/, '').trim())
+    const match = e.msg.match(/^#星铁成就(.*)$/)
+    const categoryName = match ? match[1].trim() : ''
+    return this._handle(e, 'hsr', categoryName)
   }
 
+  /** ZZZ: 参数为捕获组 1（转换后 #绝区零成就 之后的部分） */
   async achievementZZZ (e) {
-    return this._handle(e, 'zzz', e.msg.replace(/^%成就/, '').trim())
+    const match = e.msg.match(/^#绝区零成就(.*)$/)
+    const categoryName = match ? match[1].trim() : ''
+    return this._handle(e, 'zzz', categoryName)
   }
 
   /**

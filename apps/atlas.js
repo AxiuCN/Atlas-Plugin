@@ -18,6 +18,8 @@ export class atlas extends plugin {
       event: 'message',
       priority: config.priority || 10000,
       rule: [
+        // 三条 rule 均匹配 # 前缀：框架会将 * → #星铁、% → #绝区零，
+        // 因此 * / % 正则仅作兜底（无框架转换时生效），实际路由在 atlasGI 中二次判断
         { reg: /^#(.+)$/, fnc: 'atlasGI', permission: 'all', log: false },
         { reg: /^\*(.+)$/, fnc: 'atlasHSR', permission: 'all', log: false },
         { reg: /^%(.+)$/, fnc: 'atlasZZZ', permission: 'all', log: false }
@@ -25,9 +27,21 @@ export class atlas extends plugin {
     })
   }
 
-  /** 原神 # 前缀 */
+  /** 原神 # 前缀 — 同时检测框架转换的星铁/绝区零前缀并路由 */
   async atlasGI (e) {
-    return this._handle(e, 'gi', e.msg.replace(/^#/, '').trim())
+    let keyword = e.msg.replace(/^#/, '').trim()
+    let gameId = 'gi'
+
+    // 框架 loader.js 将 *xxx → #星铁xxx、%xxx → #绝区零xxx
+    if (keyword.startsWith('星铁')) {
+      gameId = 'hsr'
+      keyword = keyword.replace(/^星铁/, '').trim()
+    } else if (keyword.startsWith('绝区零')) {
+      gameId = 'zzz'
+      keyword = keyword.replace(/^绝区零/, '').trim()
+    }
+
+    return this._handle(e, gameId, keyword)
   }
 
   /** 星铁 * 前缀 */
