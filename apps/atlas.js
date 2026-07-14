@@ -1,11 +1,12 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
-import { renderAtlas } from '../components/render.js'
+import { renderAtlas, selectTemplate } from '../components/render.js'
 import { getPluginConfig } from '../components/config.js'
 import {
   PREFIX_GAME,
   GAME_NAMES,
-  PAGE_LABELS
+  PAGE_LABELS,
+  CHALLENGE_PAGE_KEYS
 } from '../components/constants.js'
 
 const config = getPluginConfig()
@@ -81,7 +82,8 @@ export class atlas extends plugin {
             return true
           }
           const data = this._buildDetailData(gameId, { ...entry, record })
-          const img = await renderAtlas('detail', data, { imgType: 'jpeg' })
+          const tpl = selectTemplate(result)
+          const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
           else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`)
           return true
@@ -89,7 +91,8 @@ export class atlas extends plugin {
 
         case 'list': {
           const data = this._buildListData(gameId, result)
-          const img = await renderAtlas('list', data, { imgType: 'jpeg' })
+          const tpl = selectTemplate(result)
+          const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
           else await e.reply(`[Atlas] 列表渲染失败`)
           return true
@@ -132,25 +135,32 @@ export class atlas extends plugin {
         results: records,
         total: records.length
       }
-      const img = await renderAtlas('list', data, { imgType: 'jpeg' })
+      const tpl = selectTemplate(result)
+      const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
       if (img) await e.reply(img)
       return true
     }
 
     if (result.specialType === 'page_detail') {
-      // 挑战类页面：取第一条记录渲染详情
+      // 挑战类页面：取最新记录渲染详情
       const records = getPageRecords(gameId, result.pageKey)
       if (records.length === 0) {
         await e.reply(`[Atlas] ${result.pageTitle}数据为空`)
         return true
       }
 
-      // 挑战页面通常按时间倒序，取第一条即最新
+      // 挑战页面通常按时间倒序，取最后一条即最新
       const latest = records[records.length - 1] || records[0]
-      const data = this._buildDetailData(gameId, latest)
-      const img = await renderAtlas('detail', data, { imgType: 'jpeg' })
+      const record = loadRecord(latest.filePath)
+      if (!record) {
+        await e.reply(`[Atlas] ${latest.name} 的数据文件缺失，请执行数据抓取`)
+        return true
+      }
+      const data = this._buildDetailData(gameId, { ...latest, record })
+      const tpl = selectTemplate(result)
+      const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
       if (img) await e.reply(img)
-      else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`, true)
+      else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`)
       return true
     }
 
@@ -201,17 +211,130 @@ export class atlas extends plugin {
     // 描述文本
     const desc = this._formatValue(list.desc || list.description || '')
 
+    // 挑战类页面：提取结构化 sections
+    const sections = CHALLENGE_PAGE_KEYS.has(result.pageKey)
+      ? this._buildChallengeSections(result.pageKey, detail)
+      : []
+
     return {
       gameName: GAME_NAMES[gameId],
       pageTitle: result.pageTitle || (PAGE_LABELS[result.pageKey] || result.pageKey),
       recordName: meta.name || result.name,
       rarity: meta.rarity || result.rarity || '',
       desc: desc.length > 200 ? '' : desc,
-      sections: [],
+      sections,
       rawFields,
       gameId,
       pageKey: result.pageKey
     }
+  }
+
+  /**
+   * 构建挑战类页面的结构化 sections
+   * 从 detail 中提取 floor/room/buff 等层级数据
+   * @param {string} pageKey
+   * @param {object} detail - record.content.detail
+   * @returns {Array<{title: string, fields: Array<{label: string, value: string}>}>}
+   */
+  _buildChallengeSections (pageKey, detail) {
+    if (!detail || typeof detail !== 'object') return []
+
+    const sections = []
+    let floorData = null
+
+    // 定位楼层数据：不同的 pageKey 可能有不同的 key 名
+    const floorKeys = ['floor', 'floors', 'nodes', 'rooms']
+    for (const key of floorKeys) {
+      if (detail[key] && typeof detail[key] === 'object' && !Array.isArray(detail[key])) {
+        floorData = detail[key]
+        break
+      }
+    }
+
+    // 如果没有明确的楼层 key，尝试找任何有数字子键的对象
+    if (!floorData) {
+      for (const [key, value] of Object.entries(detail)) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          const subKeys = Object.keys(value)
+          const numericKeys = subKeys.filter(k => /^\d+$/.test(k))
+          if (numericKeys.length > 0) {
+            floorData = detail[key]
+            break
+          }
+        }
+      }
+    }
+
+    if (floorData) {
+      const floorNums = Object.keys(floorData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
+      for (const floorNum of floorNums) {
+        const floor = floorData[floorNum]
+        if (!floor || typeof floor !== 'object') continue
+        const fields = []
+        const floorTitle = `第${floorNum}层`
+
+        // 地脉异常 / buff
+        if (floor.buff) {
+          const buffText = Array.isArray(floor.buff)
+            ? floor.buff.map(b => (typeof b === 'object' ? (b.name || b.title || '') : String(b))).filter(Boolean).join('；')
+            : String(floor.buff)
+          if (buffText.trim()) {
+            fields.push({ label: '地脉异常', value: buffText })
+          }
+        }
+
+        // 记忆紊流（星铁特有）
+        if (floor.turbulence) {
+          const turbText = Array.isArray(floor.turbulence)
+            ? floor.turbulence.map(t => (typeof t === 'object' ? (t.name || t.title || '') : String(t))).filter(Boolean).join('；')
+            : String(floor.turbulence)
+          if (turbText.trim()) {
+            fields.push({ label: '记忆紊流', value: turbText })
+          }
+        }
+
+        // 房间 / 节点
+        if (floor.room && typeof floor.room === 'object') {
+          const roomNums = Object.keys(floor.room).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
+          for (const roomNum of roomNums) {
+            const room = floor.room[roomNum]
+            if (!room) continue
+            let roomText = ''
+            if (typeof room === 'object') {
+              const parts = []
+              if (room.name) parts.push(String(room.name))
+              if (room.title) parts.push(String(room.title))
+              const monsters = room.monsters || room.enemies || room.monster
+              if (Array.isArray(monsters)) {
+                for (const m of monsters) {
+                  if (typeof m === 'object' && m.name) parts.push(String(m.name))
+                  else if (typeof m === 'string') parts.push(m)
+                }
+              }
+              roomText = parts.join(' — ')
+            } else {
+              roomText = String(room)
+            }
+            if (roomText.trim()) {
+              fields.push({ label: `第${roomNum}间`, value: roomText })
+            }
+          }
+        }
+
+        // 通用：遍历 floor 的其他非嵌套字段作为补充
+        for (const [key, value] of Object.entries(floor)) {
+          if (['buff', 'turbulence', 'room', 'name', 'title'].includes(key)) continue
+          if (value == null || typeof value === 'object') continue
+          fields.push({ label: this._fieldLabel(key), value: this._formatValue(value) })
+        }
+
+        if (fields.length > 0) {
+          sections.push({ title: floorTitle, fields })
+        }
+      }
+    }
+
+    return sections
   }
 
   /**

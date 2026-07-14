@@ -108,6 +108,31 @@ export const SPECIAL_TRIGGERS = {
   }
 }
 
+// 挑战类 pageKey 集合（对应挑战详情模板 challenge.html）
+export const CHALLENGE_PAGE_KEYS = new Set([
+  // 原神
+  'tower',              // 深境螺旋
+  'leyline',            // 地脉异常
+  'rolecombat',         // 幻想真境剧诗
+  // 星铁
+  'maze',               // 混沌回忆
+  'maze_boss',          // 末日幻影
+  'maze_extra',         // 虚构叙事
+  'maze_peak',          // 异相仲裁
+  // 绝区零
+  'shiyu',              // 式舆防卫战
+  'boss'                // 危局强袭战
+])
+
+// 模板名常量
+export const TEMPLATE = {
+  DETAIL: 'detail',
+  CHALLENGE: 'challenge',
+  LIST: 'list',
+  ACHIEVEMENT: 'achievement',
+  ACHIEVEMENT_CATEGORY: 'achievement-category'
+}
+
 // Data 目录路径（相对于 submodule）
 export const DATA_DIR = 'tool/nanoka-atlas-backend/nanoka-atlas-backend/data'
 

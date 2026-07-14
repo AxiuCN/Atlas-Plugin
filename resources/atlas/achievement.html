@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+  <style>
+    .achievement-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 16px 20px;
+    }
+    .achievement-card {
+      width: calc(50% - 5px);
+      background: #1e2030;
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-sizing: border-box;
+    }
+    .achievement-card .card-name {
+      font-size: 15px;
+      color: #cad3f5;
+      font-weight: bold;
+    }
+    .achievement-card .card-meta {
+      font-size: 12px;
+      color: #8087a1;
+      margin-top: 4px;
+    }
+    .total-info {
+      text-align: center;
+      padding: 8px 20px;
+      color: #8087a1;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · {{keyword}}</div>
+    <div class="title">成就分类</div>
+    {{if total}}
+    <div class="subtitle">共 {{total}} 条成就，{{groups.length}} 个分类</div>
+    {{/if}}
+  </div>
+
+  <div class="achievement-grid">
+    {{each groups group}}
+    <div class="achievement-card">
+      <div class="card-name">{{group.title}}</div>
+      <div class="card-meta">{{group.items.length}} 条</div>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="total-info">点击分类卡片可查看详情（后续版本支持）</div>
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

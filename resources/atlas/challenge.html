@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · {{pageTitle}}</div>
+    <div class="title">{{recordName}}</div>
+    {{if desc}}
+    <div class="subtitle">{{desc}}</div>
+    {{/if}}
+  </div>
+
+  <div class="detail-box">
+    {{if sections.length > 0}}
+      {{each sections section}}
+      <div class="detail-section">
+        <h3>{{section.title}}</h3>
+        <table class="detail-table">
+          {{each section.fields field}}
+          <tr>
+            <td class="label">{{field.label}}</td>
+            <td class="value">{{field.value}}</td>
+          </tr>
+          {{/each}}
+        </table>
+      </div>
+      {{/each}}
+    {{else}}
+      <div class="detail-section">
+        <table class="detail-table">
+          {{each rawFields field}}
+          <tr>
+            <td class="label">{{field.label}}</td>
+            <td class="value">{{field.value}}</td>
+          </tr>
+          {{/each}}
+        </table>
+      </div>
+    {{/if}}
+  </div>
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

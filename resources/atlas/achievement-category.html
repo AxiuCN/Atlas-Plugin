@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+  <style>
+    .achievement-list {
+      padding: 16px 20px;
+    }
+    .achievement-group {
+      margin-bottom: 14px;
+    }
+    .achievement-group .group-name {
+      font-size: 15px;
+      color: #cad3f5;
+      font-weight: bold;
+      margin-bottom: 6px;
+      padding-left: 4px;
+      border-left: 3px solid #8aadf4;
+    }
+    .achievement-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 12px;
+      border-bottom: 1px solid #24273a;
+    }
+    .achievement-item:last-child {
+      border-bottom: none;
+    }
+    .achievement-item .item-name {
+      font-size: 14px;
+      color: #cad3f5;
+    }
+    .achievement-item .item-desc {
+      font-size: 12px;
+      color: #6e738d;
+      max-width: 320px;
+      text-align: right;
+      line-height: 1.4;
+    }
+    .back-hint {
+      text-align: center;
+      padding: 8px 20px;
+      color: #8087a1;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · 成就</div>
+    <div class="title">{{categoryName || keyword}}</div>
+    <div class="subtitle">共 {{total}} 条</div>
+  </div>
+
+  <div class="achievement-list">
+    {{if groups.length > 0}}
+      {{each groups group}}
+      <div class="achievement-group">
+        {{if group.title}}
+        <div class="group-name">{{group.title}}（{{group.items.length}}）</div>
+        {{/if}}
+        {{each group.items item}}
+        <div class="achievement-item">
+          <span class="item-name">{{item.name}}</span>
+          {{if item.desc}}
+          <span class="item-desc">{{item.desc}}</span>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+    {{else}}
+      {{each results item}}
+      <div class="achievement-item">
+        <span class="item-name">{{item.name}}</span>
+        {{if item.rarity}}
+        <span class="item-desc">{{item.rarity}}</span>
+        {{/if}}
+      </div>
+      {{/each}}
+    {{/if}}
+  </div>
+
+  <div class="back-hint">成就数据来自 nanoka.cc</div>
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

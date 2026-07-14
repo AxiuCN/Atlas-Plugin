@@ -1,9 +1,33 @@
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
+import { CHALLENGE_PAGE_KEYS } from './constants.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
+
+/**
+ * 根据搜索结果选择对应模板
+ * 特殊触发词 → 挑战类 pageKey → 列表 → 默认详情
+ * @param {object} result - search() 返回值或特殊触发结果
+ * @returns {string} 模板名（对应 resources/atlas/<name>.html）
+ */
+export function selectTemplate (result) {
+  // 特殊页面
+  if (result.type === 'special') {
+    if (result.specialType === 'page_list') return 'achievement'
+    if (result.specialType === 'page_detail') return 'challenge'
+  }
+
+  // 正常搜索：取第一条结果的 pageKey 判断
+  const entry = result.results?.[0]
+  if (entry && CHALLENGE_PAGE_KEYS.has(entry.pageKey)) {
+    return 'challenge'
+  }
+
+  if (result.type === 'list') return 'list'
+  return 'detail'
+}
 
 /**
  * 渲染 HTML 模板并截图
