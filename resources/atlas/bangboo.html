@@ -10,7 +10,7 @@
     <div class="hero-title">{{name}}</div>
   </div>
 
-  {{if metaFields.length > 0}}
+  {{if metaFields && metaFields.length > 0}}
   <div class="stat-grid">
     {{each metaFields f}}
     <div class="stat-cell">
