@@ -70,10 +70,7 @@ export class atlas extends plugin {
 
       switch (result.type) {
         case 'empty':
-          if (result.keyword) {
-            await e.reply(`[Atlas] 未在${GAME_NAMES[gameId]}中找到与"${result.keyword}"匹配的条目`)
-          }
-          return true
+          return false
 
         case 'exact': {
           const entry = result.results[0]
@@ -388,7 +385,9 @@ export class atlas extends plugin {
       keyword: result.keyword,
       groups,
       results: result.results,
-      total: result.total
+      total: result.total,
+      metaFields: [],
+      sections: []
     }
   }
 

@@ -39,15 +39,13 @@ export function selectTemplate (result) {
     return 'detail'
   }
 
-  // 列表结果统一用列表模板
-  if (result.type === 'list') return 'list'
-
   // 挑战类 pageKey
   if (CHALLENGE_PAGE_KEYS.has(entry.pageKey)) return 'challenge'
 
   // 类型专用模板
   if (TEMPLATE_BY_PAGE[entry.pageKey]) return TEMPLATE_BY_PAGE[entry.pageKey]
 
+  if (result.type === 'list') return 'list'
   return 'detail'
 }
 
