@@ -6,11 +6,13 @@
 </head>
 <body>
   <div class="hero">
-    <div class="hero-game">{{gameName}} · 图鉴查询</div>
-    <div class="hero-title">"{{keyword}}" 的搜索结果</div>
-    {{if total > results.length}}
-    <div class="hero-subtitle">共 {{total}} 条，显示前 {{results.length}} 条</div>
-    {{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · 图鉴查询</div>
+      <div class="hero-title">"{{keyword}}" 的搜索结果</div>
+      {{if total > results.length}}
+      <div class="hero-subtitle">共 {{total}} 条，显示前 {{results.length}} 条</div>
+      {{/if}}
+    </div>
   </div>
 
   <div class="result-list">

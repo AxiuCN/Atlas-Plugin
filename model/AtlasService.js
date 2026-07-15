@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   GAME_NAMES,
   PAGE_LABELS,
@@ -453,6 +453,21 @@ function scoreCandidateFile (candidate, keyword) {
   if (base.includes(key)) score += 20
   score -= Math.max(0, candidate.base.length - keyword.length)
   return score
+}
+
+/**
+ * 从记录 JSON 的 meta.images 中解析主图 file:// URL
+ * 优先选 downloaded 非 placeholder，兜底任意有 localPath 的
+ * @param {object} record — 完整记录 JSON
+ * @returns {string} file:// URL，无图片时返回空串
+ */
+export function resolveRecordImage (record) {
+  const images = record?.meta?.images
+  if (!images || !Array.isArray(images) || !images.length) return ''
+  const picked = images.find(item => item?.localPath && item.status === 'downloaded' && !item.placeholder)
+    || images.find(item => item?.localPath)
+  if (!picked?.localPath) return ''
+  return pathToFileURL(path.join(dataDir, picked.localPath)).href
 }
 
 /**

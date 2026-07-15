@@ -6,11 +6,14 @@
 </head>
 <body>
   <div class="hero">
-    <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
-    <div class="hero-title">{{recordName}}</div>
-    {{if desc}}
-    <div class="hero-subtitle">{{desc}}</div>
-    {{/if}}
+    {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
+      <div class="hero-title">{{recordName}}</div>
+      {{if desc}}
+      <div class="hero-subtitle">{{desc}}</div>
+      {{/if}}
+    </div>
   </div>
 
   <div class="detail-box">

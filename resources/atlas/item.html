@@ -6,8 +6,11 @@
 </head>
 <body>
   <div class="hero">
-    <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
-    <div class="hero-title">{{name}}</div>
+    {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
+      <div class="hero-title">{{name}}</div>
+    </div>
   </div>
 
   {{if metaFields && metaFields.length > 0}}

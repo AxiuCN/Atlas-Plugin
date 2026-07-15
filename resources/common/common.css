@@ -20,7 +20,21 @@ body {
   border-radius: 28px;
   padding: 28px 34px;
   margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
   position: relative;
+}
+.hero-portrait {
+  width: 140px;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+.hero-text {
+  flex: 1;
+  min-width: 0;
 }
 .hero .hero-game {
   font-size: 14px;

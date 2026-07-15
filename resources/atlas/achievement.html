@@ -6,11 +6,13 @@
 </head>
 <body>
   <div class="hero">
-    <div class="hero-game">{{gameName}} · {{keyword}}</div>
-    <div class="hero-title">成就分类</div>
-    {{if total}}
-    <div class="hero-subtitle">共 {{total}} 条成就，{{groups.length}} 个分类</div>
-    {{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · {{keyword}}</div>
+      <div class="hero-title">成就分类</div>
+      {{if total}}
+      <div class="hero-subtitle">共 {{total}} 条成就，{{groups.length}} 个分类</div>
+      {{/if}}
+    </div>
   </div>
 
   <div class="achievement-grid">

@@ -1,5 +1,5 @@
 import plugin from '../../../lib/plugins/plugin.js'
-import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
+import { search, getPageRecords, loadRecord, resolveRecordImage } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { getPluginConfig } from '../components/config.js'
 import {
@@ -188,6 +188,7 @@ export class atlas extends plugin {
           pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
           name: meta.name || result.name,
           rarity: meta.rarity || result.rarity || '',
+          image: resolveRecordImage(record),
           metaFields: typeData.metaFields || [],
           sections: typeData.sections || [],
           rawFields: [],
@@ -243,6 +244,7 @@ export class atlas extends plugin {
       recordName: meta.name || result.name,
       rarity: meta.rarity || result.rarity || '',
       desc: desc.length > 200 ? '' : desc,
+      image: resolveRecordImage(record),
       metaFields: [],
       sections: sections || [],
       rawFields: rawFields || [],

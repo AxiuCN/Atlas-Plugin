@@ -6,9 +6,11 @@
 </head>
 <body>
   <div class="hero">
-    <div class="hero-game">{{gameName}} · 成就</div>
-    <div class="hero-title">{{categoryName || keyword}}</div>
-    <div class="hero-subtitle">共 {{total}} 条</div>
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · 成就</div>
+      <div class="hero-title">{{categoryName || keyword}}</div>
+      <div class="hero-subtitle">共 {{total}} 条</div>
+    </div>
   </div>
 
   {{if groups.length > 0}}
