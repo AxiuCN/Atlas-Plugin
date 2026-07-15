@@ -5,15 +5,18 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
 </head>
 <body>
-  <div class="header">
-    <div class="game-name">{{gameName}} · {{pageTitle}}</div>
-    <div class="title">{{name}}</div>
+  <div class="hero">
+    <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
+    <div class="hero-title">{{name}}</div>
   </div>
 
   {{if metaFields.length > 0}}
-  <div class="meta-row">
+  <div class="stat-grid">
     {{each metaFields f}}
-    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    <div class="stat-cell">
+      <div class="stat-label">{{f.label}}</div>
+      <div class="stat-value">{{f.value}}</div>
+    </div>
     {{/each}}
   </div>
   {{/if}}

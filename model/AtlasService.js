@@ -69,7 +69,9 @@ function ensureIndex () {
           pageTitle,
           rarity: record.rarity || '',
           recordId,
-          filePath: record.path
+          filePath: record.path,
+          imageCount: Number(record.imageCount || 0),
+          aliases: buildEntryAliases(record)
         })
       }
     }
@@ -94,28 +96,29 @@ function scoreEntry (entry, variants, originalKeyword) {
   let best = 0
 
   for (const variant of variants) {
-    const text = entry.nameMatch
-    if (!text || !variant.key) continue
+    for (const alias of entry.aliases || []) {
+      const text = normalizeForMatch(alias)
+      if (!text || !variant.key) continue
 
-    let baseScore = 0
+      let score = 0
 
-    if (text === variant.key) {
-      baseScore = variant.alias ? 155 : 180
-    } else if (text.startsWith(variant.key)) {
-      baseScore = variant.alias ? 70 : 100
-    } else if (text.includes(variant.key)) {
-      baseScore = variant.alias ? 45 : 65
-    } else if (variant.key.includes(text) && text.length >= 2) {
-      baseScore = 45
+      if (text === variant.key) {
+        score += variant.alias ? 155 : 180
+      } else if (text.startsWith(variant.key)) {
+        score += variant.alias ? 70 : 100
+      } else if (text.includes(variant.key)) {
+        score += variant.alias ? 45 : 65
+      } else if (variant.key.includes(text) && text.length >= 2) {
+        score += 45
+      }
+
+      if (score) {
+        score += PAGE_PRIORITY[entry.pageTitle] || 0
+        if (entry.imageCount > 0) score += 5
+        if (entry.name === originalKeyword) score += 20
+        best = Math.max(best, score)
+      }
     }
-
-    if (baseScore === 0) continue
-
-    let score = baseScore
-    score += PAGE_PRIORITY[entry.pageTitle] || 0
-    if (entry.name === originalKeyword) score += 20
-
-    if (score > best) best = score
   }
 
   return best
@@ -253,22 +256,65 @@ export function search (gameId, keyword) {
 
   // ===== Phase 2: 二次评分（前 maxResults*5 条加载 JSON） =====
   const phase2Limit = Math.max(MAX_RESULTS * 5, MAX_RESULTS)
+  const seen = new Set()
+  const loaded = []
   for (const item of scored.slice(0, phase2Limit)) {
+    if (seen.has(item.entry.filePath)) continue
+    seen.add(item.entry.filePath)
     const record = loadRecord(item.entry.filePath)
     if (record) {
       item.score += scoreLoadedItem(record, variants)
+      loaded.push(item)
     }
   }
 
-  // Phase 2 后重新排序
-  scored.sort((a, b) =>
+  // ===== 兜底全文扫描 =====
+  if (shouldRunDetailFallback(loaded, MAX_RESULTS, variants)) {
+    const detailMatches = findDetailFallbackMatches(flat, variants, seen)
+    for (const match of detailMatches) {
+      if (!loaded.some(l => l.entry.filePath === match.entry.filePath)) {
+        loaded.push(match)
+      }
+    }
+  }
+
+  // ===== 文件系统兜底 =====
+  if (!loaded.length) {
+    const itemsRoot = path.join(dataDir, 'items', '简体中文')
+    const candidates = findCandidateFiles(itemsRoot, trimmed)
+    for (const candidate of candidates.slice(0, Math.max(MAX_RESULTS * 3, MAX_RESULTS))) {
+      const record = loadRecord(path.relative(dataDir, candidate.file))
+      if (record) {
+        const score = scoreCandidateFile(candidate, trimmed) + scoreLoadedItem(record, variants)
+        const entry = {
+          name: candidate.base,
+          nameLower: candidate.base.toLowerCase(),
+          nameMatch: normalizeForMatch(candidate.base),
+          pageKey: '',
+          pageTitle: '',
+          rarity: '',
+          recordId: '',
+          filePath: path.relative(dataDir, candidate.file),
+          imageCount: 0,
+          aliases: new Set([candidate.base])
+        }
+        loaded.push({ entry, score })
+      }
+    }
+  }
+
+  if (!loaded.length) {
+    return { type: 'empty', keyword: trimmed }
+  }
+
+  // ===== 最终排序 =====
+  loaded.sort((a, b) =>
     b.score - a.score
-    || a.entry.name.length - b.entry.name.length
     || a.entry.name.localeCompare(b.entry.name, 'zh-Hans-CN')
   )
 
   // 附加 score 到结果
-  const results = scored.slice(0, MAX_RESULTS).map(item => ({
+  const results = loaded.slice(0, MAX_RESULTS).map(item => ({
     ...item.entry,
     score: item.score
   }))
@@ -283,13 +329,131 @@ export function search (gameId, keyword) {
     gameName: GAME_NAMES[gameId],
     keyword: trimmed,
     results,
-    total: scored.length
+    total: loaded.length
   }
 }
 
 /* ============================================================
  *  工具函数
  * ============================================================ */
+
+/**
+ * 去掉 map.json 去重后缀 __N * @param {string} value
+ * @returns {string}
+ */
+function stripDuplicateSuffix (value = '') {
+  return String(value).replace(/__\d+$/, '')
+}
+
+/**
+ * 为每条记录生成匹配别名 Set
+ * 包含：record.name、record.id、stripDuplicateSuffix(name)、basename、带后缀移除的basename
+ * @param {object} record — map.json 中的 record 对象
+ * @returns {Set<string>}
+ */
+function buildEntryAliases (record) {
+  const aliases = new Set([
+    record.name,
+    record.id,
+    stripDuplicateSuffix(record.name),
+    path.basename(record.path || '', '.json'),
+    stripDuplicateSuffix(path.basename(record.path || '', '.json'))
+  ].filter(Boolean).map(String))
+  return aliases
+}
+
+/**
+ * 判断是否需要兜底全文扫描
+ */
+function needsDetailFallback (loaded, maxResults) {
+  if (loaded.length < maxResults) return true
+  const topPriority = PAGE_PRIORITY[loaded[0]?.entry?.pageTitle] || 0
+  return topPriority < 180
+}
+
+/**
+ * 判断是否触发兜底全文扫描
+ */
+function shouldRunDetailFallback (loaded, maxResults, variants, strict = false) {
+  if (!needsDetailFallback(loaded, maxResults)) return false
+  if (!strict) return true
+  return Math.max(...variants.map(v => v.key.length), 0) >= 3
+}
+
+/**
+ * 兜底全文扫描：对高优先级条目的 JSON 原文做子串匹配
+ * 评分公式：PAGE_PRIORITY[pageTitle] + 120 + scoreLoadedItem
+ */
+function findDetailFallbackMatches (flat, variants, seen) {
+  const matches = []
+
+  const highPriorityEntries = flat.filter(entry =>
+    (PAGE_PRIORITY[entry.pageTitle] || 0) >= 180
+    && !seen.has(entry.filePath))
+
+  for (const entry of highPriorityEntries) {
+    const fullPath = path.join(dataDir, entry.filePath)
+    let raw
+    try { raw = fs.readFileSync(fullPath, 'utf8') } catch { continue }
+    const normalized = normalizeForMatch(raw)
+    if (!variants.some(variant => normalized.includes(variant.key))) continue
+
+    const record = loadRecord(entry.filePath)
+    if (!record) continue
+
+    const score = (PAGE_PRIORITY[entry.pageTitle] || 0) + 120 + scoreLoadedItem(record, variants)
+    matches.push({ entry, score })
+    seen.add(entry.filePath)
+    if (matches.length >= MAX_RESULTS * 4) break
+  }
+  return matches
+}
+
+/**
+ * 递归遍历目录找匹配的 JSON 文件
+ */
+function findCandidateFiles (root, keyword) {
+  const result = []
+  const queue = [root]
+  const lowerKeyword = normalizeForMatch(keyword)
+
+  while (queue.length) {
+    const dir = queue.shift()
+    let entries
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { continue }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        queue.push(full)
+      } else if (entry.isFile() && entry.name.endsWith('.json')) {
+        const base = path.basename(entry.name, '.json')
+        if (!lowerKeyword || normalizeForMatch(base).includes(lowerKeyword)) {
+          result.push({
+            file: full,
+            base,
+            exact: normalizeForMatch(base) === lowerKeyword
+          })
+        }
+      }
+    }
+  }
+  return result
+}
+
+/**
+ * 文件系统兜底评分
+ * 评分公式：完全匹配+100 / 前缀+40 / 包含+20 - 名称长度惩罚
+ */
+function scoreCandidateFile (candidate, keyword) {
+  let score = 0
+  const base = normalizeForMatch(candidate.base)
+  const key = normalizeForMatch(keyword)
+  if (base === key) score += 100
+  if (base.startsWith(key)) score += 40
+  if (base.includes(key)) score += 20
+  score -= Math.max(0, candidate.base.length - keyword.length)
+  return score
+}
 
 /**
  * 加载单条记录 JSON 文件

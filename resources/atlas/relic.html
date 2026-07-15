@@ -3,28 +3,20 @@
 <head>
   <meta charset="utf-8"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
-  <style>
-    .bonus-item {
-      padding: 10px 12px;
-      margin-bottom: 8px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 5px;
-      border-left: 3px solid #d2991d;
-    }
-    .bonus-require { font-size: 11px; color: #d2991d; font-weight: 600; margin-bottom: 3px; }
-    .bonus-desc { font-size: 13px; color: #b0b8c8; line-height: 1.6; }
-  </style>
 </head>
 <body>
-  <div class="header">
-    <div class="game-name">{{gameName}} · {{pageTitle}}</div>
-    <div class="title">{{name}}</div>
+  <div class="hero">
+    <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
+    <div class="hero-title">{{name}}</div>
   </div>
 
-  {{if metaFields && metaFields.length > 0}}
-  <div class="meta-row">
+  {{if metaFields.length > 0}}
+  <div class="stat-grid">
     {{each metaFields f}}
-    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    <div class="stat-cell">
+      <div class="stat-label">{{f.label}}</div>
+      <div class="stat-value">{{f.value}}</div>
+    </div>
     {{/each}}
   </div>
   {{/if}}
@@ -35,7 +27,7 @@
     {{if section.type === 'list'}}
       {{each section.items item}}
       <div class="bonus-item">
-        <div class="extra-name">{{item.name}}</div>
+        {{if item.name}}<div class="bonus-label">{{item.name}}</div>{{/if}}
         {{if item.desc}}<div class="bonus-desc">{{item.desc}}</div>{{/if}}
       </div>
       {{/each}}

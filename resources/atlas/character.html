@@ -3,118 +3,20 @@
 <head>
   <meta charset="utf-8"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
-  <style>
-    /* 属性条 */
-    .meta-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 20px;
-      padding: 10px 0;
-      margin-bottom: 8px;
-    }
-    .meta-item {
-      font-size: 13px;
-      color: #b0b8c8;
-    }
-    .meta-item .mlabel {
-      color: #707888;
-      margin-right: 4px;
-    }
-
-    /* 技能卡 */
-    .skill-card {
-      margin-bottom: 12px;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-    .skill-card:last-child { margin-bottom: 0; }
-    .skill-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-    .skill-name { font-size: 14px; font-weight: 600; color: #cad3f5; }
-    .skill-tag {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: 600;
-      line-height: 1.5;
-      background: #2d3b4a; color: #58a6ff;
-    }
-    .skill-desc {
-      font-size: 12px;
-      color: #8087a1;
-      line-height: 1.6;
-      margin-bottom: 4px;
-    }
-    .skill-params { margin-top: 4px; }
-    .skill-params .param-title { font-size: 11px; color: #6e7488; margin-bottom: 2px; }
-
-    /* 小表 */
-    .mini-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-    }
-    .mini-table th, .mini-table td {
-      padding: 2px 6px;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-    .mini-table th { background: rgba(255,255,255,0.06); color: #707888; font-weight: normal; }
-    .mini-table td { color: #a0a8c0; }
-
-    /* 命座3列网格 */
-    .con-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-    .con-item {
-      padding: 8px 10px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 5px;
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-    .con-order { font-size: 10px; color: #d2991d; font-weight: 600; }
-    .con-name { font-size: 12px; font-weight: 600; color: #c8d0e0; margin: 2px 0; }
-    .con-desc { font-size: 11px; color: #8087a1; line-height: 1.4; }
-
-    /* 资料 */
-    .story-item {
-      padding: 10px 12px;
-      margin-bottom: 8px;
-      background: rgba(255,255,255,0.02);
-      border-radius: 5px;
-    }
-    .story-title { font-size: 13px; font-weight: 600; color: #b0b8d0; margin-bottom: 4px; }
-    .story-content { font-size: 12px; color: #8890a8; line-height: 1.7; white-space: pre-wrap; }
-
-    /* 通用列表项 */
-    .extra-item {
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-    }
-    .extra-item:last-child { border-bottom: none; }
-    .extra-name { font-size: 13px; font-weight: 600; color: #bdc8e0; }
-    .extra-desc { font-size: 12px; color: #8087a1; margin-top: 2px; }
-  </style>
 </head>
 <body>
-  <div class="header">
-    <div class="game-name">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
-    <div class="title">{{name}}</div>
+  <div class="hero">
+    <div class="hero-game">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
+    <div class="hero-title">{{name}}</div>
   </div>
 
   {{if metaFields.length > 0}}
-  <div class="meta-row">
+  <div class="stat-grid">
     {{each metaFields f}}
-    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    <div class="stat-cell">
+      <div class="stat-label">{{f.label}}</div>
+      <div class="stat-value">{{f.value}}</div>
+    </div>
     {{/each}}
   </div>
   {{/if}}
@@ -153,26 +55,26 @@
       <div class="con-grid">
         {{each section.items c}}
         <div class="con-item">
-          <div class="con-order">命{{c.order}}</div>
+          <div class="con-order">{{c.order}}</div>
           <div class="con-name">{{c.name}}</div>
           <div class="con-desc">{{c.desc}}</div>
         </div>
         {{/each}}
       </div>
 
-    {{else if section.type === 'list'}}
-      {{each section.items e}}
-      <div class="extra-item">
-        <div class="extra-name">{{e.name}}</div>
-        {{if e.desc}}<div class="extra-desc">{{e.desc}}</div>{{/if}}
-      </div>
-      {{/each}}
-
     {{else if section.type === 'stories'}}
       {{each section.items s}}
       <div class="story-item">
         <div class="story-title">{{s.title}}</div>
         <div class="story-content">{{s.content}}</div>
+      </div>
+      {{/each}}
+
+    {{else if section.type === 'list'}}
+      {{each section.items e}}
+      <div class="extra-item">
+        <div class="extra-name">{{e.name}}</div>
+        {{if e.desc}}<div class="extra-desc">{{e.desc}}</div>{{/if}}
       </div>
       {{/each}}
 

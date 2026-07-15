@@ -1,4 +1,4 @@
-/* Atlas-Plugin 通用样式 */
+/* Atlas-Plugin 通用样式 — 对齐荷花 skia-canvas 视觉风格 */
 * {
   margin: 0;
   padding: 0;
@@ -6,55 +6,398 @@
 }
 
 body {
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-  background: #0f1117;
-  color: #e0e0e0;
+  font-family: "Microsoft YaHei", "PingFang SC", "MiSans", sans-serif;
+  background: #1e2227;
+  color: #1f2a33;
   width: 720px;
-  padding: 24px 28px;
+  padding: 24px 28px 28px;
   line-height: 1.6;
 }
 
-/* 顶部标题区 */
-.header {
-  margin-bottom: 20px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+/* ===== Hero 区块 ===== */
+.hero {
+  background: rgba(0, 0, 0, 0.38);
+  border-radius: 28px;
+  padding: 28px 34px;
+  margin-bottom: 18px;
+  position: relative;
 }
-.header .game-name {
-  font-size: 13px;
-  color: #8890a8;
-  margin-bottom: 4px;
+.hero .hero-game {
+  font-size: 14px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 6px;
 }
-.header .title {
-  font-size: 26px;
-  font-weight: 700;
+.hero .hero-title {
+  font-size: 34px;
+  font-weight: 950;
   color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
 }
-.header .subtitle {
-  font-size: 13px;
-  color: #606880;
-  margin-top: 4px;
+.hero .hero-subtitle {
+  font-size: 16px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: 8px;
+}
+.hero .hero-badge {
+  position: absolute;
+  top: 28px;
+  right: 34px;
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 12px;
+  font-weight: 700;
 }
 
-/* 搜索结果列表 */
+/* ===== 分区标题（对齐荷花 sectionTitle：白色半透明 pill + 蓝色左竖条） ===== */
+.section-title {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 17px;
+  padding: 0 18px;
+  margin: 22px 0 12px;
+  position: relative;
+}
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 18px;
+  background: #24a9d8;
+  border-radius: 99px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.section-title-text {
+  font-size: 18px;
+  font-weight: 950;
+  color: #004466;
+}
+
+/* ===== 分区标题回退（无 .section-title 类时 h3 模拟） ===== */
+.detail-section h3 {
+  font-size: 18px;
+  font-weight: 950;
+  color: #004466;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 17px;
+  padding: 0 18px;
+  margin: 22px 0 12px;
+}
+.detail-section h3::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 18px;
+  background: #24a9d8;
+  border-radius: 99px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+/* ===== 属性 stat grid（对齐荷花 gridItems：白色卡片平铺） ===== */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.stat-cell {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 16px;
+  padding: 10px 14px;
+  text-align: center;
+}
+.stat-cell .stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #60717c;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.stat-cell .stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2a33;
+}
+
+/* ===== 白色卡片通用样式 ===== */
+.white-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+}
+
+/* ===== 两列表格（label:value，白色背景） ===== */
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.detail-table td {
+  padding: 6px 14px;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.detail-table tr:last-child td { border-bottom: none; }
+.detail-table .label {
+  color: #60717c;
+  width: 30%;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.detail-table .value {
+  color: #1f2a33;
+  word-break: break-all;
+}
+
+/* ===== 属性概览行 ===== */
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 10px 0;
+  margin-bottom: 4px;
+}
+.meta-item {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+}
+.meta-item .mlabel {
+  color: rgba(255, 255, 255, 0.55);
+  margin-right: 4px;
+}
+
+/* ===== 技能卡 ===== */
+.skill-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.skill-card:last-child { margin-bottom: 0; }
+.skill-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.skill-name {
+  font-size: 16px;
+  font-weight: 950;
+  color: #004466;
+}
+.skill-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(36, 169, 216, 0.14);
+  color: #005577;
+}
+.skill-desc {
+  font-size: 14px;
+  color: #1f2a33;
+  line-height: 1.65;
+  margin-bottom: 6px;
+}
+.skill-params { margin-top: 8px; }
+.skill-params .param-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #60717c;
+  margin-bottom: 4px;
+}
+
+/* ===== 参数小表 ===== */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mini-table th, .mini-table td {
+  padding: 3px 8px;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.mini-table th {
+  background: rgba(0, 0, 0, 0.04);
+  color: #60717c;
+  font-weight: 600;
+}
+.mini-table td { color: #1f2a33; }
+
+/* ===== 命座/星魂/影画 3列网格 ===== */
+.con-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.con-item {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.con-order {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d2991d;
+}
+.con-name {
+  font-size: 14px;
+  font-weight: 950;
+  color: #004466;
+  margin: 4px 0;
+}
+.con-desc {
+  font-size: 12px;
+  color: #1f2a33;
+  line-height: 1.5;
+}
+
+/* ===== 资料/故事卡 ===== */
+.story-item {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+}
+.story-title {
+  font-size: 14px;
+  font-weight: 950;
+  color: #004466;
+  margin-bottom: 6px;
+}
+.story-content {
+  font-size: 13px;
+  color: #1f2a33;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* ===== 精炼/套装效果 text cards ===== */
+.refine-item {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+}
+.refine-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.refine-level {
+  font-size: 12px;
+  font-weight: 700;
+  color: #d2991d;
+}
+.refine-name {
+  font-size: 15px;
+  font-weight: 950;
+  color: #004466;
+}
+.refine-desc {
+  font-size: 13px;
+  color: #1f2a33;
+  line-height: 1.65;
+}
+
+/* ===== 圣遗物套装效果 ===== */
+.bonus-item {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(36, 169, 216, 0.25);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+}
+.bonus-item .bonus-label {
+  font-size: 13px;
+  font-weight: 950;
+  color: #004466;
+  margin-bottom: 4px;
+}
+.bonus-item .bonus-desc {
+  font-size: 13px;
+  color: #1f2a33;
+}
+
+/* ===== 通用列表项 ===== */
+.extra-item {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.86);
+}
+.extra-item:first-child {
+  border-radius: 14px 14px 0 0;
+}
+.extra-item:last-child {
+  border-bottom: none;
+  border-radius: 0 0 14px 14px;
+}
+.extra-name {
+  font-size: 14px;
+  font-weight: 950;
+  color: #004466;
+}
+.extra-desc {
+  font-size: 13px;
+  color: #1f2a33;
+  margin-top: 2px;
+}
+
+/* ===== 描述文本块 ===== */
+.desc-block {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #1f2a33;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* ===== 搜索结果列表 ===== */
 .result-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
-/* 分类组 */
-.group-box {
-  /* empty - gap handles spacing */
-}
 .group-title {
   font-size: 14px;
-  font-weight: 600;
-  color: #8890a8;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 6px;
-  margin-bottom: 6px;
+  font-weight: 950;
+  color: #004466;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 17px;
+  padding: 7px 18px;
+  margin-bottom: 8px;
 }
 .group-items {
   display: flex;
@@ -64,186 +407,104 @@ body {
 }
 .group-item {
   display: inline-block;
-  padding: 4px 10px;
-  font-size: 14px;
-  color: #c8d0e0;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* 详情页 */
-.detail-box {
-  margin-top: 8px;
-}
-.detail-section {
-  margin-bottom: 16px;
-}
-.detail-section h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #b0b8d0;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-.detail-table {
-  width: 100%;
-  border-collapse: collapse;
+  padding: 4px 12px;
   font-size: 13px;
-}
-.detail-table td {
-  padding: 5px 10px;
-  vertical-align: top;
-}
-.detail-table .label {
-  color: #707888;
-  width: 30%;
-  white-space: nowrap;
-  text-align: right;
-}
-.detail-table .value {
-  color: #c8d0e0;
-  word-break: break-all;
+  font-weight: 600;
+  color: #1f2a33;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
 }
 
-/* 空结果 */
+/* ===== 空结果 ===== */
 .empty-box {
   text-align: center;
   padding: 40px 0;
-  color: #606880;
+  color: rgba(255, 255, 255, 0.45);
   font-size: 15px;
 }
 .empty-box .keyword {
-  color: #9098b0;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 700;
 }
 
-/* 描述文本 */
+/* ===== 底部 ===== */
+.copyright {
+  margin-top: 22px;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(0, 0, 0, 0.34);
+  border-radius: 17px;
+  line-height: 2.2;
+}
+
+/* ===== 提示信息 ===== */
+.hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+/* ===== 成就 ===== */
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.achievement-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.achievement-card .ac-name {
+  font-size: 15px;
+  font-weight: 950;
+  color: #004466;
+}
+.achievement-card .ac-count {
+  font-size: 12px;
+  color: #60717c;
+  margin-top: 2px;
+}
+.achievement-group {
+  margin-bottom: 16px;
+}
+.achievement-item {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 6px;
+}
+.achievement-item .ai-name {
+  font-size: 14px;
+  font-weight: 950;
+  color: #004466;
+}
+.achievement-item .ai-desc {
+  font-size: 12px;
+  color: #1f2a33;
+  margin-top: 2px;
+}
+
+/* ===== 详情容器 ===== */
+.detail-box {
+  margin-top: 4px;
+}
+.detail-section {
+  margin-bottom: 4px;
+}
+
+/* ===== 描述文本（内联） ===== */
 .desc-text {
   font-size: 13px;
-  color: #b0b8c8;
+  color: rgba(255, 255, 255, 0.75);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
 }
-
-/* 底部 */
-.copyright {
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 11px;
-  color: #505870;
-  text-align: center;
-}
-
-/* 提示信息 */
-.hint {
-  margin-top: 12px;
-  font-size: 12px;
-  color: #606880;
-  text-align: center;
-}
-
-/* === 角色/武器/邦布 通用组件 === */
-
-/* 属性概览行 */
-.meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
-  padding: 10px 0;
-  margin-bottom: 8px;
-}
-.meta-item {
-  font-size: 13px;
-  color: #b0b8c8;
-}
-.meta-item .mlabel {
-  color: #707888;
-  margin-right: 4px;
-}
-
-/* 技能卡 */
-.skill-card {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.skill-card:last-child { margin-bottom: 0; }
-.skill-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.skill-name { font-size: 14px; font-weight: 600; color: #cad3f5; }
-.skill-tag {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.5;
-  background: #2d3b4a; color: #58a6ff;
-}
-.skill-desc {
-  font-size: 12px;
-  color: #8087a1;
-  line-height: 1.6;
-  margin-bottom: 4px;
-}
-.skill-params { margin-top: 4px; }
-.skill-params .param-title { font-size: 11px; color: #6e7488; margin-bottom: 2px; }
-
-/* 参数小表 */
-.mini-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-.mini-table th, .mini-table td {
-  padding: 2px 6px;
-  text-align: center;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.mini-table th { background: rgba(255,255,255,0.06); color: #707888; font-weight: normal; }
-.mini-table td { color: #a0a8c0; }
-
-/* 命座/星魂/影画 3列网格 */
-.con-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-.con-item {
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 5px;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.con-order { font-size: 10px; color: #d2991d; font-weight: 600; }
-.con-name { font-size: 12px; font-weight: 600; color: #c8d0e0; margin: 2px 0; }
-.con-desc { font-size: 11px; color: #8087a1; line-height: 1.4; }
-
-/* 资料/故事 */
-.story-item {
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  background: rgba(255,255,255,0.02);
-  border-radius: 5px;
-}
-.story-title { font-size: 13px; font-weight: 600; color: #b0b8d0; margin-bottom: 4px; }
-.story-content { font-size: 12px; color: #8890a8; line-height: 1.7; white-space: pre-wrap; }
-
-/* 通用列表项（天赋/行迹/潜能） */
-.extra-item {
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.extra-item:last-child { border-bottom: none; }
-.extra-name { font-size: 13px; font-weight: 600; color: #bdc8e0; }
-.extra-desc { font-size: 12px; color: #8087a1; margin-top: 2px; }

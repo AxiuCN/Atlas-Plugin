@@ -5,15 +5,18 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
 </head>
 <body>
-  <div class="header">
-    <div class="game-name">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
-    <div class="title">{{name}}</div>
+  <div class="hero">
+    <div class="hero-game">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
+    <div class="hero-title">{{name}}</div>
   </div>
 
-  {{if metaFields && metaFields.length > 0}}
-  <div class="meta-row">
+  {{if metaFields.length > 0}}
+  <div class="stat-grid">
     {{each metaFields f}}
-    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    <div class="stat-cell">
+      <div class="stat-label">{{f.label}}</div>
+      <div class="stat-value">{{f.value}}</div>
+    </div>
     {{/each}}
   </div>
   {{/if}}
@@ -32,6 +35,7 @@
         {{if sk.desc}}<div class="skill-desc">{{sk.desc}}</div>{{/if}}
         {{if sk.params && sk.params.rows.length > 0}}
         <div class="skill-params">
+          <div class="param-title">{{sk.params.title || '属性'}}</div>
           <table class="mini-table">
             <thead><tr>{{each sk.params.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>
             <tbody>
