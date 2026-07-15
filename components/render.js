@@ -12,6 +12,19 @@ const pluginRoot = path.resolve(__dirname, '..')
  * @param {object} result - search() 返回值或特殊触发结果
  * @returns {string} 模板名（对应 resources/atlas/<name>.html）
  */
+// pageKey → 模板名映射（专用模板，不在映射中则走兜底）
+const TEMPLATE_BY_PAGE = {
+  character: 'character',
+  weapon: 'weapon',
+  lightcone: 'weapon',
+  artifact: 'relic',
+  relicset: 'relic',
+  equipment: 'relic',
+  monster: 'monster',
+  bangboo: 'bangboo',
+  item: 'item'
+}
+
 export function selectTemplate (result) {
   // 特殊页面
   if (result.type === 'special') {
@@ -21,9 +34,16 @@ export function selectTemplate (result) {
 
   // 正常搜索：取第一条结果的 pageKey 判断
   const entry = result.results?.[0]
-  if (entry && CHALLENGE_PAGE_KEYS.has(entry.pageKey)) {
-    return 'challenge'
+  if (!entry) {
+    if (result.type === 'list') return 'list'
+    return 'detail'
   }
+
+  // 挑战类 pageKey
+  if (CHALLENGE_PAGE_KEYS.has(entry.pageKey)) return 'challenge'
+
+  // 类型专用模板
+  if (TEMPLATE_BY_PAGE[entry.pageKey]) return TEMPLATE_BY_PAGE[entry.pageKey]
 
   if (result.type === 'list') return 'list'
   return 'detail'

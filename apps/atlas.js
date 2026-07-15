@@ -8,6 +8,7 @@ import {
   PAGE_LABELS,
   CHALLENGE_PAGE_KEYS
 } from '../components/constants.js'
+import { getSectionBuilder } from '../components/sections/index.js'
 
 const config = getPluginConfig()
 
@@ -175,6 +176,26 @@ export class atlas extends plugin {
     const meta = record?.meta || {}
     const list = record?.content?.list || {}
     const detail = record?.content?.detail || {}
+    const pageKey = result.pageKey
+
+    // 类型专用 sections builder
+    const builder = getSectionBuilder(pageKey)
+    if (builder) {
+      const typeData = builder(gameId, record)
+      if (typeData) {
+        return {
+          gameName: GAME_NAMES[gameId],
+          pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
+          name: meta.name || result.name,
+          rarity: meta.rarity || result.rarity || '',
+          metaFields: typeData.metaFields || [],
+          sections: typeData.sections || [],
+          rawFields: [],
+          gameId,
+          pageKey
+        }
+      }
+    }
 
     // 从 list 和 detail 中提取可展示的字段
     const rawFields = []
@@ -212,20 +233,20 @@ export class atlas extends plugin {
     const desc = this._formatValue(list.desc || list.description || '')
 
     // 挑战类页面：提取结构化 sections
-    const sections = CHALLENGE_PAGE_KEYS.has(result.pageKey)
-      ? this._buildChallengeSections(result.pageKey, detail)
+    const sections = CHALLENGE_PAGE_KEYS.has(pageKey)
+      ? this._buildChallengeSections(pageKey, detail)
       : []
 
     return {
       gameName: GAME_NAMES[gameId],
-      pageTitle: result.pageTitle || (PAGE_LABELS[result.pageKey] || result.pageKey),
+      pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
       recordName: meta.name || result.name,
       rarity: meta.rarity || result.rarity || '',
       desc: desc.length > 200 ? '' : desc,
       sections,
       rawFields,
       gameId,
-      pageKey: result.pageKey
+      pageKey
     }
   }
 

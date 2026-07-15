@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
+    <div class="title">{{name}}</div>
+  </div>
+
+  {{if metaFields.length > 0}}
+  <div class="meta-row">
+    {{each metaFields f}}
+    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  {{each sections section}}
+  <div class="detail-section">
+    <h3>{{section.title}}</h3>
+
+    {{if section.type === 'skill-cards'}}
+      {{each section.skills sk}}
+      <div class="skill-card">
+        <div class="skill-header">
+          <span class="skill-name">{{sk.name}}</span>
+          {{if sk.tag}}<span class="skill-tag">{{sk.tag}}</span>{{/if}}
+        </div>
+        {{if sk.desc}}<div class="skill-desc">{{sk.desc}}</div>{{/if}}
+        {{if sk.params && sk.params.rows.length > 0}}
+        <div class="skill-params">
+          <table class="mini-table">
+            <thead><tr>{{each sk.params.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>
+            <tbody>
+              {{each sk.params.rows row}}
+              <tr>{{each row v}}<td>{{v}}</td>{{/each}}</tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+
+    {{else if section.type === 'constellation-grid'}}
+      <div class="con-grid">
+        {{each section.items c}}
+        <div class="con-item">
+          <div class="con-order">#{{c.order}}</div>
+          <div class="con-name">{{c.name}}</div>
+          <div class="con-desc">{{c.desc}}</div>
+        </div>
+        {{/each}}
+      </div>
+
+    {{else}}
+      <table class="detail-table">
+        {{each section.fields f}}
+        <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+        {{/each}}
+      </table>
+    {{/if}}
+  </div>
+  {{/each}}
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

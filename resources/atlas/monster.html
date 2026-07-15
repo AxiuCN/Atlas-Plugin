@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · {{pageTitle}}</div>
+    <div class="title">{{name}}</div>
+  </div>
+
+  {{if metaFields.length > 0}}
+  <div class="meta-row">
+    {{each metaFields f}}
+    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  {{each sections section}}
+  <div class="detail-section">
+    <h3>{{section.title}}</h3>
+    {{if section.type === 'list'}}
+      {{each section.items item}}
+      <div class="extra-item">
+        <div class="extra-name">{{item.name}}</div>
+        {{if item.desc}}<div class="extra-desc">{{item.desc}}</div>{{/if}}
+      </div>
+      {{/each}}
+    {{else}}
+      <table class="detail-table">
+        {{each section.fields f}}
+        <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+        {{/each}}
+      </table>
+    {{/if}}
+  </div>
+  {{/each}}
+
+  {{if !sections.length && rawFields.length > 0}}
+  <div class="detail-section">
+    <table class="detail-table">
+      {{each rawFields f}}
+      <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+      {{/each}}
+    </table>
+  </div>
+  {{/if}}
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>

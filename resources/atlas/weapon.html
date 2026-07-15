@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+  <style>
+    .refine-item {
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .refine-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .refine-level { font-size: 12px; font-weight: 600; color: #d2991d; }
+    .refine-name { font-size: 14px; font-weight: 600; color: #cad3f5; }
+    .refine-desc { font-size: 12px; color: #8890a8; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="game-name">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
+    <div class="title">{{name}}</div>
+  </div>
+
+  {{if metaFields.length > 0}}
+  <div class="meta-row">
+    {{each metaFields f}}
+    <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  {{each sections section}}
+  <div class="detail-section">
+    <h3>{{section.title}}</h3>
+
+    {{if section.type === 'refinements'}}
+      {{each section.items r}}
+      <div class="refine-item">
+        <div class="refine-header">
+          {{if r.level}}<span class="refine-level">{{r.level}}</span>{{/if}}
+          <span class="refine-name">{{r.name}}</span>
+        </div>
+        <div class="refine-desc">{{r.desc}}</div>
+      </div>
+      {{/each}}
+
+    {{else}}
+      <table class="detail-table">
+        {{each section.fields f}}
+        <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+        {{/each}}
+      </table>
+    {{/if}}
+  </div>
+  {{/each}}
+
+  {{if !sections.length && rawFields.length > 0}}
+  <div class="detail-section">
+    <table class="detail-table">
+      {{each rawFields f}}
+      <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+      {{/each}}
+    </table>
+  </div>
+  {{/if}}
+
+  <div class="copyright">Data from nanoka.cc · Atlas-Plugin</div>
+</body>
+</html>
