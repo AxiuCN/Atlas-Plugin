@@ -111,7 +111,7 @@
     <div class="title">{{name}}</div>
   </div>
 
-  {{if metaFields.length > 0}}
+  {{if metaFields && metaFields.length > 0}}
   <div class="meta-row">
     {{each metaFields f}}
     <span class="meta-item"><span class="mlabel">{{f.label}}:</span>{{f.value}}</span>

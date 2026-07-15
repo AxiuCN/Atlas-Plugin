@@ -243,6 +243,7 @@ export class atlas extends plugin {
       recordName: meta.name || result.name,
       rarity: meta.rarity || result.rarity || '',
       desc: desc.length > 200 ? '' : desc,
+      metaFields: [],
       sections,
       rawFields,
       gameId,
