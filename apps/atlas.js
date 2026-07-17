@@ -88,11 +88,20 @@ export class atlas extends plugin {
         }
 
         case 'list': {
-          const data = this._buildListData(gameId, result)
           const tpl = selectTemplate(result)
+          let data
+          // 列表结果被路由到专用详情模板时，为首条加载完整数据
+          if (tpl !== 'list') {
+            const record = loadRecord(result.results[0].filePath)
+            data = record
+              ? this._buildDetailData(gameId, { ...result.results[0], record })
+              : this._buildListData(gameId, result)
+          } else {
+            data = this._buildListData(gameId, result)
+          }
           const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
           if (img) await e.reply(img)
-          else await e.reply(`[Atlas] 列表渲染失败`)
+          else await e.reply(`[Atlas] ${data.recordName || '列表'} — 渲染失败`)
           return true
         }
 
