@@ -24,7 +24,8 @@ const TEMPLATE_VARS = {
   'autoUpdate.enabled': 'atlas_autoUpdate_enabled',
   'autoUpdate.cron': 'atlas_autoUpdate_cron',
   notifyGroups: 'atlas_notifyGroups',
-  notifyMode: 'atlas_notifyMode'
+  notifyMode: 'atlas_notifyMode',
+  blockMiaoAvatar: 'atlas_blockMiaoAvatar'
 }
 
 /** 默认值（模板变量替换时的兜底） */
@@ -34,7 +35,8 @@ const DEFAULTS = {
   atlas_autoUpdate_enabled: 'true',
   atlas_autoUpdate_cron: '0 0 5 * * *',
   atlas_notifyGroups: '',
-  atlas_notifyMode: 'all'
+  atlas_notifyMode: 'all',
+  atlas_blockMiaoAvatar: 'true'
 }
 
 /**
@@ -140,6 +142,18 @@ export function supportGuoba () {
               { label: '第一位主人+群聊', value: 'first_master_groups' }
             ]
           }
+        },
+
+        // ==================== 兼容设置 ====================
+        { label: '兼容设置', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'blockMiaoAvatar',
+          label: '屏蔽喵喵角色拦截',
+          helpMessage: '启用后，裸 #角色名 不会被喵喵插件拦截，Atlas 可正常渲染图鉴',
+          bottomHelpMessage: '仅放行喵喵专用模式（#喵喵角色卡片/#老公/#老婆/#原图），其余透传。关闭后恢复喵喵原有拦截行为',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true }
         }
       ],
 
@@ -154,7 +168,8 @@ export function supportGuoba () {
           notifyGroups: (cfg.notifyGroups || '')
             ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
             : [],
-          notifyMode: cfg.notifyMode || 'all'
+          notifyMode: cfg.notifyMode || 'all',
+          blockMiaoAvatar: cfg.blockMiaoAvatar ?? true
         }
       },
 

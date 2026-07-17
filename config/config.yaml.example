@@ -9,7 +9,12 @@ renderScale: 1.5
 # 更新完成后通知的群号列表（逗号分隔），留空仅通知主人
 notifyGroups: []
 # 通知模式：all=全部主人+配置群 / master_only=全部主人 / first_master=第一位主人 / first_master_groups=第一位主人+群聊
+# 通知模式：all=全部主人+配置群 / master_only=全部主人 / first_master=第一位主人 / first_master_groups=第一位主人+群聊
 notifyMode: 'all'
+
+# ---------- 兼容 ----------
+# 屏蔽 miao-plugin 角色面板拦截：仅放行喵喵专用模式（#喵喵角色卡片/#老公/#老婆/#原图等），裸 #角色名 透传给 Atlas
+blockMiaoAvatar: true
 
 # ---------- 自动更新 ----------
 autoUpdate:

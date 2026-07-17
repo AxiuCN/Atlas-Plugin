@@ -18,7 +18,8 @@ const defaultConfig = {
     cron: '0 0 5 * * *'
   },
   notifyGroups: [],
-  notifyMode: 'all'
+  notifyMode: 'all',
+  blockMiaoAvatar: true
 }
 
 /**
