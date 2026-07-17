@@ -1,5 +1,6 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { search, getPageRecords, loadRecord, resolveRecordImage } from '../model/AtlasService.js'
+import { stripLinks } from '../model/LinkResolver.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { getPluginConfig } from '../components/config.js'
 import {
@@ -438,8 +439,8 @@ export class atlas extends plugin {
     // 清理 RUBY 标记
     str = str.replace(/\{RUBY_B#[^}]*}/g, '')
     str = str.replace(/\{RUBY_E#}/g, '')
-    // 清理 LINK 占位符
-    str = str.replace(/\{LINK#[^}]*}/g, '')
+    // 清理 LINK 占位符（保留 LINK 内文本，去颜色标签）
+    str = stripLinks(str)
     // 清理 HTML 标签
     str = str.replace(/<[^>]+>/g, '')
     return str.trim()

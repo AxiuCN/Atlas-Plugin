@@ -520,6 +520,29 @@ body {
   margin-bottom: 4px;
 }
 
+/* ===== LINK 高亮 ===== */
+.link-ref {
+  font-weight: 700;
+}
+.link-detail {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 215, 0, 0.06);
+  border-left: 3px solid #d2991d;
+  border-radius: 0 8px 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.link-detail-name {
+  font-weight: 700;
+  color: #d2991d;
+  margin-bottom: 2px;
+}
+.link-detail-desc {
+  color: #1f2a33;
+  white-space: pre-wrap;
+}
+
 /* ===== 描述文本（内联） ===== */
 .desc-text {
   font-size: 13px;

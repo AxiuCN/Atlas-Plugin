@@ -6,6 +6,8 @@
  * @param {object} record - 完整 JSON（含 meta, content.list, content.detail）
  * @returns {object} 模板数据 { gameName, pageTitle, name, rarity, metaFields, sections }
  */
+import { resolveLinks } from '../../model/LinkResolver.js'
+
 export function buildCharacterData (gameId, record) {
   const list = record?.content?.list || {}
   const detail = record?.content?.detail || {}
@@ -35,31 +37,42 @@ function _buildGI (list, detail, meta) {
 
   // 技能
   if (detail.skills && Array.isArray(detail.skills)) {
-    const skillFields = detail.skills.map(s => ({
-      name: s.name || '',
-      tag: _skillTag(s.name, 'gi'),
-      desc: _cleanText(s.desc || ''),
-      params: _buildSkillParams(s.promote, 'gi')
-    }))
+    const skillFields = detail.skills.map(s => {
+      const { resolved, refs } = resolveLinks(s.desc || '', 'gi')
+      return {
+        name: s.name || '',
+        tag: _skillTag(s.name, 'gi'),
+        desc: _cleanForRender(resolved),
+        refs,
+        params: _buildSkillParams(s.promote, 'gi')
+      }
+    })
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
   }
 
   // 命座
   if (detail.constellations && Array.isArray(detail.constellations)) {
-    const conList = detail.constellations.map((c, i) => ({
-      order: i + 1,
-      name: c.name || '',
-      desc: _cleanText(c.desc || '')
-    }))
+    const conList = detail.constellations.map((c, i) => {
+      const { resolved, refs } = resolveLinks(c.desc || '', 'gi')
+      return {
+        order: i + 1,
+        name: c.name || '',
+        desc: _cleanForRender(resolved),
+        refs
+      }
+    })
     sections.push({ title: '命之座', type: 'constellation-grid', items: conList })
   }
 
   // 固有天赋
   if (detail.promote_skills && Array.isArray(detail.promote_skills)) {
-    const extras = detail.promote_skills.map(p => ({
-      name: p.title || p.name || '',
-      desc: _cleanText(p.desc || '')
-    })).filter(e => e.name)
+    const extras = detail.promote_skills.map(p => {
+      const { resolved } = resolveLinks(p.desc || '', 'gi')
+      return {
+        name: p.title || p.name || '',
+        desc: _cleanForRender(resolved)
+      }
+    }).filter(e => e.name)
     if (extras.length > 0) {
       sections.push({ title: '固有天赋', type: 'list', items: extras })
     }
@@ -323,7 +336,24 @@ function _fmtNum (v) {
   return String(n)
 }
 
-/** 清理 HTML、RUBY 标记、LINK 占位符、换行符 */
+/**
+ * 渲染用清洗：保留 HTML 标签（span 高亮等），仅清理 RUBY 标记和换行符
+ * 用于已通过 resolveLinks 解析的文本
+ * 同时将 <color=#RGB>text</color> 转为 <span style="color:#RGB">text</span>
+ */
+function _cleanForRender (str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/\\n/g, '\n')
+    .replace(/\{RUBY_B#[^}]*}/g, '')
+    .replace(/\{RUBY_E#}/g, '')
+    .replace(/<color=([^>]+)>([\s\S]*?)<\/color>/g, (m, color, inner) => {
+      return `<span style="color:${color}">${inner}</span>`
+    })
+    .trim()
+}
+
+/** 清理 HTML、RUBY 标记、LINK 占位符、换行符（纯文本场景） */
 function _cleanText (str) {
   if (!str) return ''
   return String(str)
