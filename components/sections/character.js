@@ -6,6 +6,7 @@
  * @param {object} record - 完整 JSON（含 meta, content.list, content.detail）
  * @returns {object} 模板数据 { hero, metaFields, sections }
  */
+import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { resolveLinks } from '../../model/LinkResolver.js'
@@ -33,7 +34,10 @@ function _imgUrl (images, fieldPath) {
   if (!images || !Array.isArray(images)) return ''
   const img = images.find(i => i.fieldPath === fieldPath)
   if (img?.localPath) {
-    return pathToFileURL(path.join(dataDir, img.localPath)).href
+    const fullPath = path.join(dataDir, img.localPath)
+    if (fs.existsSync(fullPath)) {
+      return pathToFileURL(fullPath).href
+    }
   }
   return ''
 }
@@ -133,16 +137,6 @@ function _buildGI (list, detail, meta) {
       }
     })
     sections.push({ title: '命之座', type: 'constellation-grid', items: conList })
-  }
-
-  // ── 角色资料 ──
-  if (detail.chara_info?.stories && Array.isArray(detail.chara_info.stories)) {
-    const stories = detail.chara_info.stories
-      .filter(s => s.text || s.detail)
-      .map(s => ({ title: s.title || s.name || '', content: _cleanText(s.text || s.detail || '') }))
-    if (stories.length > 0) {
-      sections.push({ title: '资料', type: 'stories', items: stories })
-    }
   }
 
   return { hero, metaFields, sections }

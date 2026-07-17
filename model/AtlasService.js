@@ -467,7 +467,9 @@ export function resolveRecordImage (record) {
   const picked = images.find(item => item?.localPath && item.status === 'downloaded' && !item.placeholder)
     || images.find(item => item?.localPath)
   if (!picked?.localPath) return ''
-  return pathToFileURL(path.join(dataDir, picked.localPath)).href
+  const fullPath = path.join(dataDir, picked.localPath)
+  if (!fs.existsSync(fullPath)) return ''
+  return pathToFileURL(fullPath).href
 }
 
 /**
