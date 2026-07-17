@@ -65,11 +65,12 @@ function _buildGI (list, detail, meta) {
   }
 
   // 固有天赋
-  if (detail.promote_skills && Array.isArray(detail.promote_skills)) {
-    const extras = detail.promote_skills.map(p => {
+  if (detail.passives && Array.isArray(detail.passives)) {
+    const extras = detail.passives.map(p => {
       const { resolved } = resolveLinks(p.desc || '', 'gi')
+      const unlockLabel = _passiveUnlock(p.unlock)
       return {
-        name: p.title || p.name || '',
+        name: unlockLabel ? `${p.name}（${unlockLabel}）` : p.name,
         desc: _cleanForRender(resolved)
       }
     }).filter(e => e.name)
@@ -322,6 +323,13 @@ function _buildSkillParams (levelData, game) {
   })
 
   return { headers, rows }
+}
+
+/** 固有天赋解锁标签 */
+function _passiveUnlock (unlock) {
+  if (unlock === 1) return '突破1解锁'
+  if (unlock === 4) return '突破4解锁'
+  return ''
 }
 
 /** 数值格式化：保留合理小数位 */
