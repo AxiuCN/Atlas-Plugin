@@ -10,7 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { resolveLinks } from '../../model/LinkResolver.js'
-import { dataDir } from '../../model/AtlasService.js'
+import { backendRoot } from '../../model/AtlasService.js'
 
 export function buildCharacterData (gameId, record) {
   const list = record?.content?.list || {}
@@ -34,7 +34,7 @@ function _imgUrl (images, fieldPath) {
   if (!images || !Array.isArray(images)) return ''
   const img = images.find(i => i.fieldPath === fieldPath)
   if (img?.localPath) {
-    const fullPath = path.join(dataDir, img.localPath)
+    const fullPath = path.join(backendRoot, img.localPath)
     if (fs.existsSync(fullPath)) {
       return pathToFileURL(fullPath).href
     }

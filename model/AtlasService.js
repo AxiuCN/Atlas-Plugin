@@ -17,7 +17,8 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
-const dataDir = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend/data')
+const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
+const dataDir = path.join(backendRoot, 'data')
 
 /** @type {object|null} map.json 内容 */
 let mapCache = null
@@ -467,8 +468,7 @@ export function resolveRecordImage (record) {
   const picked = images.find(item => item?.localPath && item.status === 'downloaded' && !item.placeholder)
     || images.find(item => item?.localPath)
   if (!picked?.localPath) return ''
-  const fullPath = path.join(dataDir, picked.localPath)
-  if (!fs.existsSync(fullPath)) return ''
+  const fullPath = path.join(backendRoot, picked.localPath)
   return pathToFileURL(fullPath).href
 }
 
@@ -537,4 +537,4 @@ export function loadMap () {
   return mapCache
 }
 
-export { dataDir }
+export { dataDir, backendRoot }
