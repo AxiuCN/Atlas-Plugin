@@ -5,13 +5,30 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
 </head>
 <body>
-  <div class="hero">
+  {{if hero}}
+  <div class="hero"{{if hero.namecard}} style="background-image: url('{{hero.namecard}}')"{{/if}}>
+    <div class="hero-bg"></div>
+    {{if hero.portrait}}<img class="hero-portrait" src="{{hero.portrait}}"/>{{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · {{pageTitle}}{{if hero.rarity}} · {{hero.rarity}}{{/if}}</div>
+      <div class="hero-title">{{name}}</div>
+      {{if hero.title}}<div class="hero-subtitle">{{hero.title}}</div>{{/if}}
+      <div class="hero-info">
+        {{if hero.element}}<span class="hero-info-item">{{hero.element}}</span>{{/if}}
+        {{if hero.weapon}}<span class="hero-info-item">{{hero.weapon}}</span>{{/if}}
+        {{if hero.birthday}}<span class="hero-info-item">生日 {{hero.birthday}}</span>{{/if}}
+      </div>
+    </div>
+  </div>
+  {{else}}
+  <div class="hero hero-plain">
     {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
       <div class="hero-title">{{name}}</div>
     </div>
   </div>
+  {{/if}}
 
   {{if metaFields.length > 0}}
   <div class="stat-grid">
@@ -32,8 +49,11 @@
       {{each section.skills sk}}
       <div class="skill-card">
         <div class="skill-header">
-          <span class="skill-name">{{sk.name}}</span>
-          {{if sk.tag}}<span class="skill-tag">{{sk.tag}}</span>{{/if}}
+          {{if sk.icon}}<img class="skill-icon" src="{{sk.icon}}"/>{{/if}}
+          <div class="skill-header-text">
+            <span class="skill-name">{{sk.name}}</span>
+            {{if sk.tag}}<span class="skill-tag">{{sk.tag}}</span>{{/if}}
+          </div>
         </div>
         {{if sk.desc}}
         <div class="skill-desc">{{#sk.desc}}</div>
@@ -66,17 +86,10 @@
       <div class="con-grid">
         {{each section.items c}}
         <div class="con-item">
+          {{if c.icon}}<img class="con-icon" src="{{c.icon}}"/>{{/if}}
           <div class="con-order">{{c.order}}</div>
           <div class="con-name">{{c.name}}</div>
           <div class="con-desc">{{#c.desc}}</div>
-          {{if c.refs && c.refs.length > 0}}
-            {{each c.refs ref}}
-            <div class="link-detail">
-              <div class="link-detail-name">{{ref.name}}</div>
-              {{if ref.desc}}<div class="link-detail-desc">{{#ref.desc}}</div>{{/if}}
-            </div>
-            {{/each}}
-          {{/if}}
         </div>
         {{/each}}
       </div>
@@ -92,6 +105,7 @@
     {{else if section.type === 'list'}}
       {{each section.items e}}
       <div class="extra-item">
+        {{if e.icon}}<img class="extra-icon" src="{{e.icon}}"/>{{/if}}
         <div class="extra-name">{{e.name}}</div>
         {{if e.desc}}<div class="extra-desc">{{#e.desc}}</div>{{/if}}
       </div>

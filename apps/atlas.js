@@ -196,6 +196,7 @@ export class atlas extends plugin {
           name: meta.name || result.name,
           rarity: meta.rarity || result.rarity || '',
           image: resolveRecordImage(record),
+          hero: typeData.hero || null,
           metaFields: typeData.metaFields || [],
           sections: typeData.sections || [],
           rawFields: [],

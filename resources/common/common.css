@@ -1,4 +1,4 @@
-/* Atlas-Plugin 通用样式 — 对齐荷花 skia-canvas 视觉风格 */
+/* Atlas-Plugin 通用样式 — 深色主题 */
 * {
   margin: 0;
   padding: 0;
@@ -7,8 +7,8 @@
 
 body {
   font-family: "Microsoft YaHei", "PingFang SC", "MiSans", sans-serif;
-  background: #1e2227;
-  color: #1f2a33;
+  background: #1a1d22;
+  color: rgba(255, 255, 255, 0.88);
   width: 720px;
   padding: 24px 28px 28px;
   line-height: 1.6;
@@ -16,7 +16,10 @@ body {
 
 /* ===== Hero 区块 ===== */
 .hero {
-  background: rgba(0, 0, 0, 0.38);
+  background: rgba(0, 0, 0, 0.45);
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
   border-radius: 28px;
   padding: 28px 34px;
   margin-bottom: 18px;
@@ -24,56 +27,107 @@ body {
   align-items: center;
   gap: 24px;
   position: relative;
+  overflow: hidden;
+}
+.hero-plain {
+  background: rgba(255, 255, 255, 0.06);
+}
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }
 .hero-portrait {
-  width: 140px;
-  height: 180px;
+  width: 130px;
+  height: 130px;
   object-fit: contain;
-  border-radius: 14px;
+  border-radius: 16px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.3);
 }
 .hero-text {
   flex: 1;
   min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 .hero .hero-game {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
-  color: rgba(255, 255, 255, 0.78);
-  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.70);
+  margin-bottom: 4px;
 }
 .hero .hero-title {
   font-size: 34px;
   font-weight: 950;
   color: #fff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   line-height: 1.2;
 }
 .hero .hero-subtitle {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 650;
-  color: rgba(255, 255, 255, 0.92);
-  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 6px;
 }
-.hero .hero-badge {
-  position: absolute;
-  top: 28px;
-  right: 34px;
+.hero-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+}
+.hero-info-item {
   display: inline-block;
-  padding: 4px 14px;
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.95);
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/* ===== 分区标题（对齐荷花 sectionTitle：白色半透明 pill + 蓝色左竖条） ===== */
+/* ===== 图标：技能 / 命座 / 天赋 ===== */
+.skill-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+.skill-header-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.con-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: contain;
+  margin-bottom: 4px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.extra-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  float: left;
+  margin-right: 10px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ===== 分区标题 ===== */
 .section-title {
   display: flex;
   align-items: center;
   height: 34px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 17px;
   padding: 0 18px;
   margin: 22px 0 12px;
@@ -84,7 +138,7 @@ body {
   display: inline-block;
   width: 8px;
   height: 18px;
-  background: #24a9d8;
+  background: #3db8e0;
   border-radius: 99px;
   margin-right: 12px;
   flex-shrink: 0;
@@ -92,18 +146,18 @@ body {
 .section-title-text {
   font-size: 18px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
 }
 
-/* ===== 分区标题回退（无 .section-title 类时 h3 模拟） ===== */
+/* ===== 分区标题回退 ===== */
 .detail-section h3 {
   font-size: 18px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
   display: flex;
   align-items: center;
   height: 34px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 17px;
   padding: 0 18px;
   margin: 22px 0 12px;
@@ -113,13 +167,13 @@ body {
   display: inline-block;
   width: 8px;
   height: 18px;
-  background: #24a9d8;
+  background: #3db8e0;
   border-radius: 99px;
   margin-right: 12px;
   flex-shrink: 0;
 }
 
-/* ===== 属性 stat grid（对齐荷花 gridItems：白色卡片平铺） ===== */
+/* ===== 属性 stat grid ===== */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -127,58 +181,58 @@ body {
   margin-bottom: 4px;
 }
 .stat-cell {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 16px;
-  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 10px 12px;
   text-align: center;
 }
 .stat-cell .stat-label {
   font-size: 11px;
   font-weight: 600;
-  color: #60717c;
+  color: rgba(255, 255, 255, 0.50);
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 .stat-cell .stat-value {
   font-size: 15px;
   font-weight: 700;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.90);
 }
 
-/* ===== 白色卡片通用样式 ===== */
+/* ===== 白色卡片通用样式（深色化） ===== */
 .white-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
   padding: 14px 18px;
   margin-bottom: 10px;
 }
 
-/* ===== 两列表格（label:value，白色背景） ===== */
+/* ===== 两列表格 ===== */
 .detail-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   overflow: hidden;
 }
 .detail-table td {
   padding: 6px 14px;
   vertical-align: top;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .detail-table tr:last-child td { border-bottom: none; }
 .detail-table .label {
-  color: #60717c;
+  color: rgba(255, 255, 255, 0.50);
   width: 30%;
   white-space: nowrap;
   font-weight: 600;
 }
 .detail-table .value {
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.85);
   word-break: break-all;
   white-space: pre-wrap;
 }
@@ -196,16 +250,16 @@ body {
   color: rgba(255, 255, 255, 0.82);
 }
 .meta-item .mlabel {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.50);
   margin-right: 4px;
 }
 
 /* ===== 技能卡 ===== */
 .skill-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 16px;
-  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
   margin-bottom: 10px;
 }
 .skill-card:last-child { margin-bottom: 0; }
@@ -218,7 +272,7 @@ body {
 .skill-name {
   font-size: 16px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
 }
 .skill-tag {
   display: inline-block;
@@ -226,12 +280,12 @@ body {
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
-  background: rgba(36, 169, 216, 0.14);
-  color: #005577;
+  background: rgba(61, 184, 224, 0.18);
+  color: #70d0ee;
 }
 .skill-desc {
   font-size: 14px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.85);
   line-height: 1.65;
   margin-bottom: 6px;
   white-space: pre-wrap;
@@ -240,7 +294,7 @@ body {
 .skill-params .param-title {
   font-size: 12px;
   font-weight: 700;
-  color: #60717c;
+  color: rgba(255, 255, 255, 0.45);
   margin-bottom: 4px;
 }
 
@@ -249,21 +303,21 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   overflow: hidden;
 }
 .mini-table th, .mini-table td {
   padding: 3px 8px;
   text-align: center;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .mini-table th {
-  background: rgba(0, 0, 0, 0.04);
-  color: #60717c;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.50);
   font-weight: 600;
 }
-.mini-table td { color: #1f2a33; }
+.mini-table td { color: rgba(255, 255, 255, 0.80); }
 
 /* ===== 命座/星魂/影画 3列网格 ===== */
 .con-grid {
@@ -272,33 +326,33 @@ body {
   gap: 8px;
 }
 .con-item {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 12px 14px;
 }
 .con-order {
   font-size: 11px;
   font-weight: 700;
-  color: #d2991d;
+  color: #e0b040;
 }
 .con-name {
   font-size: 14px;
   font-weight: 950;
-  color: #004466;
-  margin: 4px 0;
+  color: #fff;
+  margin: 2px 0;
 }
 .con-desc {
   font-size: 12px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
 /* ===== 资料/故事卡 ===== */
 .story-item {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 14px 18px;
   margin-bottom: 8px;
@@ -306,20 +360,20 @@ body {
 .story-title {
   font-size: 14px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
   margin-bottom: 6px;
 }
 .story-content {
   font-size: 13px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   line-height: 1.7;
   white-space: pre-wrap;
 }
 
 /* ===== 精炼/套装效果 text cards ===== */
 .refine-item {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 14px 18px;
   margin-bottom: 8px;
@@ -333,24 +387,24 @@ body {
 .refine-level {
   font-size: 12px;
   font-weight: 700;
-  color: #d2991d;
+  color: #e0b040;
 }
 .refine-name {
   font-size: 15px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
 }
 .refine-desc {
   font-size: 13px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   line-height: 1.65;
   white-space: pre-wrap;
 }
 
 /* ===== 圣遗物套装效果 ===== */
 .bonus-item {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(36, 169, 216, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(61, 184, 224, 0.20);
   border-radius: 14px;
   padding: 14px 18px;
   margin-bottom: 8px;
@@ -358,48 +412,49 @@ body {
 .bonus-item .bonus-label {
   font-size: 13px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
   margin-bottom: 4px;
 }
 .bonus-item .bonus-desc {
   font-size: 13px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   white-space: pre-wrap;
 }
 
 /* ===== 通用列表项 ===== */
 .extra-item {
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  background: rgba(255, 255, 255, 0.86);
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
 }
 .extra-item:first-child {
-  border-radius: 14px 14px 0 0;
+  border-radius: 12px 12px 0 0;
 }
 .extra-item:last-child {
   border-bottom: none;
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 12px 12px;
 }
 .extra-name {
   font-size: 14px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
 }
 .extra-desc {
   font-size: 13px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   margin-top: 2px;
   white-space: pre-wrap;
 }
 
 /* ===== 描述文本块 ===== */
 .desc-block {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 14px 18px;
   font-size: 13px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   line-height: 1.7;
   white-space: pre-wrap;
 }
@@ -413,8 +468,8 @@ body {
 .group-title {
   font-size: 14px;
   font-weight: 950;
-  color: #004466;
-  background: rgba(255, 255, 255, 0.88);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 17px;
   padding: 7px 18px;
   margin-bottom: 8px;
@@ -430,9 +485,9 @@ body {
   padding: 4px 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #1f2a33;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
 }
 
@@ -440,11 +495,11 @@ body {
 .empty-box {
   text-align: center;
   padding: 40px 0;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.35);
   font-size: 15px;
 }
 .empty-box .keyword {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 700;
 }
 
@@ -456,7 +511,7 @@ body {
   font-size: 11px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
-  background: rgba(0, 0, 0, 0.34);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 17px;
   line-height: 2.2;
 }
@@ -465,7 +520,7 @@ body {
 .hint {
   margin-top: 12px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.35);
   text-align: center;
 }
 
@@ -476,27 +531,27 @@ body {
   gap: 10px;
 }
 .achievement-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 14px 16px;
 }
 .achievement-card .ac-name {
   font-size: 15px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
 }
 .achievement-card .ac-count {
   font-size: 12px;
-  color: #60717c;
+  color: rgba(255, 255, 255, 0.45);
   margin-top: 2px;
 }
 .achievement-group {
   margin-bottom: 16px;
 }
 .achievement-item {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 12px 16px;
   margin-bottom: 6px;
@@ -504,11 +559,11 @@ body {
 .achievement-item .ai-name {
   font-size: 14px;
   font-weight: 950;
-  color: #004466;
+  color: #fff;
 }
 .achievement-item .ai-desc {
   font-size: 12px;
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.75);
   margin-top: 2px;
 }
 
@@ -527,26 +582,26 @@ body {
 .link-detail {
   margin-top: 8px;
   padding: 8px 12px;
-  background: rgba(255, 215, 0, 0.06);
-  border-left: 3px solid #d2991d;
+  background: rgba(224, 176, 64, 0.08);
+  border-left: 3px solid #e0b040;
   border-radius: 0 8px 8px 0;
   font-size: 12px;
   line-height: 1.6;
 }
 .link-detail-name {
   font-weight: 700;
-  color: #d2991d;
+  color: #e0b040;
   margin-bottom: 2px;
 }
 .link-detail-desc {
-  color: #1f2a33;
+  color: rgba(255, 255, 255, 0.80);
   white-space: pre-wrap;
 }
 
 /* ===== 描述文本（内联） ===== */
 .desc-text {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.65);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
