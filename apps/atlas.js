@@ -433,9 +433,13 @@ export class atlas extends plugin {
   _formatValue (value) {
     if (value == null) return ''
     let str = String(value)
+    // 转义换行符
+    str = str.replace(/\\n/g, '\n')
     // 清理 RUBY 标记
     str = str.replace(/\{RUBY_B#[^}]*}/g, '')
     str = str.replace(/\{RUBY_E#}/g, '')
+    // 清理 LINK 占位符
+    str = str.replace(/\{LINK#[^}]*}/g, '')
     // 清理 HTML 标签
     str = str.replace(/<[^>]+>/g, '')
     return str.trim()

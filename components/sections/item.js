@@ -36,7 +36,11 @@ export function buildItemData (gameId, record) {
 
 function _clean (s) {
   if (!s) return ''
-  return String(s).replace(/\{RUBY_B#[^}]*}/g, '').replace(/\{RUBY_E#}/g, '').replace(/<[^>]+>/g, '').trim()
+  return String(s)
+    .replace(/\\n/g, '\n')
+    .replace(/\{RUBY_B#[^}]*}/g, '').replace(/\{RUBY_E#}/g, '')
+    .replace(/\{LINK#[^}]*}/g, '')
+    .replace(/<[^>]+>/g, '').trim()
 }
 
 function _label (k) {

@@ -35,29 +35,12 @@ function _buildGI (list, detail, meta) {
 
   // 技能
   if (detail.skills && Array.isArray(detail.skills)) {
-    const skillFields = detail.skills.map(s => {
-      let params = null
-      if (s.promote) {
-        const levels = Object.keys(s.promote).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
-        if (levels.length > 0) {
-          const first = s.promote[levels[0]]
-          const paramKeys = first?.param_list ? Object.keys(first.param_list) : (first?.params ? Object.keys(first.params) : [])
-          const headers = ['等级', ...paramKeys]
-          const rows = levels.map(lv => {
-            const p = s.promote[lv]
-            const vals = paramKeys.map(k => p?.param_list?.[k] ?? p?.params?.[k] ?? '')
-            return [lv, ...vals]
-          })
-          params = { headers, rows }
-        }
-      }
-      return {
-        name: s.name || '',
-        tag: _skillTag(s.name, 'gi'),
-        desc: _cleanText(s.desc || ''),
-        params
-      }
-    })
+    const skillFields = detail.skills.map(s => ({
+      name: s.name || '',
+      tag: _skillTag(s.name, 'gi'),
+      desc: _cleanText(s.desc || ''),
+      params: _buildSkillParams(s.promote, 'gi')
+    }))
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
   }
 
@@ -118,29 +101,12 @@ function _buildHSR (list, detail, meta) {
 
   // 技能
   if (detail.skills && typeof detail.skills === 'object') {
-    const skillFields = Object.values(detail.skills).map(s => {
-      let params = null
-      if (s.level && typeof s.level === 'object') {
-        const levels = Object.keys(s.level).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
-        if (levels.length > 0) {
-          const first = s.level[levels[0]]
-          const paramKeys = first?.param_list ? Object.keys(first.param_list) : (first?.params ? Object.keys(first.params) : [])
-          const headers = ['等级', ...paramKeys]
-          const rows = levels.map(lv => {
-            const l = s.level[lv]
-            const vals = paramKeys.map(k => l?.param_list?.[k] ?? l?.params?.[k] ?? '')
-            return [lv, ...vals]
-          })
-          params = { headers, rows }
-        }
-      }
-      return {
-        name: s.name || '',
-        tag: _skillTag(s.type || s.type_name || '', 'hsr'),
-        desc: _cleanText(s.desc || s.simple_desc || ''),
-        params
-      }
-    })
+    const skillFields = Object.values(detail.skills).map(s => ({
+      name: s.name || '',
+      tag: _skillTag(s.type || s.type_name || '', 'hsr'),
+      desc: _cleanText(s.desc || s.simple_desc || ''),
+      params: _buildSkillParams(s.level, 'hsr')
+    }))
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
   }
 
@@ -280,12 +246,91 @@ function _buildZZZ (list, detail, meta) {
 
 // ========== 工具函数 ==========
 
-/** 清理 HTML 和 RUBY 标记 */
+/**
+ * 从技能 promote/level 数据构建参数表
+ * @param {object} levelData — s.promote (GI) 或 s.level (HSR)
+ * @param {string} game — 'gi' | 'hsr'
+ * @returns {object|null} { headers: string[], rows: string[][] } | null
+ */
+function _buildSkillParams (levelData, game) {
+  if (!levelData || typeof levelData !== 'object') return null
+
+  const levels = Object.keys(levelData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
+  if (!levels.length) return null
+
+  const first = levelData[levels[0]]
+  let paramHeaders = []
+  let getValues
+
+  // 检测 param 字段类型：数组（GI param）或对象（param_list/params）
+  const paramArr = first?.param
+  const paramList = first?.param_list
+  const paramsObj = first?.params
+
+  if (Array.isArray(paramArr) && paramArr.length > 0) {
+    // GI: first.param 是数组，first.desc 含标签
+    const descLabels = (first.desc || []).map(d => String(d).split('|')[0].trim()).filter(Boolean)
+    if (descLabels.length > 0) {
+      paramHeaders = descLabels
+      getValues = (entry) => {
+        const arr = entry?.param || []
+        return paramHeaders.map((_, i) => _fmtNum(arr[i]))
+      }
+    }
+  }
+
+  if (!paramHeaders.length && paramList != null) {
+    if (Array.isArray(paramList) && paramList.length > 0) {
+      // HSR: param_list 是数组，无标签，用序号
+      paramHeaders = paramList.map((_, i) => `属性${i + 1}`)
+      getValues = (entry) => {
+        const arr = entry?.param_list || []
+        return paramHeaders.map((_, i) => _fmtNum(arr[i]))
+      }
+    } else if (typeof paramList === 'object') {
+      // param_list 是对象 { key: value }
+      paramHeaders = Object.keys(paramList)
+      getValues = (entry) => paramHeaders.map(k => _fmtNum(entry?.param_list?.[k]))
+    }
+  }
+
+  if (!paramHeaders.length && paramsObj && typeof paramsObj === 'object') {
+    // params 对象兜底
+    paramHeaders = Object.keys(paramsObj)
+    getValues = (entry) => paramHeaders.map(k => _fmtNum(entry?.params?.[k]))
+  }
+
+  if (!paramHeaders.length) return null
+
+  const headers = ['等级', ...paramHeaders]
+  const rows = levels.map(lv => {
+    const entry = levelData[lv]
+    return [lv, ...getValues(entry)]
+  })
+
+  return { headers, rows }
+}
+
+/** 数值格式化：保留合理小数位 */
+function _fmtNum (v) {
+  if (v == null || v === '') return ''
+  const n = Number(v)
+  if (Number.isNaN(n)) return String(v)
+  if (Number.isInteger(n)) return String(n)
+  // 小数 > 1 → 1 位，< 1 → 2 位，百分比类保留 1 位
+  if (Math.abs(n) >= 1) return n.toFixed(1)
+  if (Math.abs(n) >= 0.01) return n.toFixed(2)
+  return String(n)
+}
+
+/** 清理 HTML、RUBY 标记、LINK 占位符、换行符 */
 function _cleanText (str) {
   if (!str) return ''
   return String(str)
+    .replace(/\\n/g, '\n')
     .replace(/\{RUBY_B#[^}]*}/g, '')
     .replace(/\{RUBY_E#}/g, '')
+    .replace(/\{LINK#[^}]*}/g, '')
     .replace(/<[^>]+>/g, '')
     .trim()
 }

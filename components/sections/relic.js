@@ -105,6 +105,8 @@ function _buildZZZEquipment (list, detail, meta) {
 function _clean (str) {
   if (!str) return ''
   return String(str)
+    .replace(/\\n/g, '\n')
     .replace(/\{RUBY_B#[^}]*}/g, '').replace(/\{RUBY_E#}/g, '')
+    .replace(/\{LINK#[^}]*}/g, '')
     .replace(/<[^>]+>/g, '').trim()
 }
