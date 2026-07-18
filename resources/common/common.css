@@ -1,4 +1,29 @@
 /* Atlas-Plugin 通用样式 — 深色主题 */
+
+/* ===== 自定义字体 ===== */
+@font-face {
+  font-family: 'Number';
+  src: url("./font/tttgbnumber.woff") format('woff'), url("./font/tttgbnumber.ttf") format('truetype');
+}
+@font-face {
+  font-family: 'NZBZ';
+  src: url("./font/NZBZ.woff") format('woff'), url("./font/NZBZ.ttf") format('truetype');
+}
+@font-face {
+  font-family: 'YS';
+  src: url("./font/HYWH-65W.woff") format('woff'), url("./font/HYWH-65W.ttf") format('truetype');
+}
+@font-face {
+  font-family: 'STZhongsong';
+  src: url("./font/华文中宋.TTF") format('truetype');
+}
+.font-YS {
+  font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+.font-NZBZ {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -6,7 +31,7 @@
 }
 
 body {
-  font-family: "Microsoft YaHei", "PingFang SC", "MiSans", sans-serif;
+  font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   background: #1a1d22;
   color: rgba(255, 255, 255, 0.88);
   width: 720px;
@@ -61,8 +86,9 @@ body {
   margin-bottom: 4px;
 }
 .hero .hero-title {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 34px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   line-height: 1.2;
@@ -151,8 +177,9 @@ body {
 
 /* ===== 分区标题回退 ===== */
 .detail-section h3 {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 18px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
   display: flex;
   align-items: center;
@@ -270,8 +297,9 @@ body {
   margin-bottom: 8px;
 }
 .skill-name {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 16px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
 }
 .skill-tag {
@@ -353,8 +381,9 @@ body {
   flex-shrink: 0;
 }
 .con-header .con-name {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
   margin: 0;
 }
@@ -374,8 +403,9 @@ body {
   margin-bottom: 8px;
 }
 .story-title {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
   margin-bottom: 6px;
 }
@@ -406,8 +436,9 @@ body {
   color: #e0b040;
 }
 .refine-name {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 15px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
 }
 .refine-desc {
@@ -434,8 +465,9 @@ body {
   margin-bottom: 4px;
 }
 .bonus-item .bonus-label {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 13px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
   margin-bottom: 4px;
 }
@@ -460,8 +492,9 @@ body {
   border-radius: 0 0 12px 12px;
 }
 .extra-name {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
 }
 .extra-desc {
@@ -490,8 +523,9 @@ body {
   gap: 16px;
 }
 .group-title {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 17px;
@@ -705,8 +739,9 @@ body {
   min-width: 18px;
 }
 .profile-name {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 800;
   color: #fff;
 }
 .profile-tag {
