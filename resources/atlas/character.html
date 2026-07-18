@@ -56,13 +56,13 @@
           </div>
         </div>
         {{if sk.desc}}
-        <div class="skill-desc">{{#sk.desc}}</div>
+        <div class="skill-desc">{{@sk.desc}}</div>
         {{/if}}
         {{if sk.refs && sk.refs.length > 0}}
           {{each sk.refs ref}}
           <div class="link-detail">
             <div class="link-detail-name">{{ref.name}}</div>
-            {{if ref.desc}}<div class="link-detail-desc">{{#ref.desc}}</div>{{/if}}
+            {{if ref.desc}}<div class="link-detail-desc">{{@ref.desc}}</div>{{/if}}
           </div>
           {{/each}}
         {{/if}}
@@ -91,7 +91,7 @@
             <span class="con-order">{{c.order}}</span>
             <span class="con-name">{{c.name}}</span>
           </div>
-          <div class="con-desc">{{#c.desc}}</div>
+          <div class="con-desc">{{@c.desc}}</div>
         </div>
         {{/each}}
       </div>
@@ -100,7 +100,7 @@
       {{each section.items s}}
       <div class="story-item">
         <div class="story-title">{{s.title}}</div>
-        <div class="story-content">{{#s.content}}</div>
+        <div class="story-content">{{@s.content}}</div>
       </div>
       {{/each}}
 
@@ -109,7 +109,7 @@
       <div class="extra-item">
         {{if e.icon}}<img class="extra-icon" src="{{e.icon}}"/>{{/if}}
         <div class="extra-name">{{e.name}}</div>
-        {{if e.desc}}<div class="extra-desc">{{#e.desc}}</div>{{/if}}
+        {{if e.desc}}<div class="extra-desc">{{@e.desc}}</div>{{/if}}
       </div>
       {{/each}}
 
