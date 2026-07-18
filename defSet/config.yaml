@@ -12,9 +12,6 @@ notifyGroups: "${atlas_notifyGroups}"
 # 通知模式：all = 主人+配置群 / master_only = 仅主人
 notifyMode: ${atlas_notifyMode}
 
-# ---------- 兼容 ----------
-blockMiaoAvatar: ${atlas_blockMiaoAvatar}
-
 # ---------- 自动更新 ----------
 autoUpdate:
   # 是否启用每日自动抓取更新
