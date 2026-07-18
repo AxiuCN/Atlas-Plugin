@@ -62,6 +62,18 @@ function ensureIndex () {
         const dedupeKey = pageKey + '|' + record.name
         if (seen.has(dedupeKey)) continue
         seen.add(dedupeKey)
+        const aliases = buildEntryAliases(record)
+        // GI 圣遗物名称是纯数字 ID，需从 JSON 内提取套装名作为别名
+        if (gameId === 'gi' && pageKey === 'artifact') {
+          try {
+            const artifactRec = loadRecord(record.path)
+            if (artifactRec?.content?.list?.set) {
+              for (const s of Object.values(artifactRec.content.list.set)) {
+                if (s.name?.zh) aliases.add(s.name.zh)
+              }
+            }
+          } catch {}
+        }
         flat.push({
           name: record.name,
           nameLower: record.name.toLowerCase(),
@@ -72,7 +84,7 @@ function ensureIndex () {
           recordId,
           filePath: record.path,
           imageCount: Number(record.imageCount || 0),
-          aliases: buildEntryAliases(record)
+          aliases
         })
       }
     }
@@ -243,10 +255,6 @@ export function search (gameId, keyword) {
   for (const entry of flat) {
     const score = scoreEntry(entry, variants, trimmed)
     if (score > 0) scored.push({ entry, score })
-  }
-
-  if (scored.length === 0) {
-    return { type: 'empty', keyword: trimmed }
   }
 
   scored.sort((a, b) =>
