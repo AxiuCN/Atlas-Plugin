@@ -158,7 +158,7 @@ export function buildDetailData (gameId, result) {
   // 类型专用 sections builder
   const builder = getSectionBuilder(pageKey)
   if (builder) {
-    const typeData = builder(gameId, record)
+    const typeData = builder(gameId, record, result.subView || null)
     if (typeData) {
       return {
         gameName: GAME_NAMES[gameId],

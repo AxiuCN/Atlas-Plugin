@@ -8,6 +8,34 @@ import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES } from '../components/constants.js'
 
+// 子视图后缀映射（{ suffix → subView }，故事和语音共享 stories，养成和素材共享 materials）
+const SUB_VIEW_SUFFIXES = [
+  { suffix: '天赋', subView: 'skills' },
+  { suffix: '命座', subView: 'constellations' },
+  { suffix: '资料', subView: 'profile' },
+  { suffix: '故事', subView: 'stories' },
+  { suffix: '语音', subView: 'stories' },
+  { suffix: '养成', subView: 'materials' },
+  { suffix: '素材', subView: 'materials' }
+]
+
+/**
+ * 解析子视图后缀
+ * @param {string} keyword
+ * @returns {{ searchKeyword: string, subView: string|null }}
+ */
+function parseSubView (keyword) {
+  for (const { suffix, subView } of SUB_VIEW_SUFFIXES) {
+    if (keyword.endsWith(suffix)) {
+      const searchKeyword = keyword.slice(0, -suffix.length).trim()
+      if (searchKeyword) {
+        return { searchKeyword, subView }
+      }
+    }
+  }
+  return { searchKeyword: keyword, subView: null }
+}
+
 /**
  * 处理特殊页面触发词（成就、挑战等）
  * @param {object} e - Runtime 实例
@@ -69,14 +97,27 @@ export async function handleSpecialQuery (e, gameId, result) {
  * 统一查询入口（供 apps 层调用）
  * @param {object} e - Runtime 实例
  * @param {string} gameId - gi / hsr / zzz
- * @param {string} keyword - 搜索词
+ * @param {string} keyword - 搜索词（可能含子视图后缀）
  * @returns {Promise<boolean>} true=消息已处理，false=继续传递
  */
 export async function handleQuery (e, gameId, keyword) {
   if (!keyword) return false
 
   try {
-    const result = search(gameId, keyword)
+    // ── 阶段 0：子视图后缀检测 ──
+    const { searchKeyword, subView } = parseSubView(keyword)
+
+    let result
+    if (subView) {
+      // 带后缀 → 先按剥离后的关键词搜索
+      result = search(gameId, searchKeyword)
+      // 只有角色结果才适用子视图，否则回退到原始关键词搜索
+      if (result.type !== 'exact' || result.results[0]?.pageKey !== 'character') {
+        result = search(gameId, keyword)
+      }
+    } else {
+      result = search(gameId, keyword)
+    }
 
     switch (result.type) {
       case 'empty':
@@ -89,7 +130,9 @@ export async function handleQuery (e, gameId, keyword) {
           await e.reply(`[Atlas] ${entry.name} 的数据文件缺失，请执行数据抓取`)
           return true
         }
-        const data = buildDetailData(gameId, { ...entry, record })
+        // 子视图仅对角色有效
+        const effectiveSubView = (entry.pageKey === 'character') ? subView : null
+        const data = buildDetailData(gameId, { ...entry, record, subView: effectiveSubView })
         const tpl = selectTemplate(result)
         const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
         if (img) await e.reply(img)

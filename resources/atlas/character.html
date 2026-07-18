@@ -86,9 +86,11 @@
       <div class="con-grid">
         {{each section.items c}}
         <div class="con-item">
-          {{if c.icon}}<img class="con-icon" src="{{c.icon}}"/>{{/if}}
-          <div class="con-order">{{c.order}}</div>
-          <div class="con-name">{{c.name}}</div>
+          <div class="con-header">
+            {{if c.icon}}<img class="con-icon" src="{{c.icon}}"/>{{/if}}
+            <span class="con-order">{{c.order}}</span>
+            <span class="con-name">{{c.name}}</span>
+          </div>
           <div class="con-desc">{{#c.desc}}</div>
         </div>
         {{/each}}
@@ -110,6 +112,26 @@
         {{if e.desc}}<div class="extra-desc">{{#e.desc}}</div>{{/if}}
       </div>
       {{/each}}
+
+    {{else if section.type === 'materials'}}
+      {{each section.items m}}
+      <div class="material-item">
+        <div class="material-name">{{m.name}}</div>
+        {{if m.desc}}<div class="material-cost">{{m.desc}}</div>{{/if}}
+      </div>
+      {{/each}}
+
+    {{else if section.type === 'profile-summary'}}
+      <div class="profile-list">
+        {{each section.items p}}
+        <div class="profile-item">
+          {{if p.order}}<span class="profile-order">{{p.order}}.</span>{{/if}}
+          <span class="profile-name">{{p.name}}</span>
+          {{if p.tag}}<span class="profile-tag">{{p.tag}}</span>{{/if}}
+          {{if p.desc}}<span class="profile-desc">{{p.desc}}</span>{{/if}}
+        </div>
+        {{/each}}
+      </div>
 
     {{else}}
       <table class="detail-table">

@@ -4,6 +4,7 @@
  *
  * @param {string} gameId - 'gi' | 'hsr' | 'zzz'
  * @param {object} record - 完整 JSON（含 meta, content.list, content.detail）
+ * @param {string|null} subView - 子视图: skills | constellations | profile | stories | materials
  * @returns {object} 模板数据 { hero, metaFields, sections }
  */
 import fs from 'node:fs'
@@ -12,14 +13,31 @@ import { pathToFileURL } from 'node:url'
 import { resolveLinks } from '../../model/LinkResolver.js'
 import { backendRoot } from '../../model/AtlasService.js'
 
-export function buildCharacterData (gameId, record) {
+export function buildCharacterData (gameId, record, subView = null) {
   const list = record?.content?.list || {}
   const detail = record?.content?.detail || {}
+  const meta = record?.meta
 
-  if (gameId === 'gi') return _buildGI(list, detail, record.meta)
-  if (gameId === 'hsr') return _buildHSR(list, detail, record.meta)
-  if (gameId === 'zzz') return _buildZZZ(list, detail, record.meta)
-  return null
+  let fullData
+  if (gameId === 'gi') fullData = _buildGI(list, detail, meta)
+  else if (gameId === 'hsr') fullData = _buildHSR(list, detail, meta)
+  else if (gameId === 'zzz') fullData = _buildZZZ(list, detail, meta)
+  else return null
+
+  if (!fullData) return null
+
+  // ---- 子视图路由 ----
+  if (!subView) {
+    return _applyDefaultView(fullData, gameId)
+  }
+  switch (subView) {
+    case 'skills': return _applySkillsView(fullData)
+    case 'constellations': return _applyConstellationsView(fullData)
+    case 'profile': return _applyProfileView(fullData, gameId, detail)
+    case 'stories': return _applyStoriesView(fullData, gameId, detail)
+    case 'materials': return _applyMaterialsView(fullData, gameId, detail)
+    default: return _applyDefaultView(fullData, gameId)
+  }
 }
 
 // ========== 图标解析 ==========
@@ -48,8 +66,6 @@ function _buildGI (list, detail, meta) {
   const images = meta?.images || []
   const img = (fp) => _imgUrl(images, fp)
 
-  const sections = []
-
   // ── Hero 区块 ──
   const hero = {
     namecard: img('detail.chara_info.namecard.icon'),
@@ -62,38 +78,77 @@ function _buildGI (list, detail, meta) {
     rarity: meta?.rarity || list.rarity || ''
   }
 
-  // ── 属性概览 ──
-  const metaFields = [
-    { label: '稀有度', value: hero.rarity },
-    { label: '神之眼', value: hero.element },
-    { label: '武器', value: hero.weapon },
-    { label: '命之座', value: hero.constellation },
-    { label: '生日', value: hero.birthday }
-  ].filter(f => f.value)
+  // ── 属性概览（已去重：移除 hero 已展示的字段）──
+  const metaFields = []
 
-  if (detail.base_hp != null) metaFields.push({ label: '基础生命', value: String(Math.round(detail.base_hp)) })
-  if (detail.base_atk != null) metaFields.push({ label: '基础攻击', value: String(Math.round(detail.base_atk)) })
-  if (detail.base_def != null) metaFields.push({ label: '基础防御', value: String(Math.round(detail.base_def)) })
+  // 基础数值取最高等级（优先 100 级，其次 90 级）
+  const sm = detail.stats_modifier
+  if (sm) {
+    const hp90 = sm.hp?.['90']
+    const hp100 = sm.hp?.['100']
+    const atk90 = sm.atk?.['90']
+    const atk100 = sm.atk?.['100']
+    const def90 = sm.def?.['90']
+    const def100 = sm.def?.['100']
 
-  // 突破属性 — 从 ascension 推导
-  const asc = detail.stats_modifier?.ascension
-  if (asc && asc.length > 0) {
-    const last = asc[asc.length - 1] || {}
-    const propMap = [
-      ['fight_prop_critical_hurt', '暴击伤害'],
-      ['fight_prop_critical', '暴击率'],
-      ['fight_prop_element_mastery', '元素精通'],
-      ['fight_prop_physical_hurt', '物理伤害加成'],
-      ['fight_prop_attack_percent', '攻击力%'],
-      ['fight_prop_hp_percent', '生命值%'],
-      ['fight_prop_defense_percent', '防御力%']
-    ]
-    for (const [key, label] of propMap) {
-      if (last[key]) { metaFields.push({ label: '突破属性', value: label }); break }
+    // 用 base 值 × 等级倍率 = 最终属性
+    const baseHp = detail.base_hp || 0
+    const baseAtk = detail.base_atk || 0
+    const baseDef = detail.base_def || 0
+
+    if (hp90 != null) {
+      const v90 = Math.round(baseHp * hp90)
+      const v100 = hp100 != null ? Math.round(baseHp * hp100) : null
+      metaFields.push({
+        label: '基础生命',
+        value: v100 != null ? `${v90} / ${v100}` : String(v90)
+      })
+    }
+    if (atk90 != null) {
+      const v90 = Math.round(baseAtk * atk90)
+      const v100 = atk100 != null ? Math.round(baseAtk * atk100) : null
+      metaFields.push({
+        label: '基础攻击',
+        value: v100 != null ? `${v90} / ${v100}` : String(v90)
+      })
+    }
+    if (def90 != null) {
+      const v90 = Math.round(baseDef * def90)
+      const v100 = def100 != null ? Math.round(baseDef * def100) : null
+      metaFields.push({
+        label: '基础防御',
+        value: v100 != null ? `${v90} / ${v100}` : String(v90)
+      })
+    }
+
+    // 突破属性
+    const asc = sm.ascension
+    if (asc && asc.length > 0) {
+      const last = asc[asc.length - 1] || {}
+      const propMap = [
+        ['fight_prop_critical_hurt', '暴击伤害'],
+        ['fight_prop_critical', '暴击率'],
+        ['fight_prop_element_mastery', '元素精通'],
+        ['fight_prop_physical_hurt', '物理伤害加成'],
+        ['fight_prop_attack_percent', '攻击力%'],
+        ['fight_prop_hp_percent', '生命值%'],
+        ['fight_prop_defense_percent', '防御力%'],
+        ['fight_prop_heal_add', '治疗加成']
+      ]
+      for (const [key, label] of propMap) {
+        if (last[key]) {
+          const v = last[key]
+          // 突破属性是小数，转百分比
+          metaFields.push({ label: '突破属性', value: _fmtPercent(v) })
+          break
+        }
+      }
     }
   }
 
-  // ── 技能（含 LINK refs）──
+  const sections = []
+
+  // ── 技能（含 LINK refs + 完整参数）──
   if (detail.skills && Array.isArray(detail.skills)) {
     const skillFields = detail.skills.map((s, i) => {
       const { resolved, refs } = resolveLinks(s.desc || '', 'gi')
@@ -161,14 +216,12 @@ function _buildHSR (list, detail, meta) {
     rarity: meta?.rarity || list.rarity || ''
   }
 
-  const metaFields = [
-    { label: '属性', value: hero.element },
-    { label: '命途', value: hero.weapon },
-    { label: '稀有度', value: hero.rarity },
-    { label: '阵营', value: detail.chara_info?.camp || '' }
-  ].filter(f => f.value)
+  // 去重：仅保留阵营 + 基础属性
+  const metaFields = []
+  if (detail.chara_info?.camp) {
+    metaFields.push({ label: '阵营', value: detail.chara_info.camp })
+  }
 
-  // 基础属性
   if (detail.properties && Array.isArray(detail.properties)) {
     const propFields = detail.properties.map(p => ({
       label: _propLabel(p.property_type || ''),
@@ -249,13 +302,10 @@ function _buildZZZ (list, detail, meta) {
     rarity: meta?.rarity || list.rarity || ''
   }
 
-  const metaFields = [
-    { label: '属性', value: hero.element },
-    { label: '类型', value: hero.weapon },
-    { label: '稀有度', value: hero.rarity },
-    { label: '阵营', value: detail.camp || '' },
-    { label: '性别', value: detail.gender || '' }
-  ].filter(f => f.value)
+  // 去重：仅保留阵营、性别 + stats
+  const metaFields = []
+  if (detail.camp) metaFields.push({ label: '阵营', value: detail.camp })
+  if (detail.gender) metaFields.push({ label: '性别', value: detail.gender })
 
   if (detail.stats) {
     const statKeys = ['hp_max', 'attack', 'defence', 'crit', 'crit_damage', 'pen_rate', 'stun']
@@ -276,8 +326,9 @@ function _buildZZZ (list, detail, meta) {
       if (!sk) continue
       let desc = ''
       let params = null
+      let main
       if (sk.description && Array.isArray(sk.description)) {
-        const main = sk.description[0]
+        main = sk.description[0]
         if (main) {
           desc = _cleanText(main.desc || '')
           if (main.param && Array.isArray(main.param)) {
@@ -348,7 +399,226 @@ function _buildZZZ (list, detail, meta) {
   return { hero, metaFields, sections }
 }
 
-// ========== 工具函数 ==========
+// ============================================================
+//  子视图处理
+// ============================================================
+
+/** 默认视图：隐藏技能参数 + 去重 metaFields */
+function _applyDefaultView (data, gameId) {
+  // 隐藏技能参数
+  const sections = data.sections.map(s => {
+    if (s.type === 'skill-cards' && s.skills) {
+      return {
+        ...s,
+        skills: s.skills.map(sk => ({ ...sk, params: null }))
+      }
+    }
+    return s
+  })
+
+  return { ...data, sections }
+}
+
+/** 天赋视图：仅技能 + 被动（完整参数） */
+function _applySkillsView (data) {
+  const sections = data.sections.filter(s =>
+    s.type === 'skill-cards' || s.type === 'list'
+  )
+  return { ...data, sections }
+}
+
+/** 命座视图：仅命座 */
+function _applyConstellationsView (data) {
+  const sections = data.sections.filter(s =>
+    s.type === 'constellation-grid'
+  )
+  return { ...data, sections }
+}
+
+/** 资料视图：基础信息 + 特殊食物 + 服装 + 技能名 + 命座名 */
+function _applyProfileView (data, gameId, detail) {
+  const sections = []
+  const charaInfo = detail.chara_info
+
+  // 技能名称（无描述）
+  const skillNames = _getSkillNames(detail, gameId)
+  if (skillNames.length > 0) {
+    sections.push({
+      title: gameId === 'gi' ? '技能与战斗机制' : gameId === 'hsr' ? '技能' : '技能',
+      type: 'profile-summary',
+      items: skillNames
+    })
+  }
+
+  // 命之座/星魂/影画名称（无描述）
+  const conNames = _getConstellationNames(detail, gameId)
+  if (conNames.length > 0) {
+    sections.push({
+      title: gameId === 'gi' ? '命之座' : gameId === 'hsr' ? '星魂' : '影画',
+      type: 'profile-summary',
+      items: conNames
+    })
+  }
+
+  // 特殊食物（仅 GI）
+  if (charaInfo?.special_food) {
+    const sf = charaInfo.special_food
+    sections.push({
+      title: '特殊食物',
+      type: 'profile-summary',
+      items: [{ name: sf.name, desc: _formatFoodDesc(sf) }]
+    })
+  }
+
+  // 服装（GI: costume[], ZZZ: skin{}）
+  const outfits = _getOutfits(charaInfo, detail, gameId)
+  if (outfits.length > 0) {
+    sections.push({
+      title: '服装',
+      type: 'profile-summary',
+      items: outfits
+    })
+  }
+
+  return { ...data, sections }
+}
+
+/** 故事/语音视图：stories + voice lines */
+function _applyStoriesView (data, gameId, detail) {
+  const sections = []
+  const charaInfo = detail.chara_info
+
+  if (gameId === 'gi' && charaInfo) {
+    // 故事
+    if (charaInfo.stories && typeof charaInfo.stories === 'object') {
+      const storyItems = Object.values(charaInfo.stories)
+        .filter(s => s && s.title && s.text)
+        .map(s => ({ title: s.title, content: _cleanForRender(s.text) }))
+      if (storyItems.length > 0) {
+        sections.push({ title: '故事', type: 'stories', items: storyItems })
+      }
+    }
+
+    // 语音
+    if (charaInfo.quotes && typeof charaInfo.quotes === 'object') {
+      const quoteItems = Object.values(charaInfo.quotes)
+        .filter(q => q && q.title && q.text)
+        .map(q => ({
+          title: q.title + (q.unlocked?.length ? `（${q.unlocked.join('；')}）` : ''),
+          content: _cleanForRender(q.text)
+        }))
+      if (quoteItems.length > 0) {
+        sections.push({ title: '语音', type: 'stories', items: quoteItems })
+      }
+    }
+  }
+
+  if (sections.length === 0) {
+    sections.push({
+      title: '提示',
+      type: 'stories',
+      items: [{ title: '暂无数据', content: '该角色暂无故事或语音数据' }]
+    })
+  }
+
+  return { ...data, sections }
+}
+
+/** 养成/素材视图：突破材料 + 天赋材料 */
+function _applyMaterialsView (data, gameId, detail) {
+  const sections = []
+  const materials = detail.materials
+
+  if (gameId === 'gi' && materials) {
+    // 突破材料
+    if (materials.ascensions && Array.isArray(materials.ascensions)) {
+      const items = materials.ascensions.map((a, i) => ({
+        name: `突破 ${i + 1}`,
+        desc: _formatMaterialCost(a)
+      }))
+      sections.push({ title: '突破材料', type: 'materials', items })
+    }
+
+    // 天赋材料
+    if (materials.talents && Array.isArray(materials.talents)) {
+      const talentLabels = ['普通攻击', '元素战技', '元素爆发']
+      for (let si = 0; si < materials.talents.length; si++) {
+        const skillMats = materials.talents[si]
+        if (!Array.isArray(skillMats)) continue
+        const items = skillMats.map((m, i) => ({
+          name: `${talentLabels[si] || '技能' + (si + 1)} Lv.${i + 2}`,
+          desc: _formatMaterialCost(m)
+        }))
+        sections.push({ title: `天赋材料 · ${talentLabels[si] || '技能' + (si + 1)}`, type: 'materials', items })
+      }
+    }
+  }
+
+  if (sections.length === 0) {
+    sections.push({
+      title: '提示',
+      type: 'stories',
+      items: [{ title: '暂无数据', content: '该角色暂无养成材料数据' }]
+    })
+  }
+
+  return { ...data, sections }
+}
+
+// ============================================================
+//  工具函数
+// ============================================================
+
+/**
+ * 解析 desc 中的格式说明符
+ * "一段伤害|{param1:F1P}" → Map { 0: 'F1P' }
+ * @param {string[]} descArray
+ * @returns {Map<number, string>} paramIndex → format
+ */
+function _parseParamFormats (descArray) {
+  const map = new Map()
+  if (!descArray || !Array.isArray(descArray)) return map
+  for (const d of descArray) {
+    if (!d || typeof d !== 'string') continue
+    const matches = d.matchAll(/\{param(\d+):([^}]+)\}/g)
+    for (const m of matches) {
+      const idx = Number(m[1]) - 1 // param1 → index 0
+      if (!map.has(idx)) map.set(idx, m[2])
+    }
+  }
+  return map
+}
+
+/**
+ * 按格式说明符格式化参数值
+ * @param {*} value
+ * @param {string} format - F1P | P | F1 | F2 | undefined
+ * @returns {string}
+ */
+function _fmtParam (value, format) {
+  if (value == null || value === '') return ''
+  const n = Number(value)
+  if (Number.isNaN(n)) return String(value)
+
+  if (!format) return _fmtNum(n)
+
+  // 百分比格式
+  if (format.includes('P')) {
+    const pct = n * 100
+    const decimals = format.match(/F(\d+)/)
+    if (decimals) return pct.toFixed(Number(decimals[1])) + '%'
+    if (Number.isInteger(pct)) return pct + '%'
+    return pct.toFixed(1) + '%'
+  }
+
+  // 浮点数格式
+  if (format.startsWith('F') && format.length > 1) {
+    const decimals = Number(format.slice(1))
+    if (!Number.isNaN(decimals)) return n.toFixed(decimals)
+  }
+
+  return _fmtNum(n)
+}
 
 /**
  * 从技能 promote/level 数据构建参数表
@@ -365,19 +635,21 @@ function _buildSkillParams (levelData, game) {
   const first = levelData[levels[0]]
   let paramHeaders = []
   let getValues
+  let formatMap = new Map()
 
   const paramArr = first?.param
   const paramList = first?.param_list
   const paramsObj = first?.params
 
   if (Array.isArray(paramArr) && paramArr.length > 0) {
-    // GI: first.param 是数组，first.desc 含标签
+    // GI: first.param 是数组，first.desc 含标签和格式说明符
     const descLabels = (first.desc || []).map(d => String(d).split('|')[0].trim()).filter(Boolean)
     if (descLabels.length > 0) {
       paramHeaders = descLabels
+      formatMap = _parseParamFormats(first.desc || [])
       getValues = (entry) => {
         const arr = entry?.param || []
-        return paramHeaders.map((_, i) => _fmtNum(arr[i]))
+        return paramHeaders.map((_, i) => _fmtParam(arr[i], formatMap.get(i)))
       }
     }
   }
@@ -402,14 +674,107 @@ function _buildSkillParams (levelData, game) {
 
   if (!paramHeaders.length) return null
 
+  // 等级偏移：GI promote 键 0-14 对应游戏内等级 1-15
+  const levelOffset = game === 'gi' ? 1 : 0
+
   const headers = ['等级', ...paramHeaders]
   const rows = levels.map(lv => {
     const entry = levelData[lv]
-    return [lv, ...getValues(entry)]
+    return [String(Number(lv) + levelOffset), ...getValues(entry)]
   })
 
   return { headers, rows }
 }
+
+// ========== 数值格式化 ==========
+
+/** 格式化突破属性百分比 */
+function _fmtPercent (v) {
+  const n = Number(v)
+  if (Number.isNaN(n)) return String(v)
+  if (n > 1) return n.toFixed(1) + '%' // 已经是百分比整数
+  return (n * 100).toFixed(1) + '%'
+}
+
+/** 格式化素材消耗 */
+function _formatMaterialCost (a) {
+  if (!a) return ''
+  const parts = []
+  if (a.cost) parts.push(`摩拉 ×${a.cost}`)
+  if (a.mats && Array.isArray(a.mats)) {
+    for (const m of a.mats) {
+      const rankNames = ['', '', '绿色', '蓝色', '紫色', '金色']
+      const rank = rankNames[m.rank] || ''
+      parts.push(`${m.name}${rank ? '（' + rank + '）' : ''} ×${m.count}`)
+    }
+  }
+  return parts.join(' ； ')
+}
+
+/** 格式化特殊食物描述 */
+function _formatFoodDesc (sf) {
+  const parts = []
+  if (sf.name) parts.push(sf.name)
+  if (sf.recipe) parts.push(`食谱ID: ${sf.recipe}`)
+  return parts.join(' | ')
+}
+
+// ========== 名称提取（资料子视图） ==========
+
+/** 获取技能名称列表（无描述） */
+function _getSkillNames (detail, gameId) {
+  const names = []
+  if (gameId === 'gi' && detail.skills && Array.isArray(detail.skills)) {
+    for (const s of detail.skills) {
+      names.push({ name: s.name, tag: _skillTag(s.name, 'gi') })
+    }
+  } else if (gameId === 'hsr' && detail.skills && typeof detail.skills === 'object') {
+    for (const s of Object.values(detail.skills)) {
+      names.push({ name: s.name, tag: _skillTag(s.type || s.type_name || '', 'hsr') })
+    }
+  } else if (gameId === 'zzz') {
+    // ZZZ 资料使用 partner_info
+  }
+  return names
+}
+
+/** 获取命之座名称列表（无描述） */
+function _getConstellationNames (detail, gameId) {
+  const names = []
+  if (gameId === 'gi' && detail.constellations && Array.isArray(detail.constellations)) {
+    detail.constellations.forEach((c, i) => names.push({ order: i + 1, name: c.name }))
+  } else if (gameId === 'hsr' && detail.ranks && typeof detail.ranks === 'object') {
+    Object.entries(detail.ranks)
+      .filter(([k]) => /^\d+$/.test(k))
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .forEach(([k, r]) => names.push({ order: Number(k), name: r.name }))
+  } else if (gameId === 'zzz' && detail.talent && typeof detail.talent === 'object') {
+    Object.entries(detail.talent)
+      .filter(([k]) => /^\d+$/.test(k))
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .forEach(([k, t]) => names.push({ order: Number(k), name: t.name }))
+  }
+  return names
+}
+
+/** 获取服装列表 */
+function _getOutfits (charaInfo, detail, gameId) {
+  const outfits = []
+  if (gameId === 'gi' && charaInfo?.costume && Array.isArray(charaInfo.costume)) {
+    for (const c of charaInfo.costume) {
+      outfits.push({ name: c.name, desc: c.desc || '' })
+    }
+  } else if (gameId === 'zzz' && detail.skin && typeof detail.skin === 'object') {
+    for (const sk of Object.values(detail.skin)) {
+      if (sk && sk.name) outfits.push({ name: sk.name, desc: sk.desc || '' })
+    }
+  } else if (gameId === 'hsr' && charaInfo?.skin_name) {
+    outfits.push({ name: charaInfo.skin_name, desc: '' })
+  }
+  return outfits
+}
+
+// ========== 基础工具函数 ==========
 
 /** 生日格式化：[1, 1] → "1月1日" */
 function _formatBirthday (birth) {
