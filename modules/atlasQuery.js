@@ -8,9 +8,10 @@ import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES } from '../components/constants.js'
 
-// 子视图后缀映射（{ suffix → subView }，故事和语音共享 stories，养成和素材共享 materials）
+// 子视图后缀映射（{ suffix → subView }，故事和语音共享 stories，养成和素材共享 materials，天赋和技能共享 skills）
 const SUB_VIEW_SUFFIXES = [
   { suffix: '天赋', subView: 'skills' },
+  { suffix: '技能', subView: 'skills' },
   { suffix: '命座', subView: 'constellations' },
   { suffix: '资料', subView: 'profile' },
   { suffix: '故事', subView: 'stories' },

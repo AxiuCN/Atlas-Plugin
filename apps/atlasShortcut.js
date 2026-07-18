@@ -1,8 +1,8 @@
 /**
  * atlasShortcut — 图鉴快捷入口（priority -99999，先于 miao-plugin 执行）
  *
- * 用户显式加「图鉴」后缀时提前拦截，避免被 miao-plugin 的 accept 机制抢走。
- * 例：#胡桃图鉴 / *符玄图鉴 / %雅图鉴
+ * 用户显式加「图鉴」或子视图后缀时提前拦截，避免被 miao-plugin 的 accept 机制抢走。
+ * 例：#胡桃图鉴 / #胡桃天赋 / #胡桃命座 / #胡桃资料
  */
 import plugin from '../../../lib/plugins/plugin.js'
 import { handleQuery } from '../modules/atlasQuery.js'
@@ -11,13 +11,13 @@ export class atlasShortcut extends plugin {
   constructor () {
     super({
       name: 'Atlas图鉴快捷入口',
-      dsc: '#角色图鉴 / *角色图鉴 / %角色图鉴',
+      dsc: '#角色图鉴 / 天赋 / 技能 / 命座 / 资料 / 故事 / 语音 / 养成 / 素材',
       event: 'message',
       priority: -99999,
       rule: [
-        { reg: /^#(.+)图鉴$/, fnc: 'shortcutGI', permission: 'all' },
-        { reg: /^\*(.+)图鉴$/, fnc: 'shortcutHSR', permission: 'all' },
-        { reg: /^%(.+)图鉴$/, fnc: 'shortcutZZZ', permission: 'all' }
+        { reg: /^#(.+)(?:图鉴|天赋|技能|命座|资料|故事|语音|养成|素材)$/, fnc: 'shortcutGI', permission: 'all' },
+        { reg: /^\*(.+)(?:图鉴|天赋|技能|命座|资料|故事|语音|养成|素材)$/, fnc: 'shortcutHSR', permission: 'all' },
+        { reg: /^%(.+)(?:图鉴|天赋|技能|命座|资料|故事|语音|养成|素材)$/, fnc: 'shortcutZZZ', permission: 'all' }
       ]
     })
   }

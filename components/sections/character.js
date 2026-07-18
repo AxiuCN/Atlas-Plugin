@@ -513,6 +513,23 @@ function _applyStoriesView (data, gameId, detail) {
     }
   }
 
+  // ZZZ: partner_info 中包含简介
+  if (gameId === 'zzz' && detail.partner_info) {
+    const pi = detail.partner_info
+    const zzzItems = []
+    if (pi.profile_desc) zzzItems.push({ title: '简介', content: _cleanForRender(pi.profile_desc) })
+    if (pi.stories && typeof pi.stories === 'object') {
+      for (const [k, story] of Object.entries(pi.stories)) {
+        if (story && story.title && story.text) {
+          zzzItems.push({ title: story.title, content: _cleanForRender(story.text) })
+        }
+      }
+    }
+    if (zzzItems.length > 0) {
+      sections.push({ title: '资料', type: 'stories', items: zzzItems })
+    }
+  }
+
   if (sections.length === 0) {
     sections.push({
       title: '提示',
@@ -732,8 +749,15 @@ function _getSkillNames (detail, gameId) {
     for (const s of Object.values(detail.skills)) {
       names.push({ name: s.name, tag: _skillTag(s.type || s.type_name || '', 'hsr') })
     }
-  } else if (gameId === 'zzz') {
-    // ZZZ 资料使用 partner_info
+  } else if (gameId === 'zzz' && detail.skill && typeof detail.skill === 'object') {
+    const skillOrder = ['basic', 'dodge', 'special', 'chain', 'core']
+    const skillLabels = { basic: '普通攻击', dodge: '闪避', special: '特殊技', chain: '连携技', core: '核心技' }
+    for (const key of skillOrder) {
+      const sk = detail.skill[key]
+      if (!sk) continue
+      const main = sk.description?.[0]
+      names.push({ name: main?.name || sk.name || skillLabels[key] || key, tag: skillLabels[key] || key })
+    }
   }
   return names
 }
