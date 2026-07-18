@@ -43,7 +43,7 @@ function _buildGIArtifact (list, detail, meta) {
   // 套装效果
   if (detail.affix && Array.isArray(detail.affix)) {
     const bonuses = detail.affix.map(a => ({
-      require: a.affix_id ? (a.affix_id % 10 || 2) : 2,
+      require: a.affix_id ? (a.affix_id % 10 ? 4 : 2) : 2,
       name: a.name || '',
       desc: _clean(a.desc || '')
     }))
