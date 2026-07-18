@@ -116,8 +116,9 @@
     {{else if section.type === 'materials'}}
       {{each section.items m}}
       <div class="material-item">
-        <div class="material-name">{{m.name}}</div>
-        {{if m.desc}}<div class="material-cost">{{m.desc}}</div>{{/if}}
+        {{if m.icon}}<img class="material-icon" src="{{m.icon}}"/>{{/if}}
+        <span class="material-name">{{m.name}}</span>
+        {{if m.count}}<span class="material-count">×{{m.count}}</span>{{/if}}
       </div>
       {{/each}}
 
@@ -125,6 +126,7 @@
       <div class="profile-list">
         {{each section.items p}}
         <div class="profile-item">
+          {{if p.icon}}<img class="profile-icon" src="{{p.icon}}"/>{{/if}}
           {{if p.order}}<span class="profile-order">{{p.order}}.</span>{{/if}}
           <span class="profile-name">{{p.name}}</span>
           {{if p.tag}}<span class="profile-tag">{{p.tag}}</span>{{/if}}

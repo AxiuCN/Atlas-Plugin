@@ -91,32 +91,36 @@ function _buildGI (list, detail, meta) {
     const def90 = sm.def?.['90']
     const def100 = sm.def?.['100']
 
-    // 用 base 值 × 等级倍率 = 最终属性
+    // base × 等级倍率 + 突破累计加成
     const baseHp = detail.base_hp || 0
     const baseAtk = detail.base_atk || 0
     const baseDef = detail.base_def || 0
+    const ascLast = sm.ascension?.[sm.ascension.length - 1] || {}
+    const ascHp = ascLast.fight_prop_base_hp || 0
+    const ascAtk = ascLast.fight_prop_base_attack || 0
+    const ascDef = ascLast.fight_prop_base_defense || 0
 
     if (hp90 != null) {
-      const v90 = Math.round(baseHp * hp90)
-      const v100 = hp100 != null ? Math.round(baseHp * hp100) : null
+      const v90 = Math.round(baseHp * hp90 + ascHp)
+      const v100 = hp100 != null ? Math.round(baseHp * hp100 + ascHp) : null
       metaFields.push({
-        label: '基础生命',
+        label: v100 != null ? '基础生命 (90/100级)' : '基础生命 (90级)',
         value: v100 != null ? `${v90} / ${v100}` : String(v90)
       })
     }
     if (atk90 != null) {
-      const v90 = Math.round(baseAtk * atk90)
-      const v100 = atk100 != null ? Math.round(baseAtk * atk100) : null
+      const v90 = Math.round(baseAtk * atk90 + ascAtk)
+      const v100 = atk100 != null ? Math.round(baseAtk * atk100 + ascAtk) : null
       metaFields.push({
-        label: '基础攻击',
+        label: v100 != null ? '基础攻击 (90/100级)' : '基础攻击 (90级)',
         value: v100 != null ? `${v90} / ${v100}` : String(v90)
       })
     }
     if (def90 != null) {
-      const v90 = Math.round(baseDef * def90)
-      const v100 = def100 != null ? Math.round(baseDef * def100) : null
+      const v90 = Math.round(baseDef * def90 + ascDef)
+      const v100 = def100 != null ? Math.round(baseDef * def100 + ascDef) : null
       metaFields.push({
-        label: '基础防御',
+        label: v100 != null ? '基础防御 (90/100级)' : '基础防御 (90级)',
         value: v100 != null ? `${v90} / ${v100}` : String(v90)
       })
     }
@@ -139,7 +143,7 @@ function _buildGI (list, detail, meta) {
         if (last[key]) {
           const v = last[key]
           // 突破属性是小数，转百分比
-          metaFields.push({ label: '突破属性', value: _fmtPercent(v) })
+          metaFields.push({ label: label, value: _fmtPercent(v) })
           break
         }
       }
@@ -194,7 +198,7 @@ function _buildGI (list, detail, meta) {
     sections.push({ title: '命之座', type: 'constellation-grid', items: conList })
   }
 
-  return { hero, metaFields, sections }
+  return { hero, metaFields, sections, _images: images }
 }
 
 // ========== 星铁 ==========
@@ -278,7 +282,7 @@ function _buildHSR (list, detail, meta) {
     sections.push({ title: '星魂', type: 'constellation-grid', items: conList })
   }
 
-  return { hero, metaFields, sections }
+  return { hero, metaFields, sections, _images: images }
 }
 
 // ========== 绝区零 ==========
@@ -396,7 +400,7 @@ function _buildZZZ (list, detail, meta) {
     }
   }
 
-  return { hero, metaFields, sections }
+  return { hero, metaFields, sections, _images: images }
 }
 
 // ============================================================
@@ -439,9 +443,10 @@ function _applyConstellationsView (data) {
 function _applyProfileView (data, gameId, detail) {
   const sections = []
   const charaInfo = detail.chara_info
+  const images = data._images || []
 
-  // 技能名称（无描述）
-  const skillNames = _getSkillNames(detail, gameId)
+  // 技能名称（无描述，含图标）
+  const skillNames = _getSkillNames(detail, gameId, images)
   if (skillNames.length > 0) {
     sections.push({
       title: gameId === 'gi' ? '技能与战斗机制' : gameId === 'hsr' ? '技能' : '技能',
@@ -450,8 +455,8 @@ function _applyProfileView (data, gameId, detail) {
     })
   }
 
-  // 命之座/星魂/影画名称（无描述）
-  const conNames = _getConstellationNames(detail, gameId)
+  // 命之座/星魂/影画名称（无描述，含图标）
+  const conNames = _getConstellationNames(detail, gameId, images)
   if (conNames.length > 0) {
     sections.push({
       title: gameId === 'gi' ? '命之座' : gameId === 'hsr' ? '星魂' : '影画',
@@ -463,10 +468,11 @@ function _applyProfileView (data, gameId, detail) {
   // 特殊食物（仅 GI）
   if (charaInfo?.special_food) {
     const sf = charaInfo.special_food
+    const sfIcon = _imgUrl(images, 'detail.chara_info.special_food.icon')
     sections.push({
       title: '特殊食物',
       type: 'profile-summary',
-      items: [{ name: sf.name, desc: _formatFoodDesc(sf) }]
+      items: [{ name: sf.name, desc: _formatFoodDesc(sf), icon: sfIcon }]
     })
   }
 
@@ -541,32 +547,33 @@ function _applyStoriesView (data, gameId, detail) {
   return { ...data, sections }
 }
 
-/** 养成/素材视图：突破材料 + 天赋材料 */
+/** 养成/素材视图：聚合突破+天赋材料总数，附加图标 */
 function _applyMaterialsView (data, gameId, detail) {
   const sections = []
   const materials = detail.materials
+  const images = data._images || []
 
   if (gameId === 'gi' && materials) {
-    // 突破材料
-    if (materials.ascensions && Array.isArray(materials.ascensions)) {
-      const items = materials.ascensions.map((a, i) => ({
-        name: `突破 ${i + 1}`,
-        desc: _formatMaterialCost(a)
-      }))
-      sections.push({ title: '突破材料', type: 'materials', items })
+    // 聚合突破材料
+    const ascAgg = _aggregateMats(materials.ascensions || [])
+    if (ascAgg.mats.length > 0) {
+      sections.push({
+        title: '突破材料（总计）',
+        type: 'materials',
+        items: _buildMatItems(ascAgg, images, 'gi')
+      })
     }
 
-    // 天赋材料
+    // 聚合天赋材料（三个技能全部等级）
     if (materials.talents && Array.isArray(materials.talents)) {
-      const talentLabels = ['普通攻击', '元素战技', '元素爆发']
-      for (let si = 0; si < materials.talents.length; si++) {
-        const skillMats = materials.talents[si]
-        if (!Array.isArray(skillMats)) continue
-        const items = skillMats.map((m, i) => ({
-          name: `${talentLabels[si] || '技能' + (si + 1)} Lv.${i + 2}`,
-          desc: _formatMaterialCost(m)
-        }))
-        sections.push({ title: `天赋材料 · ${talentLabels[si] || '技能' + (si + 1)}`, type: 'materials', items })
+      const allTalentLevels = materials.talents.flat().filter(Boolean)
+      const talentAgg = _aggregateMats(allTalentLevels)
+      if (talentAgg.mats.length > 0) {
+        sections.push({
+          title: '天赋材料（总计）',
+          type: 'materials',
+          items: _buildMatItems(talentAgg, images, 'gi')
+        })
       }
     }
   }
@@ -580,6 +587,59 @@ function _applyMaterialsView (data, gameId, detail) {
   }
 
   return { ...data, sections }
+}
+
+/** 聚合材料数组：合并同名材料数量 + 摩拉 */
+function _aggregateMats (levels) {
+  const cost = levels.reduce((sum, l) => sum + (l.cost || 0), 0)
+  const matMap = new Map() // id → { name, id, count }
+  for (const level of levels) {
+    for (const m of (level.mats || [])) {
+      const key = m.id || m.name
+      const entry = matMap.get(key)
+      if (entry) {
+        entry.count += m.count || 0
+      } else {
+        matMap.set(key, { name: m.name, id: m.id, count: m.count || 0 })
+      }
+    }
+  }
+  return { cost, mats: [...matMap.values()] }
+}
+
+/** 构建材料列表项（含图标） */
+function _buildMatItems (agg, images, gameId) {
+  const items = []
+  if (agg.cost > 0) {
+    items.push({ name: '摩拉', count: agg.cost, icon: _matIcon(images, 'mora', gameId) })
+  }
+  for (const m of agg.mats) {
+    items.push({ name: m.name, count: m.count, icon: _matIcon(images, m.id, gameId) })
+  }
+  return items
+}
+
+/**
+ * 材料图标查询：先查 meta.images 匹配，再按 UI_ItemIcon_<id> 模式直查 gallery
+ */
+function _matIcon (images, materialId, gameId) {
+  if (!materialId) return ''
+  // 先查已下载的 images 列表
+  if (Array.isArray(images)) {
+    const haystack = String(materialId)
+    const hit = images.find(i => i.localPath && i.localPath.includes(haystack))
+    if (hit?.localPath) {
+      const fullPath = path.join(backendRoot, hit.localPath)
+      if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
+    }
+  }
+  // 兜底：按命名约定直查 gallery
+  const filename = materialId === 'mora'
+    ? 'UI_ItemIcon_202.webp'
+    : `UI_ItemIcon_${materialId}.webp`
+  const fullPath = path.join(backendRoot, 'gallery', gameId, filename)
+  if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
+  return ''
 }
 
 // ============================================================
@@ -713,21 +773,6 @@ function _fmtPercent (v) {
   return (n * 100).toFixed(1) + '%'
 }
 
-/** 格式化素材消耗 */
-function _formatMaterialCost (a) {
-  if (!a) return ''
-  const parts = []
-  if (a.cost) parts.push(`摩拉 ×${a.cost}`)
-  if (a.mats && Array.isArray(a.mats)) {
-    for (const m of a.mats) {
-      const rankNames = ['', '', '绿色', '蓝色', '紫色', '金色']
-      const rank = rankNames[m.rank] || ''
-      parts.push(`${m.name}${rank ? '（' + rank + '）' : ''} ×${m.count}`)
-    }
-  }
-  return parts.join(' ； ')
-}
-
 /** 格式化特殊食物描述 */
 function _formatFoodDesc (sf) {
   const parts = []
@@ -738,17 +783,17 @@ function _formatFoodDesc (sf) {
 
 // ========== 名称提取（资料子视图） ==========
 
-/** 获取技能名称列表（无描述） */
-function _getSkillNames (detail, gameId) {
+/** 获取技能名称列表（无描述，含图标） */
+function _getSkillNames (detail, gameId, images) {
   const names = []
   if (gameId === 'gi' && detail.skills && Array.isArray(detail.skills)) {
-    for (const s of detail.skills) {
-      names.push({ name: s.name, tag: _skillTag(s.name, 'gi') })
-    }
+    detail.skills.forEach((s, i) => {
+      names.push({ name: s.name, tag: _skillTag(s.name, 'gi'), icon: _imgUrl(images, `detail.skills.${i}.promote.0.icon`) })
+    })
   } else if (gameId === 'hsr' && detail.skills && typeof detail.skills === 'object') {
-    for (const s of Object.values(detail.skills)) {
-      names.push({ name: s.name, tag: _skillTag(s.type || s.type_name || '', 'hsr') })
-    }
+    Object.entries(detail.skills).forEach(([key, s]) => {
+      names.push({ name: s.name, tag: _skillTag(s.type || s.type_name || '', 'hsr'), icon: _imgUrl(images, `detail.skills.${key}.level.0.icon`) })
+    })
   } else if (gameId === 'zzz' && detail.skill && typeof detail.skill === 'object') {
     const skillOrder = ['basic', 'dodge', 'special', 'chain', 'core']
     const skillLabels = { basic: '普通攻击', dodge: '闪避', special: '特殊技', chain: '连携技', core: '核心技' }
@@ -756,27 +801,27 @@ function _getSkillNames (detail, gameId) {
       const sk = detail.skill[key]
       if (!sk) continue
       const main = sk.description?.[0]
-      names.push({ name: main?.name || sk.name || skillLabels[key] || key, tag: skillLabels[key] || key })
+      names.push({ name: main?.name || sk.name || skillLabels[key] || key, tag: skillLabels[key] || key, icon: _imgUrl(images, `detail.skill.${key}.icon`) })
     }
   }
   return names
 }
 
-/** 获取命之座名称列表（无描述） */
-function _getConstellationNames (detail, gameId) {
+/** 获取命之座名称列表（无描述，含图标） */
+function _getConstellationNames (detail, gameId, images) {
   const names = []
   if (gameId === 'gi' && detail.constellations && Array.isArray(detail.constellations)) {
-    detail.constellations.forEach((c, i) => names.push({ order: i + 1, name: c.name }))
+    detail.constellations.forEach((c, i) => names.push({ order: i + 1, name: c.name, icon: _imgUrl(images, `detail.constellations.${i}.icon`) }))
   } else if (gameId === 'hsr' && detail.ranks && typeof detail.ranks === 'object') {
     Object.entries(detail.ranks)
       .filter(([k]) => /^\d+$/.test(k))
       .sort(([a], [b]) => Number(a) - Number(b))
-      .forEach(([k, r]) => names.push({ order: Number(k), name: r.name }))
+      .forEach(([k, r]) => names.push({ order: Number(k), name: r.name, icon: _imgUrl(images, `detail.ranks.${k}.icon`) }))
   } else if (gameId === 'zzz' && detail.talent && typeof detail.talent === 'object') {
     Object.entries(detail.talent)
       .filter(([k]) => /^\d+$/.test(k))
       .sort(([a], [b]) => Number(a) - Number(b))
-      .forEach(([k, t]) => names.push({ order: Number(k), name: t.name }))
+      .forEach(([k, t]) => names.push({ order: Number(k), name: t.name, icon: _imgUrl(images, `detail.talent.${k}.icon`) }))
   }
   return names
 }
