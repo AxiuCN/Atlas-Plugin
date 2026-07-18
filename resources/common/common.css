@@ -425,6 +425,14 @@ body {
   padding: 14px 18px;
   margin-bottom: 8px;
 }
+.bonus-item .bonus-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  float: left;
+  margin-right: 10px;
+  margin-bottom: 4px;
+}
 .bonus-item .bonus-label {
   font-size: 13px;
   font-weight: 950;

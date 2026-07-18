@@ -30,6 +30,7 @@
     {{if section.type === 'list'}}
       {{each section.items item}}
       <div class="bonus-item">
+        {{if item.icon}}<img class="bonus-icon" src="{{item.icon}}"/>{{/if}}
         {{if item.name}}<div class="bonus-label">{{item.name}}</div>{{/if}}
         {{if item.desc}}<div class="bonus-desc">{{item.desc}}</div>{{/if}}
       </div>

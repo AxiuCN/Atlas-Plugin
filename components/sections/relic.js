@@ -1,6 +1,11 @@
 /**
  * 圣遗物/遗器套装/驱动盘 sections builder
  */
+import fs from 'node:fs'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { backendRoot } from '../../model/AtlasService.js'
+
 export function buildRelicData (gameId, record) {
   const list = record?.content?.list || {}
   const detail = record?.content?.detail || {}
@@ -11,9 +16,29 @@ export function buildRelicData (gameId, record) {
   return null
 }
 
+function _imgUrl (images, fieldPath) {
+  if (!images || !Array.isArray(images)) return ''
+  const img = images.find(i => i.fieldPath === fieldPath)
+  if (img?.localPath) {
+    const fullPath = path.join(backendRoot, img.localPath)
+    if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
+  }
+  return ''
+}
+
 function _buildGIArtifact (list, detail, meta) {
   const sections = []
   const rarities = detail?.rank || []
+
+  // 提取套装名（meta.name 是数字 ID，真正名称在 affix 或 set 中）
+  let recordName = null
+  if (detail.affix && Array.isArray(detail.affix) && detail.affix.length > 0) {
+    recordName = detail.affix[0].name || null
+  }
+  if (!recordName && list.set) {
+    const first = Object.values(list.set)[0]
+    if (first?.name?.zh) recordName = first.name.zh
+  }
 
   // 套装效果
   if (detail.affix && Array.isArray(detail.affix)) {
@@ -32,18 +57,23 @@ function _buildGIArtifact (list, detail, meta) {
 
   // 各部位
   if (detail.parts && typeof detail.parts === 'object') {
-    const pieces = Object.values(detail.parts).map(p => ({
-      name: p.name || '', type: p.type || '', desc: _clean(p.desc || ''), story: _clean(p.story || '')
+    const images = meta?.images || []
+    const pieces = Object.entries(detail.parts).map(([key, p]) => ({
+      name: p.name || '', type: p.type || '', desc: _clean(p.desc || ''),
+      story: _clean(p.story || ''),
+      icon: _imgUrl(images, `detail.parts.${key}.icon`)
     })).filter(p => p.name)
     if (pieces.length > 0) {
       sections.push({ title: '部件', type: 'list', items: pieces.map(p => ({
         name: `${p.type ? p.type + ' · ' : ''}${p.name}`,
-        desc: p.desc
+        desc: p.desc,
+        icon: p.icon
       })) })
     }
   }
 
   return {
+    recordName,
     metaFields: [
       { label: '稀有度', value: Array.isArray(rarities) ? rarities.join('/') : String(rarities || '') }
     ],

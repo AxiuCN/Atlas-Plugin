@@ -163,7 +163,7 @@ export function buildDetailData (gameId, result) {
       return {
         gameName: GAME_NAMES[gameId],
         pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
-        name: meta.name || result.name,
+        name: typeData.recordName || meta.name || result.name,
         rarity: meta.rarity || result.rarity || '',
         image: resolveRecordImage(record),
         hero: typeData.hero || null,
