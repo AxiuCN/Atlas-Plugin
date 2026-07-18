@@ -592,7 +592,7 @@ function _applyMaterialsView (data, gameId, detail) {
 /** 聚合材料数组：合并同名材料数量 + 摩拉 */
 function _aggregateMats (levels) {
   const cost = levels.reduce((sum, l) => sum + (l.cost || 0), 0)
-  const matMap = new Map() // id → { name, id, count }
+  const matMap = new Map() // id → { name, id, count, rank }
   for (const level of levels) {
     for (const m of (level.mats || [])) {
       const key = m.id || m.name
@@ -600,22 +600,43 @@ function _aggregateMats (levels) {
       if (entry) {
         entry.count += m.count || 0
       } else {
-        matMap.set(key, { name: m.name, id: m.id, count: m.count || 0 })
+        matMap.set(key, { name: m.name, id: m.id, count: m.count || 0, rank: m.rank || 0 })
       }
     }
   }
   return { cost, mats: [...matMap.values()] }
 }
 
-/** 构建材料列表项（含图标） */
+/** 材料排序：按类型分组，组内按品质升序 */
+function _matSortOrder (m) {
+  const idNum = Number(m.id) || 0
+  const rank = m.rank || 0
+
+  // 分类：摩拉→经验书→区域特产→Boss素材→突破宝石→周本材料→智识之冕→天赋书→怪物素材
+  let cat
+  if (idNum === 202) cat = 0                           // 摩拉
+  else if (idNum >= 104001 && idNum <= 104099) cat = 1  // 经验书
+  else if (idNum >= 101000 && idNum <= 101999) cat = 2  // 区域特产
+  else if (idNum >= 113000 && idNum <= 113999) cat = rank >= 5 ? 5 : 3  // Boss素材(rank<5) / 周本材料(rank≥5)
+  else if (idNum >= 104100 && idNum <= 104199) cat = 4  // 突破宝石
+  else if (idNum === 104319) cat = 6                     // 智识之冕
+  else if (idNum >= 104300 && idNum <= 104399) cat = 7  // 天赋书
+  else if (idNum >= 112000 && idNum <= 112999) cat = 8  // 怪物素材
+  else cat = 99
+
+  return cat * 100 + rank
+}
+
+/** 构建材料列表项（含图标，按类型+品质排序） */
 function _buildMatItems (agg, images, gameId) {
   const items = []
   if (agg.cost > 0) {
-    items.push({ name: '摩拉', count: agg.cost, icon: _matIcon(images, 'mora', gameId) })
+    items.push({ name: '摩拉', count: agg.cost, icon: _matIcon(images, 'mora', gameId), id: 202, rank: 0 })
   }
   for (const m of agg.mats) {
-    items.push({ name: m.name, count: m.count, icon: _matIcon(images, m.id, gameId) })
+    items.push({ name: m.name, count: m.count, icon: _matIcon(images, m.id, gameId), id: m.id, rank: m.rank })
   }
+  items.sort((a, b) => _matSortOrder(a) - _matSortOrder(b))
   return items
 }
 

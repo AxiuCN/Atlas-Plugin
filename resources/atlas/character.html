@@ -114,13 +114,15 @@
       {{/each}}
 
     {{else if section.type === 'materials'}}
-      {{each section.items m}}
-      <div class="material-item">
-        {{if m.icon}}<img class="material-icon" src="{{m.icon}}"/>{{/if}}
-        <span class="material-name">{{m.name}}</span>
-        {{if m.count}}<span class="material-count">×{{m.count}}</span>{{/if}}
+      <div class="material-grid">
+        {{each section.items m}}
+        <div class="material-card">
+          {{if m.icon}}<img class="material-card-icon" src="{{m.icon}}"/>{{/if}}
+          <div class="material-card-name">{{m.name}}</div>
+          {{if m.count}}<div class="material-card-count">×{{m.count}}</div>{{/if}}
+        </div>
+        {{/each}}
       </div>
-      {{/each}}
 
     {{else if section.type === 'profile-summary'}}
       <div class="profile-list">
