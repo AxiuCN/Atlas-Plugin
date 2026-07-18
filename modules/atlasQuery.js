@@ -111,8 +111,9 @@ export async function handleQuery (e, gameId, keyword) {
     if (subView) {
       // 带后缀 → 先按剥离后的关键词搜索
       result = search(gameId, searchKeyword)
-      // 只有角色结果才适用子视图，否则回退到原始关键词搜索
-      if (result.type !== 'exact' || result.results[0]?.pageKey !== 'character') {
+      // 首条结果为角色时保留（即使 type 为 list），否则回退到原始关键词搜索
+      const topPageKey = result.results?.[0]?.pageKey
+      if (result.type === 'empty' || topPageKey !== 'character') {
         result = search(gameId, keyword)
       }
     } else {
@@ -145,8 +146,10 @@ export async function handleQuery (e, gameId, keyword) {
         let data
         if (tpl !== 'list') {
           const record = loadRecord(result.results[0].filePath)
+          // 子视图仅对角色有效
+          const effectiveSubView = (result.results[0]?.pageKey === 'character') ? subView : null
           data = record
-            ? buildDetailData(gameId, { ...result.results[0], record })
+            ? buildDetailData(gameId, { ...result.results[0], record, subView: effectiveSubView })
             : buildListData(gameId, result)
         } else {
           data = buildListData(gameId, result)
