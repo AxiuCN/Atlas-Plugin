@@ -15,9 +15,9 @@ export class atlasShortcut extends plugin {
       event: 'message',
       priority: -99999,
       rule: [
-        { reg: /^#(.+)图鉴$/, fnc: 'shortcutGI', permission: 'all', log: false },
-        { reg: /^\*(.+)图鉴$/, fnc: 'shortcutHSR', permission: 'all', log: false },
-        { reg: /^%(.+)图鉴$/, fnc: 'shortcutZZZ', permission: 'all', log: false }
+        { reg: /^#(.+)图鉴$/, fnc: 'shortcutGI', permission: 'all' },
+        { reg: /^\*(.+)图鉴$/, fnc: 'shortcutHSR', permission: 'all' },
+        { reg: /^%(.+)图鉴$/, fnc: 'shortcutZZZ', permission: 'all' }
       ]
     })
   }

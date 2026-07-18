@@ -12,9 +12,9 @@ export class atlas extends plugin {
       event: 'message',
       priority: config.priority || 10000,
       rule: [
-        { reg: /^#(.+)$/, fnc: 'atlasGI', permission: 'all', log: false },
-        { reg: /^\*(.+)$/, fnc: 'atlasHSR', permission: 'all', log: false },
-        { reg: /^%(.+)$/, fnc: 'atlasZZZ', permission: 'all', log: false }
+        { reg: /^#(.+)$/, fnc: 'atlasGI', permission: 'all' },
+        { reg: /^\*(.+)$/, fnc: 'atlasHSR', permission: 'all' },
+        { reg: /^%(.+)$/, fnc: 'atlasZZZ', permission: 'all' }
       ]
     })
   }
