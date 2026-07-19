@@ -9,6 +9,9 @@ import {
   installDeps,
   runScrapeAsync,
   checkAndUpdate,
+  checkRemoteVersions,
+  readLocalVersions,
+  compareAtlasVersions,
   getDataStatus,
   BACKEND_DIR
 } from '../model/AtlasUpdater.js'
@@ -151,16 +154,31 @@ export class AtlasAdmin extends plugin {
       return true
     }
 
-    const cfg = getPluginConfig()
-    const mode = cfg?.notifyMode || 'all'
-    const hasGroups = (mode === 'all' || mode === 'first_master_groups')
-      && parseGroupList(cfg?.notifyGroups).length > 0
-    const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
-      ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
-      : hasGroups ? '主人和配置群' : '主人'
     await e.reply('[Atlas] 正在检查图鉴版本...', true)
 
-    // 异步执行，不阻塞
+    // ── 同步完成版本检查（~5s）──
+    const local = readLocalVersions()
+    const remote = await checkRemoteVersions(['gi', 'hsr', 'zzz'])
+
+    if (!remote.ok) {
+      await e.reply(`[Atlas] 远端版本检查失败：${remote.reason || '网络异常'}`, true)
+      return true
+    }
+
+    if (!local.ready) {
+      await e.reply('[Atlas] 本地数据不完整，自动全量抓取中，完成后将通知...', true)
+    } else {
+      const diff = compareAtlasVersions(local.versions, remote.versions)
+      if (!diff.changed) {
+        await e.reply('[Atlas] 版本未变化，无需更新', true)
+        return true
+      }
+      const changes = diff.changes.map(c => `${c.game} ${c.local.latest || '-'}→${c.remote.latest}`).join('，')
+      await e.reply(`[Atlas] 检测到版本变化：${changes}，开始更新...`, true)
+    }
+
+    // ── 异步抓取（不阻塞 bot）──
+    const cfg = getPluginConfig()
     checkAndUpdate({
       games: ['gi', 'hsr', 'zzz'],
       locales: ['zh'],
@@ -169,6 +187,7 @@ export class AtlasAdmin extends plugin {
       fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true
     }).then(async (ret) => {
       if (ret.skipped) {
+        // checkAndUpdate 内部重新检查发现版本未变（极端情况）
         this._notifyResult('[Atlas] 图鉴版本未变化，无需更新')
         return
       }
