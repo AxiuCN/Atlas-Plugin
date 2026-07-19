@@ -216,9 +216,15 @@ export async function checkRemoteVersions (games = ['gi', 'hsr', 'zzz']) {
     return { ok: false, reason: result.reason || 'version_check_failed' }
   }
 
-  const versions = _parseVersionOutput(result.stdout)
-  if (!versions || Object.keys(versions).length === 0) {
+  const allVersions = _parseVersionOutput(result.stdout)
+  if (!allVersions || Object.keys(allVersions).length === 0) {
     return { ok: false, reason: 'version_parse_failed', versions: {} }
+  }
+
+  // 滤掉不需要的游戏（如 nte），只保留请求的
+  const versions = {}
+  for (const g of games) {
+    if (allVersions[g]) versions[g] = allVersions[g]
   }
 
   return { ok: true, versions }
