@@ -143,15 +143,18 @@ export async function handleQuery (e, gameId, keyword) {
       }
 
       case 'list': {
-        const tpl = selectTemplate(result)
+        let tpl = selectTemplate(result)
         let data
         if (tpl !== 'list') {
           const record = loadRecord(result.results[0].filePath)
           // 子视图仅对角色有效
           const effectiveSubView = (result.results[0]?.pageKey === 'character') ? subView : null
-          data = record
-            ? buildDetailData(gameId, { ...result.results[0], record, subView: effectiveSubView })
-            : buildListData(gameId, result)
+          if (record) {
+            data = buildDetailData(gameId, { ...result.results[0], record, subView: effectiveSubView })
+          } else {
+            data = buildListData(gameId, result)
+            tpl = 'list'
+          }
         } else {
           data = buildListData(gameId, result)
         }
