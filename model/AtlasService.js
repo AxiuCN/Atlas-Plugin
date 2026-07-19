@@ -273,8 +273,8 @@ export function search (gameId, keyword) {
     const record = loadRecord(item.entry.filePath)
     if (record) {
       item.score += scoreLoadedItem(record, variants)
-      loaded.push(item)
     }
+    loaded.push(item)
   }
 
   // ===== 兜底全文扫描 =====
