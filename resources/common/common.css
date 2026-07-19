@@ -1,42 +1,58 @@
 /* Atlas-Plugin 通用样式 — 深色主题 */
 
-/* ===== 自定义字体 ===== */
+/* ===== 自定义字体: Number (tttgbnumber) ===== */
 @font-face {
   font-family: 'Number';
   src: url("./font/tttgbnumber.woff") format('woff'), url("./font/tttgbnumber.ttf") format('truetype');
 }
+
+/* ===== 自定义字体: NZBZ (印品南征北战) ===== */
 @font-face {
   font-family: 'NZBZ';
   src: url("./font/NZBZ.woff") format('woff'), url("./font/NZBZ.ttf") format('truetype');
 }
+
+/* ===== 自定义字体: YS (汉仪文黑) ===== */
 @font-face {
   font-family: 'YS';
   src: url("./font/HYWH-65W.woff") format('woff'), url("./font/HYWH-65W.ttf") format('truetype');
 }
+
+/* ===== 自定义字体: STZhongsong (华文中宋) ===== */
 @font-face {
   font-family: 'STZhongsong';
   src: url("./font/华文中宋.TTF") format('truetype');
 }
+
+/* ===== 自定义字体: MiSans (小米 Semibold) ===== */
 @font-face {
   font-family: 'MiSans';
   src: url("./font/MiSans-Semibold.ttf") format('truetype');
 }
+
+/* ===== 字体工具类: .font-YS ===== */
 .font-YS {
   font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
+
+/* ===== 字体工具类: .font-NZBZ ===== */
 .font-NZBZ {
   font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
+
+/* ===== 字体工具类: .font-MiSans ===== */
 .font-MiSans {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
+/* ===== 全局重置 * ===== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* ===== 页面基础 body ===== */
 body {
   font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   background: #1a1d22;
@@ -46,7 +62,7 @@ body {
   line-height: 1.6;
 }
 
-/* ===== Hero 区块 ===== */
+/* ===== Hero 卡片 .hero ===== */
 .hero {
   background: rgba(0, 0, 0, 0.45);
   background-size: cover;
@@ -61,15 +77,21 @@ body {
   position: relative;
   overflow: hidden;
 }
+
+/* ===== Hero 无立绘降级 .hero-plain ===== */
 .hero-plain {
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* ===== Hero 背景遮罩 .hero-bg ===== */
 .hero-bg {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
   pointer-events: none;
 }
+
+/* ===== Hero 立绘图 .hero-portrait ===== */
 .hero-portrait {
   width: 130px;
   height: 130px;
@@ -80,18 +102,24 @@ body {
   z-index: 1;
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* ===== Hero 文字容器 .hero-text ===== */
 .hero-text {
   flex: 1;
   min-width: 0;
   position: relative;
   z-index: 1;
 }
+
+/* ===== Hero 游戏标签 .hero-game ===== */
 .hero .hero-game {
   font-size: 13px;
   font-weight: 650;
   color: rgba(255, 255, 255, 0.70);
   margin-bottom: 4px;
 }
+
+/* ===== Hero 大标题 .hero-title ===== */
 .hero .hero-title {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 34px;
@@ -100,18 +128,24 @@ body {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   line-height: 1.2;
 }
+
+/* ===== Hero 副标题 .hero-subtitle ===== */
 .hero .hero-subtitle {
   font-size: 15px;
   font-weight: 650;
   color: rgba(255, 255, 255, 0.82);
   margin-top: 6px;
 }
+
+/* ===== Hero 标签容器 .hero-info ===== */
 .hero-info {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
   margin-top: 10px;
 }
+
+/* ===== Hero 标签项 .hero-info-item ===== */
 .hero-info-item {
   display: inline-block;
   padding: 2px 10px;
@@ -122,7 +156,7 @@ body {
   font-weight: 600;
 }
 
-/* ===== 图标：技能 / 命座 / 天赋 ===== */
+/* ===== 技能图标 .skill-icon ===== */
 .skill-icon {
   width: 40px;
   height: 40px;
@@ -131,12 +165,16 @@ body {
   flex-shrink: 0;
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* ===== 技能头部文字行 .skill-header-text ===== */
 .skill-header-text {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ===== 命座图标 .con-icon ===== */
 .con-icon {
   width: 32px;
   height: 32px;
@@ -145,6 +183,8 @@ body {
   margin-bottom: 4px;
   background: rgba(0, 0, 0, 0.25);
 }
+
+/* ===== 列表项图标 .extra-icon ===== */
 .extra-icon {
   width: 28px;
   height: 28px;
@@ -155,7 +195,7 @@ body {
   background: rgba(0, 0, 0, 0.25);
 }
 
-/* ===== 分区标题 ===== */
+/* ===== 分区标题组件 .section-title ===== */
 .section-title {
   display: flex;
   align-items: center;
@@ -166,6 +206,8 @@ body {
   margin: 22px 0 12px;
   position: relative;
 }
+
+/* ===== 分区标题左侧蓝线 .section-title::before ===== */
 .section-title::before {
   content: '';
   display: inline-block;
@@ -176,13 +218,15 @@ body {
   margin-right: 12px;
   flex-shrink: 0;
 }
+
+/* ===== 分区标题文字 .section-title-text ===== */
 .section-title-text {
   font-size: 18px;
   font-weight: 950;
   color: #fff;
 }
 
-/* ===== 分区标题回退 ===== */
+/* ===== 分区标题 h3 回退 .detail-section h3 ===== */
 .detail-section h3 {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 18px;
@@ -196,6 +240,8 @@ body {
   padding: 0 18px;
   margin: 22px 0 12px;
 }
+
+/* ===== 分区标题 h3 左侧蓝线 .detail-section h3::before ===== */
 .detail-section h3::before {
   content: '';
   display: inline-block;
@@ -207,13 +253,15 @@ body {
   flex-shrink: 0;
 }
 
-/* ===== 属性 stat grid ===== */
+/* ===== 属性网格 .stat-grid ===== */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 4px;
 }
+
+/* ===== 属性格子 .stat-cell ===== */
 .stat-cell {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -221,6 +269,8 @@ body {
   padding: 10px 12px;
   text-align: center;
 }
+
+/* ===== 属性标签 .stat-label ===== */
 .stat-cell .stat-label {
   font-size: 11px;
   font-weight: 600;
@@ -228,13 +278,15 @@ body {
   text-transform: uppercase;
   margin-bottom: 2px;
 }
+
+/* ===== 属性值 .stat-value ===== */
 .stat-cell .stat-value {
   font-size: 15px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.90);
 }
 
-/* ===== 白色卡片通用样式（深色化） ===== */
+/* ===== 白色卡片 .white-card ===== */
 .white-card {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -243,7 +295,7 @@ body {
   margin-bottom: 10px;
 }
 
-/* ===== 两列表格 ===== */
+/* ===== 两列表格 .detail-table ===== */
 .detail-table {
   width: 100%;
   border-collapse: collapse;
@@ -253,25 +305,35 @@ body {
   border-radius: 14px;
   overflow: hidden;
 }
+
+/* ===== 两列表格 单元格 .detail-table td ===== */
 .detail-table td {
   padding: 6px 14px;
   vertical-align: top;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
-.detail-table tr:last-child td { border-bottom: none; }
+
+/* ===== 表格末行去线 .detail-table tr:last-child td ===== */
+.detail-table tr:last-child td { 
+  border-bottom: none;
+}
+
+/* ===== 两列表格 标签列 .detail-table .label ===== */
 .detail-table .label {
   color: rgba(255, 255, 255, 0.50);
   width: 30%;
   white-space: nowrap;
   font-weight: 600;
 }
+
+/* ===== 两列表格 值列 .detail-table .value ===== */
 .detail-table .value {
   color: rgba(255, 255, 255, 0.85);
   word-break: break-all;
   white-space: pre-wrap;
 }
 
-/* ===== 属性概览行 ===== */
+/* ===== 属性概览行 .meta-row ===== */
 .meta-row {
   display: flex;
   flex-wrap: wrap;
@@ -279,16 +341,20 @@ body {
   padding: 10px 0;
   margin-bottom: 4px;
 }
+
+/* ===== 属性概览项 .meta-item ===== */
 .meta-item {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.82);
 }
+
+/* ===== 属性概览标签 .mlabel ===== */
 .meta-item .mlabel {
   color: rgba(255, 255, 255, 0.50);
   margin-right: 4px;
 }
 
-/* ===== 技能卡 ===== */
+/* ===== 技能卡 .skill-card ===== */
 .skill-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -296,19 +362,29 @@ body {
   padding: 14px 16px;
   margin-bottom: 10px;
 }
-.skill-card:last-child { margin-bottom: 0; }
+
+/* ===== 技能卡末项去间距 .skill-card:last-child ===== */
+.skill-card:last-child { 
+  margin-bottom: 0;
+}
+
+/* ===== 技能卡头部 .skill-header ===== */
 .skill-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
 }
+
+/* ===== 技能名 .skill-name ===== */
 .skill-name {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 16px;
   font-weight: 600;
   color: #fff;
 }
+
+/* ===== 技能类型标签 .skill-tag ===== */
 .skill-tag {
   display: inline-block;
   padding: 2px 8px;
@@ -318,6 +394,8 @@ body {
   background: rgba(61, 184, 224, 0.18);
   color: #70d0ee;
 }
+
+/* ===== 技能描述 .skill-desc ===== */
 .skill-desc {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.85);
@@ -325,7 +403,13 @@ body {
   margin-bottom: 6px;
   white-space: pre-wrap;
 }
-.skill-params { margin-top: 8px; }
+
+/* ===== 技能参数容器 .skill-params ===== */
+.skill-params {
+  margin-top: 8px;
+}
+
+/* ===== 技能参数标题 .param-title ===== */
 .skill-params .param-title {
   font-size: 12px;
   font-weight: 700;
@@ -333,7 +417,7 @@ body {
   margin-bottom: 4px;
 }
 
-/* ===== 参数小表 ===== */
+/* ===== 参数小表 .mini-table ===== */
 .mini-table {
   width: 100%;
   border-collapse: collapse;
@@ -342,36 +426,50 @@ body {
   border-radius: 8px;
   overflow: hidden;
 }
+
+/* ===== 参数小表 单元格 .mini-table th,td ===== */
 .mini-table th, .mini-table td {
   padding: 3px 8px;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+
+/* ===== 参数小表 表头 .mini-table th ===== */
 .mini-table th {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.50);
   font-weight: 600;
 }
-.mini-table td { color: rgba(255, 255, 255, 0.80); }
 
-/* ===== 命座/星魂/影画 3列网格 ===== */
+/* ===== 参数表数据格 .mini-table td ===== */
+.mini-table td {
+  color: rgba(255, 255, 255, 0.80);
+}
+
+/* ===== 命座网格 .con-grid ===== */
 .con-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
+
+/* ===== 命座格子 .con-item ===== */
 .con-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 12px 14px;
 }
+
+/* ===== 命座头部 .con-header ===== */
 .con-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
 }
+
+/* ===== 命座图标 .con-header .con-icon ===== */
 .con-header .con-icon {
   width: 28px;
   height: 28px;
@@ -381,12 +479,16 @@ body {
   background: rgba(0, 0, 0, 0.25);
   margin-bottom: 0;
 }
+
+/* ===== 命座序号 .con-order ===== */
 .con-header .con-order {
   font-size: 12px;
   font-weight: 700;
   color: #e0b040;
   flex-shrink: 0;
 }
+
+/* ===== 命座名 .con-name ===== */
 .con-header .con-name {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
@@ -394,6 +496,8 @@ body {
   color: #fff;
   margin: 0;
 }
+
+/* ===== 命座描述 .con-desc ===== */
 .con-desc {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.80);
@@ -401,7 +505,7 @@ body {
   white-space: pre-wrap;
 }
 
-/* ===== 资料/故事卡 ===== */
+/* ===== 故事卡 .story-item ===== */
 .story-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -409,6 +513,8 @@ body {
   padding: 14px 18px;
   margin-bottom: 8px;
 }
+
+/* ===== 故事标题 .story-title ===== */
 .story-title {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
@@ -416,6 +522,8 @@ body {
   color: #fff;
   margin-bottom: 6px;
 }
+
+/* ===== 故事内容 .story-content ===== */
 .story-content {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.80);
@@ -423,7 +531,7 @@ body {
   white-space: pre-wrap;
 }
 
-/* ===== 精炼/套装效果 text cards ===== */
+/* ===== 精炼卡 .refine-item ===== */
 .refine-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -431,23 +539,31 @@ body {
   padding: 14px 18px;
   margin-bottom: 8px;
 }
+
+/* ===== 精炼头部 .refine-header ===== */
 .refine-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
+
+/* ===== 精炼等级 .refine-level ===== */
 .refine-level {
   font-size: 12px;
   font-weight: 700;
   color: #e0b040;
 }
+
+/* ===== 精炼名 .refine-name ===== */
 .refine-name {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: #fff;
 }
+
+/* ===== 精炼描述 .refine-desc ===== */
 .refine-desc {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.80);
@@ -455,7 +571,7 @@ body {
   white-space: pre-wrap;
 }
 
-/* ===== 圣遗物套装效果 ===== */
+/* ===== 圣遗物套装项 .bonus-item ===== */
 .bonus-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(61, 184, 224, 0.20);
@@ -463,6 +579,8 @@ body {
   padding: 14px 18px;
   margin-bottom: 8px;
 }
+
+/* ===== 圣遗物部件图标 .bonus-icon ===== */
 .bonus-item .bonus-icon {
   width: 32px;
   height: 32px;
@@ -471,6 +589,8 @@ body {
   margin-right: 10px;
   margin-bottom: 4px;
 }
+
+/* ===== 圣遗物效果标签 .bonus-label ===== */
 .bonus-item .bonus-label {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 13px;
@@ -478,32 +598,41 @@ body {
   color: #fff;
   margin-bottom: 4px;
 }
+
+/* ===== 圣遗物效果描述 .bonus-desc ===== */
 .bonus-item .bonus-desc {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.80);
   white-space: pre-wrap;
 }
 
-/* ===== 通用列表项 ===== */
+/* ===== 通用列表项 .extra-item ===== */
 .extra-item {
   padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
+
+/* ===== 通用列表首项圆角 .extra-item:first-child ===== */
 .extra-item:first-child {
   border-radius: 12px 12px 0 0;
 }
+
+/* ===== 通用列表末项去线+圆角 .extra-item:last-child ===== */
 .extra-item:last-child {
-  border-bottom: none;
-  border-radius: 0 0 12px 12px;
+  border-bottom: none; border-radius: 0 0 12px 12px;
 }
+
+/* ===== 通用列表名 .extra-name ===== */
 .extra-name {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #fff;
 }
+
+/* ===== 通用列表描述 .extra-desc ===== */
 .extra-desc {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.80);
@@ -511,7 +640,7 @@ body {
   white-space: pre-wrap;
 }
 
-/* ===== 描述文本块 ===== */
+/* ===== 描述文本块 .desc-block ===== */
 .desc-block {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -523,12 +652,14 @@ body {
   white-space: pre-wrap;
 }
 
-/* ===== 搜索结果列表 ===== */
+/* ===== 搜索结果列表 .result-list ===== */
 .result-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
+
+/* ===== 搜索结果分组标题 .group-title ===== */
 .group-title {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
@@ -539,12 +670,16 @@ body {
   padding: 7px 18px;
   margin-bottom: 8px;
 }
+
+/* ===== 搜索结果分组容器 .group-items ===== */
 .group-items {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding-left: 4px;
 }
+
+/* ===== 搜索结果条目 .group-item ===== */
 .group-item {
   display: inline-block;
   padding: 4px 12px;
@@ -556,19 +691,21 @@ body {
   border-radius: 14px;
 }
 
-/* ===== 空结果 ===== */
+/* ===== 空结果 .empty-box ===== */
 .empty-box {
   text-align: center;
   padding: 40px 0;
   color: rgba(255, 255, 255, 0.35);
   font-size: 15px;
 }
+
+/* ===== 空结果关键词 .empty-box .keyword ===== */
 .empty-box .keyword {
   color: rgba(255, 255, 255, 0.6);
   font-weight: 700;
 }
 
-/* ===== 底部 ===== */
+/* ===== 底部版权栏 .copyright ===== */
 .copyright {
   margin-top: 22px;
   padding: 8px 0;
@@ -581,7 +718,7 @@ body {
   line-height: 2.2;
 }
 
-/* ===== 提示信息 ===== */
+/* ===== 提示信息 .hint ===== */
 .hint {
   margin-top: 12px;
   font-size: 12px;
@@ -589,31 +726,41 @@ body {
   text-align: center;
 }
 
-/* ===== 成就 ===== */
+/* ===== 成就网格 .achievement-grid ===== */
 .achievement-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
+
+/* ===== 成就分类卡片 .achievement-card ===== */
 .achievement-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 14px 16px;
 }
+
+/* ===== 成就分类名 .ac-name ===== */
 .achievement-card .ac-name {
   font-size: 15px;
   font-weight: 950;
   color: #fff;
 }
+
+/* ===== 成就完成数 .ac-count ===== */
 .achievement-card .ac-count {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.45);
   margin-top: 2px;
 }
+
+/* ===== 成就列表分组 .achievement-group ===== */
 .achievement-group {
   margin-bottom: 16px;
 }
+
+/* ===== 成就条目 .achievement-item ===== */
 .achievement-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -621,29 +768,37 @@ body {
   padding: 12px 16px;
   margin-bottom: 6px;
 }
+
+/* ===== 成就名 .ai-name ===== */
 .achievement-item .ai-name {
   font-size: 14px;
   font-weight: 950;
   color: #fff;
 }
+
+/* ===== 成就描述 .ai-desc ===== */
 .achievement-item .ai-desc {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.75);
   margin-top: 2px;
 }
 
-/* ===== 详情容器 ===== */
+/* ===== 详情盒子 .detail-box ===== */
 .detail-box {
   margin-top: 4px;
 }
+
+/* ===== 详情分区 .detail-section ===== */
 .detail-section {
   margin-bottom: 4px;
 }
 
-/* ===== LINK 高亮 ===== */
+/* ===== LINK 高亮 .link-ref ===== */
 .link-ref {
   font-weight: 700;
 }
+
+/* ===== LINK 详情条 .link-detail ===== */
 .link-detail {
   margin-top: 8px;
   padding: 8px 12px;
@@ -653,17 +808,21 @@ body {
   font-size: 12px;
   line-height: 1.6;
 }
+
+/* ===== LINK 详情名 .link-detail-name ===== */
 .link-detail-name {
   font-weight: 700;
   color: #e0b040;
   margin-bottom: 2px;
 }
+
+/* ===== LINK 详情描述 .link-detail-desc ===== */
 .link-detail-desc {
   color: rgba(255, 255, 255, 0.80);
   white-space: pre-wrap;
 }
 
-/* ===== 描述文本（内联） ===== */
+/* ===== 内联描述文本 .desc-text ===== */
 .desc-text {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.65);
@@ -672,13 +831,14 @@ body {
   word-break: break-all;
 }
 
-/* ===== 材料卡片 ===== */
-/* ===== 材料网格（4列卡片） ===== */
+/* ===== 素材网格 .material-grid ===== */
 .material-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
+
+/* ===== 素材卡片 .material-card ===== */
 .material-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -689,12 +849,16 @@ body {
   align-items: center;
   text-align: center;
 }
+
+/* ===== 素材图标 .material-card-icon ===== */
 .material-card-icon {
   width: 80px;
   height: 80px;
   border-radius: 4px;
   margin-bottom: 6px;
 }
+
+/* ===== 素材名称 .material-card-name ===== */
 .material-card-name {
   font-size: 18px;
   color: rgba(255, 255, 255, 0.85);
@@ -702,11 +866,15 @@ body {
   word-break: break-all;
   margin-bottom: 3px;
 }
+
+/* ===== 素材数量 .material-card-count ===== */
 .material-card-count {
   font-size: 18px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.65);
 }
+
+/* ===== 材料消耗（旧格式） .material-cost ===== */
 .material-cost {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.70);
@@ -714,13 +882,15 @@ body {
   line-height: 1.6;
 }
 
-/* ===== 资料列表（profile-summary） ===== */
+/* ===== 资料列表容器 .profile-list ===== */
 .profile-list {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   overflow: hidden;
 }
+
+/* ===== 资料列表项 .profile-item ===== */
 .profile-item {
   padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -729,15 +899,21 @@ body {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ===== 资料列表末项去线 .profile-item:last-child ===== */
 .profile-item:last-child {
   border-bottom: none;
 }
+
+/* ===== 资料图标 .profile-icon ===== */
 .profile-icon {
   width: 28px;
   height: 28px;
   border-radius: 4px;
   flex-shrink: 0;
 }
+
+/* ===== 资料序号 .profile-order ===== */
 .profile-order {
   font-size: 12px;
   font-weight: 700;
@@ -745,12 +921,16 @@ body {
   flex-shrink: 0;
   min-width: 18px;
 }
+
+/* ===== 资料名称 .profile-name ===== */
 .profile-name {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #fff;
 }
+
+/* ===== 资料标签 .profile-tag ===== */
 .profile-tag {
   display: inline-block;
   padding: 2px 8px;
@@ -760,6 +940,8 @@ body {
   background: rgba(61, 184, 224, 0.18);
   color: #70d0ee;
 }
+
+/* ===== 资料描述 .profile-desc ===== */
 .profile-desc {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.60);
