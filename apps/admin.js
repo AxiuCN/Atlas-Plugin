@@ -8,7 +8,7 @@ import {
   initSubmodule,
   installDeps,
   runScrapeAsync,
-  runIncrementalScrapeAsync,
+  checkAndUpdate,
   getDataStatus,
   BACKEND_DIR
 } from '../model/AtlasUpdater.js'
@@ -143,7 +143,7 @@ export class AtlasAdmin extends plugin {
   }
 
   /**
-   * #图鉴更新 — 异步执行，完成后通知主人
+   * #图鉴更新 — 版本检查 → 增量抓取 → 重试 → 全量兜底
    */
   async handleUpdate (e) {
     if (!isInitialized()) {
@@ -158,12 +158,22 @@ export class AtlasAdmin extends plugin {
     const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
       ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
       : hasGroups ? '主人和配置群' : '主人'
-    await e.reply(`[Atlas] 更新任务已启动，完成后将通知${notifyHint}`, true)
+    await e.reply('[Atlas] 正在检查图鉴版本...', true)
 
     // 异步执行，不阻塞
-    runIncrementalScrapeAsync().then(async (ret) => {
+    checkAndUpdate({
+      games: ['gi', 'hsr', 'zzz'],
+      locales: ['zh'],
+      retries: cfg?.autoUpdate?.retries ?? 1,
+      retryDelayMs: cfg?.autoUpdate?.retryDelayMs ?? 30000,
+      fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true
+    }).then(async (ret) => {
+      if (ret.skipped) {
+        this._notifyResult('[Atlas] 图鉴版本未变化，无需更新')
+        return
+      }
       if (!ret.ok) {
-        this._notifyResult(`[Atlas] 图鉴更新失败：${ret.error}`)
+        this._notifyResult(`[Atlas] 图鉴更新失败：${ret.error || ret.reason}`)
         return
       }
 
@@ -187,7 +197,10 @@ export class AtlasAdmin extends plugin {
         ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载`
         : ''
 
-      this._notifyResult(`[Atlas] 图鉴更新完成\n${gameLines}${imgInfo}`)
+      const modeLabel = ret.mode === 'full' ? '（全量补全）'
+        : ret.mode === 'full_fallback' ? '（增量失败，降级全量）'
+        : ''
+      this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}`)
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
       this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
@@ -233,7 +246,6 @@ export class AtlasAdmin extends plugin {
    * 定时自动更新任务
    */
   async autoUpdateTask () {
-    // 检查是否已初始化 + 配置是否开启
     const cfg = getPluginConfig()
     if (cfg?.autoUpdate?.enabled === false) return
     if (!isInitialized()) return
@@ -241,9 +253,21 @@ export class AtlasAdmin extends plugin {
     logger?.info('[Atlas][管理] 开始定时自动更新...')
 
     try {
-      const ret = await runIncrementalScrapeAsync()
+      const ret = await checkAndUpdate({
+        games: ['gi', 'hsr', 'zzz'],
+        locales: ['zh'],
+        retries: cfg?.autoUpdate?.retries ?? 1,
+        retryDelayMs: cfg?.autoUpdate?.retryDelayMs ?? 30000,
+        fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true
+      })
+
+      if (ret.skipped) {
+        logger?.info('[Atlas][管理] 版本未变化，跳过抓取')
+        return
+      }
+
       if (!ret.ok) {
-        this._notifyResult(`[Atlas] 定时更新失败：${ret.error}`)
+        this._notifyResult(`[Atlas] 定时更新失败：${ret.error || ret.reason}`)
         return
       }
 
@@ -255,8 +279,11 @@ export class AtlasAdmin extends plugin {
         ? Object.entries(gameStats).map(([, g]) => `· ${g.name} ${g.recordCount} 条`).join('、')
         : '更新完成'
 
+      const modeLabel = ret.mode === 'full' ? '（全量补全）'
+        : ret.mode === 'full_fallback' ? '（增量失败，降级全量）'
+        : ''
       logger?.info('[Atlas][管理] 定时更新完成')
-      this._notifyResult(`[Atlas] 每日自动更新完成：${gameLines}`)
+      this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}`)
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }
