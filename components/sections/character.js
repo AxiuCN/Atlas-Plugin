@@ -668,26 +668,6 @@ function _matIcon (images, materialId, gameId) {
 // ============================================================
 
 /**
- * 解析 desc 中的格式说明符
- * "一段伤害|{param1:F1P}" → Map { 0: 'F1P' }
- * @param {string[]} descArray
- * @returns {Map<number, string>} paramIndex → format
- */
-function _parseParamFormats (descArray) {
-  const map = new Map()
-  if (!descArray || !Array.isArray(descArray)) return map
-  for (const d of descArray) {
-    if (!d || typeof d !== 'string') continue
-    const matches = d.matchAll(/\{param(\d+):([^}]+)\}/g)
-    for (const m of matches) {
-      const idx = Number(m[1]) - 1 // param1 → index 0
-      if (!map.has(idx)) map.set(idx, m[2])
-    }
-  }
-  return map
-}
-
-/**
  * 按格式说明符格式化参数值
  * @param {*} value
  * @param {string} format - F1P | P | F1 | F2 | undefined
@@ -733,7 +713,6 @@ function _buildSkillParams (levelData, game) {
   const first = levelData[levels[0]]
   let paramHeaders = []
   let getValues
-  let formatMap = new Map()
 
   const paramArr = first?.param
   const paramList = first?.param_list
@@ -741,13 +720,22 @@ function _buildSkillParams (levelData, game) {
 
   if (Array.isArray(paramArr) && paramArr.length > 0) {
     // GI: first.param 是数组，first.desc 含标签和格式说明符
-    const descLabels = (first.desc || []).map(d => String(d).split('|')[0].trim()).filter(Boolean)
-    if (descLabels.length > 0) {
-      paramHeaders = descLabels
-      formatMap = _parseParamFormats(first.desc || [])
+    // 从 {paramN} 提取真实的 param 下标，处理非顺序引用（如 desc[3] 引用 param6）
+    const descMappings = []
+    for (let i = 0; i < (first.desc || []).length; i++) {
+      const d = String(first.desc[i])
+      const label = d.split('|')[0].trim()
+      if (!label) continue
+      const paramMatch = d.match(/\{param(\d+)(?::([^}]+))?\}/)
+      const paramIndex = paramMatch ? Number(paramMatch[1]) - 1 : i
+      const format = paramMatch?.[2] || undefined
+      descMappings.push({ label, paramIndex, format })
+    }
+    if (descMappings.length > 0) {
+      paramHeaders = descMappings.map(dm => dm.label)
       getValues = (entry) => {
         const arr = entry?.param || []
-        return paramHeaders.map((_, i) => _fmtParam(arr[i], formatMap.get(i)))
+        return descMappings.map(dm => _fmtParam(arr[dm.paramIndex], dm.format))
       }
     }
   }
