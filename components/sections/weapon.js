@@ -191,10 +191,16 @@ function _propLabel (key) {
   const labels = {
     atk: '攻击力', base_atk: '攻击力', hp: '生命值', base_hp: '生命值',
     def: '防御力', base_def: '防御力', base_speed: '速度',
-    subStat: '副属性', FIGHT_PROP_CRITICAL: '暴击率',
-    FIGHT_PROP_CRITICAL_HURT: '暴击伤害', FIGHT_PROP_CHARGE_EFFICIENCY: '元素充能效率',
-    FIGHT_PROP_ELEMENT_MASTERY: '元素精���', FIGHT_PROP_HEAL_ADD: '治疗加成',
+    subStat: '副属性',
+    FIGHT_PROP_ATTACK: '攻击力', FIGHT_PROP_ATTACK_PERCENT: '攻击力',
+    FIGHT_PROP_HP: '生命值', FIGHT_PROP_HP_PERCENT: '生命值',
+    FIGHT_PROP_DEFENSE: '防御力', FIGHT_PROP_DEFENSE_PERCENT: '防御力',
+    FIGHT_PROP_CRITICAL: '暴击率',
+    FIGHT_PROP_CRITICAL_HURT: '暴击伤害',
+    FIGHT_PROP_CHARGE_EFFICIENCY: '元素充能效率',
+    FIGHT_PROP_ELEMENT_MASTERY: '元素精通',
+    FIGHT_PROP_HEAL_ADD: '治疗加成',
     FIGHT_PROP_PHYSICAL_ADD_HURT: '物理伤害加成',
   }
-  return labels[key] || key
+  return labels[key.toUpperCase()] || key
 }
