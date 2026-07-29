@@ -22,33 +22,33 @@ function _buildGIWeapon (list, detail, meta) {
     { label: '稀有度', value: meta?.rarity || list.rarity || '' },
   ].filter(f => f.value)
 
-  // 满级基础属性（Lv.90）= base × levels['90']，取整或百分比
+  // list.atk 为满级 ATK（Lv.90），副属性从 stats_modifier 取满级值
+  if (list.atk != null) {
+    metaFields.push({ label: '基础攻击力', value: String(list.atk) })
+  }
+
+  // 副属性满级值：stats_modifier 中非 atk 的条目（无突破加成）
   if (detail.stats_modifier) {
     const sm = detail.stats_modifier
     for (const [key, val] of Object.entries(sm)) {
-      if (val?.base == null) continue
+      if (key === 'atk' || val?.base == null) continue
       const lv90Mult = val?.levels?.['90']
-      const raw = lv90Mult != null ? val.base * lv90Mult : val.base
+      const curve = lv90Mult != null ? val.base * lv90Mult : val.base
 
       let label, displayValue
-      if (key === 'atk') {
-        label = '基础攻击力'
-        displayValue = String(Math.round(raw))
-      } else if (key.includes('element_mastery')) {
+      if (key.includes('element_mastery')) {
         label = '元素精通'
-        displayValue = String(Math.round(raw))
+        displayValue = String(Math.round(curve))
       } else if (key === 'hp' || key === 'def') {
         label = _propLabel(key)
-        displayValue = String(Math.round(raw))
+        displayValue = String(Math.round(curve))
       } else {
-        // 百分比副属性（暴击/暴伤/充能/治疗/物伤等）
         label = _propLabel(key)
-        displayValue = (raw * 100).toFixed(1) + '%'
+        displayValue = (curve * 100).toFixed(1) + '%'
       }
       metaFields.push({ label, value: displayValue })
     }
   }
-
   const sections = []
 
   // 精炼
