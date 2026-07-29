@@ -22,21 +22,30 @@ function _buildGIWeapon (list, detail, meta) {
     { label: '稀有度', value: meta?.rarity || list.rarity || '' },
   ].filter(f => f.value)
 
-  // 基础属性
-  if (detail.weapon_prop && Array.isArray(detail.weapon_prop)) {
-    for (const prop of detail.weapon_prop) {
-      const label = _propLabel(prop.prop_type || '')
-      const value = prop.init_value != null ? String(prop.init_value) : ''
-      if (label && value) metaFields.push({ label, value })
-    }
-  }
-
-  // 副属性
+  // 满级基础属性（Lv.90）= base × levels['90']，取整或百分比
   if (detail.stats_modifier) {
     const sm = detail.stats_modifier
     for (const [key, val] of Object.entries(sm)) {
-      if (key === 'atk' && val?.base != null) metaFields.push({ label: '基础攻击力', value: String(val.base) })
-      else if (key !== 'atk' && val?.base != null) metaFields.push({ label: _propLabel(key), value: String(val.base) })
+      if (val?.base == null) continue
+      const lv90Mult = val?.levels?.['90']
+      const raw = lv90Mult != null ? val.base * lv90Mult : val.base
+
+      let label, displayValue
+      if (key === 'atk') {
+        label = '基础攻击力'
+        displayValue = String(Math.round(raw))
+      } else if (key.includes('element_mastery')) {
+        label = '元素精通'
+        displayValue = String(Math.round(raw))
+      } else if (key === 'hp' || key === 'def') {
+        label = _propLabel(key)
+        displayValue = String(Math.round(raw))
+      } else {
+        // 百分比副属性（暴击/暴伤/充能/治疗/物伤等）
+        label = _propLabel(key)
+        displayValue = (raw * 100).toFixed(1) + '%'
+      }
+      metaFields.push({ label, value: displayValue })
     }
   }
 
@@ -68,12 +77,12 @@ function _buildHSRLightcone (list, detail, meta) {
     { label: '稀有度', value: meta?.rarity || list.rarity || '' },
   ].filter(f => f.value)
 
-  // 基础属性
-  if (detail.stats && Array.isArray(detail.stats)) {
-    const base = detail.stats[0] || {}
+  // 满级基础属性（Lv.80）= stats 最后一条
+  if (detail.stats && Array.isArray(detail.stats) && detail.stats.length > 0) {
+    const base = detail.stats[detail.stats.length - 1]
     const statKeys = ['base_hp', 'base_atk', 'base_def', 'base_speed']
     for (const key of statKeys) {
-      if (base[key] != null) metaFields.push({ label: _propLabel(key), value: String(base[key]) })
+      if (base[key] != null) metaFields.push({ label: _propLabel(key), value: String(Math.round(base[key])) })
     }
   }
 
@@ -112,6 +121,19 @@ function _buildHSRLightcone (list, detail, meta) {
 
 // ========== 绝区零音擎 ==========
 
+
+function _fmtZZZValue (value, format) {
+  if (value == null) return ''
+  if (!format) return String(Math.round(value))
+  const match = format.match(/\{0:(.+)\}/)
+  if (!match) return String(value)
+  const inner = match[1]
+  if (inner.includes('%')) {
+    return (value / 100).toFixed(1).replace(/\.0$/, '') + '%'
+  }
+  return String(Math.round(value))
+}
+
 function _buildZZZWeapon (list, detail, meta) {
   const metaFields = [
     { label: '类型', value: detail.weapon_type ? Object.values(detail.weapon_type)[0] : '' },
@@ -122,17 +144,13 @@ function _buildZZZWeapon (list, detail, meta) {
   if (detail.base_property) {
     metaFields.push({
       label: detail.base_property.name || '基础属性',
-      value: detail.base_property.value != null
-        ? `${detail.base_property.value}${detail.base_property.format || ''}`
-        : ''
+      value: _fmtZZZValue(detail.base_property.value, detail.base_property.format)
     })
   }
   if (detail.rand_property) {
     metaFields.push({
       label: detail.rand_property.name || '副属性',
-      value: detail.rand_property.value != null
-        ? `${detail.rand_property.value}${detail.rand_property.format || ''}`
-        : ''
+      value: _fmtZZZValue(detail.rand_property.value, detail.rand_property.format)
     })
   }
 
