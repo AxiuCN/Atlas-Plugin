@@ -107,6 +107,7 @@ function _acquireLock () {
     try { fs.unlinkSync(LOCK_FILE) } catch {}
   }
   try {
+    fs.mkdirSync(DATA_DIR, { recursive: true }) // data 目录可能尚未创建（首次初始化），确保锁文件可写
     fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, time: new Date().toISOString() }), 'utf8')
     return true
   } catch (e) {
