@@ -26,6 +26,10 @@ const SCRAPE_COOLDOWN = 5 * 60 * 1000 // 5 分钟
 
 /** 抓取超时（2小时，适配 5Mbps 带宽 + 含图片） */
 const SCRAPE_TIMEOUT_MS = 2 * 60 * 60 * 1000
+/** 锁文件有效期（毫秒）：超过此时间即使 pid 存活也视为残留
+ *  正常抓取由 runSpawn 超时兜底（SCRAPE_TIMEOUT_MS 后杀子进程并释放锁），
+ *  因此有效锁不会超过 SCRAPE_TIMEOUT_MS，留 30 分钟余量防边缘误判 */
+const LOCK_TTL_MS = SCRAPE_TIMEOUT_MS + 30 * 60 * 1000
 
 /** 版本检查超时 */
 const VERSION_CHECK_TIMEOUT_MS = 30 * 1000
@@ -37,15 +41,31 @@ const OUTPUT_LIMIT = 50 * 1024 * 1024
  *  锁文件管理
  * ============================================================ */
 
+/** 判断锁文件是否过期（无 time 字段或解析失败 → 不过期，交由 pid 判断） */
+function _lockStale (data) {
+  const t = data?.time ? Date.parse(data.time) : 0
+  return t > 0 && Date.now() - t > LOCK_TTL_MS
+}
+
 /**
  * 启动时清理残留锁文件
  * 如果锁文件存在但原进程已死，kill 整个进程树（含孤儿 spawn 子进程）
  */
 function _cleanupStaleLock () {
   if (!fs.existsSync(LOCK_FILE)) return
+  let data = null
   try {
-    const raw = fs.readFileSync(LOCK_FILE, 'utf8')
-    const data = JSON.parse(raw)
+    data = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
+  } catch { /* 锁文件损坏 */ }
+
+  // 过期锁（超过 LOCK_TTL_MS）直接视为残留，跳过 pid 存活判断
+  if (_lockStale(data)) {
+    try { fs.unlinkSync(LOCK_FILE) } catch {}
+    logger?.warn('[Atlas][Updater] 检测到过期锁文件，已清理')
+    return
+  }
+
+  if (data?.pid) {
     try {
       process.kill(data.pid, 0) // 检查进程是否存活
       logger?.info(`[Atlas][Updater] 检测到活跃抓取进程 (PID ${data.pid})，保留锁文件`)
@@ -57,7 +77,7 @@ function _cleanupStaleLock () {
         logger?.info('[Atlas][Updater] 已终止残留抓取进程树')
       } catch { /* taskkill 失败也继续清理锁 */ }
     }
-  } catch { /* 锁文件损坏 */ }
+  }
   try { fs.unlinkSync(LOCK_FILE) } catch {}
   logger?.info('[Atlas][Updater] 启动时清理残留锁文件')
 }
@@ -71,16 +91,20 @@ _cleanupStaleLock()
  */
 function _acquireLock () {
   if (fs.existsSync(LOCK_FILE)) {
+    let data = null
     try {
-      const data = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
+      data = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
+    } catch { /* 锁文件损坏 */ }
+
+    // 过期锁（超过 LOCK_TTL_MS）直接清理；未过期则依赖 pid 存活判断
+    if (!_lockStale(data)) {
       try {
-        process.kill(data.pid, 0)
+        process.kill(data?.pid, 0)
         logger?.warn('[Atlas][Updater] 抓取锁文件存在且进程活跃，拒绝重复启动')
         return false
-      } catch {}
-      // 僵尸锁，清理
-      try { fs.unlinkSync(LOCK_FILE) } catch {}
-    } catch { try { fs.unlinkSync(LOCK_FILE) } catch {} }
+      } catch { /* pid 已死 → 僵尸锁，继续清理 */ }
+    }
+    try { fs.unlinkSync(LOCK_FILE) } catch {}
   }
   try {
     fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, time: new Date().toISOString() }), 'utf8')
@@ -509,7 +533,6 @@ export async function checkAndUpdate (options = {}) {
     // ── 步骤 2：查远端版本 ──
     const remote = await checkRemoteVersions(games)
     if (!remote.ok) {
-      _releaseLock()
       return {
         ok: false,
         reason: 'version_check_failed',
@@ -522,7 +545,6 @@ export async function checkAndUpdate (options = {}) {
     const diff = compareAtlasVersions(local.versions, remote.versions)
     if (!diff.changed) {
       logger?.info('[Atlas][Updater] 版本未变化，跳过抓取')
-      _releaseLock()
       return {
         ok: true,
         skipped: true,
@@ -545,7 +567,6 @@ export async function checkAndUpdate (options = {}) {
 
     if (incResult.ok) {
       _lastScrapeTime = Date.now()
-      _releaseLock()
       return {
         ...incResult,
         mode: 'incremental',
@@ -558,7 +579,6 @@ export async function checkAndUpdate (options = {}) {
       logger?.warn('[Atlas][Updater] 增量抓取失败，降级全量抓取')
       const fullResult = await runScrape(games, locales)
       if (fullResult.ok) _lastScrapeTime = Date.now()
-      _releaseLock()
       return {
         ...fullResult,
         mode: 'full_fallback',
@@ -566,7 +586,6 @@ export async function checkAndUpdate (options = {}) {
       }
     }
 
-    _releaseLock()
     return {
       ok: false,
       reason: 'incremental_failed',
@@ -575,10 +594,10 @@ export async function checkAndUpdate (options = {}) {
     }
   } catch (err) {
     logger?.error('[Atlas][Updater] checkAndUpdate 异常:', err)
-    _releaseLock()
     return { ok: false, reason: 'exception', error: err.message }
   } finally {
     _updateRunning = false
+    _releaseLock()
   }
 }
 
