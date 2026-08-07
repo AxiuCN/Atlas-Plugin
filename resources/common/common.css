@@ -118,7 +118,7 @@ body {
 
 /* ===== Hero 游戏标签 .hero-game ===== */
 .hero .hero-game {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 650;
   color: rgba(255, 255, 255, 0.70);
   margin-bottom: 4px;
@@ -127,7 +127,7 @@ body {
 /* ===== Hero 大标题 .hero-title ===== */
 .hero .hero-title {
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 34px;
+  font-size: 50px;
   font-weight: 600;
   color: #fff;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
@@ -136,7 +136,7 @@ body {
 
 /* ===== Hero 副标题 .hero-subtitle ===== */
 .hero .hero-subtitle {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
   color: rgba(255, 255, 255, 0.82);
   margin-top: 6px;
