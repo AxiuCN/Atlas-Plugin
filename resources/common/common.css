@@ -63,7 +63,7 @@ body {
   background: #1a1d22;
   color: rgba(255, 255, 255, 0.88);
   width: 900px;
-  padding: 28px 32px 32px;
+  padding: 12px 16px 16px;
   line-height: 1.6;
 }
 
@@ -75,7 +75,7 @@ body {
   background-repeat: no-repeat;
   border-radius: 28px;
   padding: 30px 38px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -302,7 +302,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 20px 24px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 /* ===== 两列表格 .detail-table ===== */
@@ -370,7 +370,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 20px 24px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 /* ===== 技能卡末项去间距 .skill-card:last-child ===== */
@@ -460,7 +460,7 @@ body {
 .con-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* ===== 命座格子 .con-item ===== */
@@ -521,7 +521,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 18px 22px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* ===== 故事标题 .story-title ===== */
@@ -551,7 +551,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 18px 22px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* ===== 精炼头部 .refine-header ===== */
@@ -595,7 +595,7 @@ body {
   border: 1px solid rgba(61, 184, 224, 0.20);
   border-radius: 14px;
   padding: 18px 22px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* ===== 圣遗物部件图标 .bonus-icon ===== */
