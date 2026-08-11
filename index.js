@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { reloadIndex } from './model/AtlasService.js'
+import { syncSubmodule } from './model/AtlasUpdater.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -18,6 +19,9 @@ if (!fs.existsSync(configFile) && fs.existsSync(exampleFile)) {
 
 logger?.info('----Atlas-Plugin----')
 logger?.info('[Atlas] 初始化中...')
+
+// ---- 子模块自动同步（异步，不阻塞加载；内部已捕获错误，失败仅日志） ----
+syncSubmodule().catch(() => {})
 
 // ---- 预加载索引 ----
 try {

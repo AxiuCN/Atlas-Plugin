@@ -9,6 +9,9 @@ const pluginRoot = path.resolve(__dirname, '..')
 /** nanoka-atlas-backend 子模块目录 */
 export const BACKEND_DIR = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
 
+/** 子模块相对插件根目录的路径（gitlink 记录路径） */
+const SUBMODULE_PATH = 'tool/nanoka-atlas-backend/nanoka-atlas-backend'
+
 /** 数据目录 */
 const DATA_DIR = path.join(BACKEND_DIR, 'data')
 
@@ -657,6 +660,71 @@ export function initSubmodule () {
     logger?.error('[Atlas][Updater] 子模块拉取失败:', msg)
     return { ok: false, error: msg }
   }
+}
+
+/**
+ * 同步子模块到 gitlink 指向的 commit
+ *
+ * 对比 gitlink 记录（git ls-tree HEAD）与子模块当前 HEAD，不一致则
+ * `git submodule update --init` 切换到 gitlink 指向版本。
+ * 幂等：已同步则跳过；失败不致命（仅日志），供下次启动重试。
+ * 覆盖"其他用户 git pull 更新插件后，子模块内容未跟随 gitlink"的场景。
+ * @returns {Promise<{ ok: boolean, skipped?: boolean, error?: string }>}
+ */
+export async function syncSubmodule () {
+  // ① 期望 commit = gitlink 记录（git ls-tree HEAD <path> 第 3 列）
+  let wanted = ''
+  try {
+    wanted = execSync(`git ls-tree HEAD ${SUBMODULE_PATH}`, {
+      cwd: pluginRoot,
+      encoding: 'utf8'
+    }).trim().split(/\s+/)[2] || ''
+  } catch (err) {
+    const msg = err.stderr || err.message || String(err)
+    logger?.warn(`[Atlas][Updater] 读取子模块 gitlink 记录失败: ${msg}`)
+    return { ok: false, error: msg }
+  }
+  if (!wanted) {
+    logger?.warn('[Atlas][Updater] 子模块 gitlink 记录缺失')
+    return { ok: false, error: 'gitlink 记录缺失' }
+  }
+
+  // ② 子模块未初始化（无 .git）→ 复用 initSubmodule()
+  if (!fs.existsSync(path.join(BACKEND_DIR, '.git'))) {
+    return initSubmodule()
+  }
+
+  // ③ 子模块当前 HEAD
+  let current = ''
+  try {
+    current = execSync('git rev-parse HEAD', {
+      cwd: BACKEND_DIR,
+      encoding: 'utf8'
+    }).trim()
+  } catch (err) {
+    const msg = err.stderr || err.message || String(err)
+    logger?.warn(`[Atlas][Updater] 读取子模块 HEAD 失败: ${msg}`)
+    return { ok: false, error: msg }
+  }
+
+  // ④ 已同步则跳过（幂等）
+  if (current === wanted) {
+    return { ok: true, skipped: true }
+  }
+
+  // ⑤ 不一致 → 切到 gitlink 指向版本（--init 兜底未拉取的对象，runSpawn 不阻塞事件循环）
+  logger?.info(`[Atlas][Updater] 子模块待同步: ${current.slice(0, 8)} → ${wanted.slice(0, 8)}`)
+  const result = await runSpawn('git', ['submodule', 'update', '--init', '--', SUBMODULE_PATH], {
+    cwd: pluginRoot,
+    timeoutMs: 120000,
+    label: '子模块同步'
+  })
+  if (!result.ok) {
+    logger?.warn(`[Atlas][Updater] 子模块同步失败: ${result.stderr || result.reason}`)
+    return { ok: false, error: result.stderr || result.reason }
+  }
+  logger?.info(`[Atlas][Updater] 子模块已同步到 ${wanted.slice(0, 8)}`)
+  return { ok: true }
 }
 
 /**
