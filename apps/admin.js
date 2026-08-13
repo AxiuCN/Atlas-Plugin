@@ -13,6 +13,7 @@ import {
   readLocalVersions,
   compareAtlasVersions,
   getDataStatus,
+  repairMissingGames,
   BACKEND_DIR
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
@@ -139,7 +140,7 @@ export class AtlasAdmin extends plugin {
    * #图鉴强制初始化 — 跳过完整性检查，直接全量抓取
    */
   async handleForceInit (e) {
-    await e.reply('[Atlas] 强制重新初始化，跳过已有数据...', true)
+    await e.reply('[Atlas] 强制重新初始化：跳过完整性检查，将清空现有数据并全量重建（含图片）...', true)
     // 直接走完整流程（不检查 isInitialized）
     await this._doInit(e)
     return true
@@ -194,6 +195,13 @@ export class AtlasAdmin extends plugin {
       if (!ret.ok) {
         this._notifyResult(`[Atlas] 图鉴更新失败：${ret.error || ret.reason}`)
         return
+      }
+
+      // 空缺检查 + 定向重抓（仅针对缺失游戏，主页预取失效时带 --versions 补抓）
+      const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'], ['zh'])
+      if (repairRet.missing?.length > 0) {
+        if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
+        else logger?.error(`[Atlas][管理] 数据空缺修复失败: ${repairRet.missing.join(', ')}`)
       }
 
       // 重建索引
@@ -288,6 +296,13 @@ export class AtlasAdmin extends plugin {
       if (!ret.ok) {
         this._notifyResult(`[Atlas] 定时更新失败：${ret.error || ret.reason}`)
         return
+      }
+
+      // 空缺检查 + 定向重抓（仅针对缺失游戏，主页预取失效时带 --versions 补抓）
+      const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'], ['zh'])
+      if (repairRet.missing?.length > 0) {
+        if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
+        else logger?.error(`[Atlas][管理] 数据空缺修复失败: ${repairRet.missing.join(', ')}`)
       }
 
       reloadIndex()

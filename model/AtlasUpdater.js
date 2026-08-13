@@ -380,15 +380,22 @@ export function runScrape (games = ['gi', 'hsr', 'zzz'], locales = ['zh']) {
  * @param {string[]} locales
  * @returns {Promise<{ ok: boolean, error?: string, stdout?: string }>}
  */
-export function runIncrementalScrape (games = ['gi', 'hsr', 'zzz'], locales = ['zh']) {
+export function runIncrementalScrape (games = ['gi', 'hsr', 'zzz'], locales = ['zh'], versions = null) {
   const gameArg = games.join(',')
   const localeArg = locales.join(',')
-  return runSpawn('node', [
+  const args = [
     'src/scrape.mjs',
     '--game', gameArg,
     '--locales', localeArg,
     '--mode', 'incremental'
-  ], {
+  ]
+  // 定向补抓：指定游戏版本（如 gi=7.0），绕过主页预取失效导致的数据源获取为空
+  if (versions) {
+    for (const [g, v] of Object.entries(versions)) {
+      args.push('--versions', `${g}=${v}`)
+    }
+  }
+  return runSpawn('node', args, {
     cwd: BACKEND_DIR,
     timeoutMs: SCRAPE_TIMEOUT_MS,
     label: '增量抓取'
@@ -601,6 +608,71 @@ export async function checkAndUpdate (options = {}) {
     return { ok: false, reason: 'exception', error: err.message }
   } finally {
     _updateRunning = false
+    _releaseLock()
+  }
+}
+
+/**
+ * 检查本地数据空缺，对缺失游戏带版本定向重抓
+ *
+ * 用于更新完成后兜底：主页预取失效等场景下，正常增量抓取会静默产出空数据
+ * （recordCount 为 0 或游戏在状态中消失）。此处用 --versions 绕过主页，
+ * 直接从 manifest 取 latest 版本号定向补抓，全程输出日志便于排查。
+ * @param {string[]} games - 需检查的游戏列表
+ * @param {string[]} locales
+ * @returns {Promise<{ok: boolean, skipped?: boolean, reason?: string, missing: string[],
+ *                     results?: Array<{game: string, ok: boolean, version?: string, error?: string}>}>}
+ */
+export async function repairMissingGames (games = ['gi', 'hsr', 'zzz'], locales = ['zh']) {
+  // ① 空缺检测：getDataStatus 只统计有 locales.zh 的游戏，空骨架不计入 → 视为缺失
+  const status = getDataStatus()
+  if (!status.initialized) {
+    return { ok: true, skipped: true, missing: [] }
+  }
+
+  const missing = games.filter(g => {
+    const info = status.games?.[g]
+    return !info || !(info.recordCount > 0)
+  })
+  if (missing.length === 0) {
+    return { ok: true, skipped: true, missing: [] }
+  }
+
+  logger?.warn(`[Atlas][Updater] 检测到数据空缺: ${missing.join(', ')}，尝试带版本定向重抓`)
+
+  if (!_acquireLock()) {
+    return { ok: false, reason: 'lock_busy', missing, results: [] }
+  }
+
+  try {
+    // ② 查远端版本（--list-versions，仅查缺失游戏）
+    const remote = await checkRemoteVersions(missing)
+    if (!remote.ok) {
+      logger?.error(`[Atlas][Updater] 空缺重抓前版本检查失败: ${remote.reason}`)
+      return { ok: false, reason: 'version_check_failed', missing, results: [] }
+    }
+
+    // ③ 逐游戏定向重抓（带 --versions 绕过主页预取）
+    const results = []
+    for (const game of missing) {
+      const version = remote.versions?.[game]?.latest
+      if (!version) {
+        logger?.error(`[Atlas][Updater] ${game} 无远端版本信息，跳过修复`)
+        results.push({ game, ok: false, error: '无远端版本信息' })
+        continue
+      }
+      logger?.info(`[Atlas][Updater] 定向重抓 ${game} (version=${version})`)
+      const r = await runIncrementalScrape([game], locales, { [game]: version })
+      results.push({ game, ok: r.ok, version, error: r.error })
+      if (r.ok) {
+        logger?.info(`[Atlas][Updater] ${game} 空缺修复成功 (version=${version})`)
+      } else {
+        logger?.error(`[Atlas][Updater] ${game} 空缺修复失败: ${r.error}`)
+      }
+    }
+
+    return { ok: results.every(r => r.ok), missing, results }
+  } finally {
     _releaseLock()
   }
 }
