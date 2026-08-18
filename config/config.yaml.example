@@ -17,3 +17,11 @@ autoUpdate:
   enabled: true
   # 自动更新 cron 表达式（6字段：秒 分 时 日 月 周）
   cron: '0 0 5 * * *'
+  # 增量抓取失败后的重试次数
+  retries: 1
+  # 重试前的等待毫秒数
+  retryDelayMs: 30000
+  # 增量抓取多次失败后是否降级全量抓取
+  fallbackToFull: true
+  # 单次抓取超时毫秒数（默认 7200000 = 2 小时）
+  timeoutMs: 7200000

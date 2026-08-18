@@ -18,3 +18,11 @@ autoUpdate:
   enabled: ${atlas_autoUpdate_enabled}
   # 自动更新 cron 表达式（6字段：秒 分 时 日 月 周）
   cron: "${atlas_autoUpdate_cron}"
+  # 增量抓取失败后的重试次数
+  retries: ${atlas_autoUpdate_retries}
+  # 重试前的等待毫秒数
+  retryDelayMs: ${atlas_autoUpdate_retryDelayMs}
+  # 增量抓取多次失败后是否降级全量抓取
+  fallbackToFull: ${atlas_autoUpdate_fallbackToFull}
+  # 单次抓取超时毫秒数（默认 7200000 = 2 小时）
+  timeoutMs: ${atlas_autoUpdate_timeoutMs}

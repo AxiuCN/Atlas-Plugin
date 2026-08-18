@@ -23,6 +23,10 @@ const TEMPLATE_VARS = {
   renderScale: 'atlas_renderScale',
   'autoUpdate.enabled': 'atlas_autoUpdate_enabled',
   'autoUpdate.cron': 'atlas_autoUpdate_cron',
+  'autoUpdate.retries': 'atlas_autoUpdate_retries',
+  'autoUpdate.retryDelayMs': 'atlas_autoUpdate_retryDelayMs',
+  'autoUpdate.fallbackToFull': 'atlas_autoUpdate_fallbackToFull',
+  'autoUpdate.timeoutMs': 'atlas_autoUpdate_timeoutMs',
   notifyGroups: 'atlas_notifyGroups',
   notifyMode: 'atlas_notifyMode'
 }
@@ -33,6 +37,10 @@ const DEFAULTS = {
   atlas_renderScale: '1.5',
   atlas_autoUpdate_enabled: 'true',
   atlas_autoUpdate_cron: '0 0 5 * * *',
+  atlas_autoUpdate_retries: '1',
+  atlas_autoUpdate_retryDelayMs: '30000',
+  atlas_autoUpdate_fallbackToFull: 'true',
+  atlas_autoUpdate_timeoutMs: '7200000',
   atlas_notifyGroups: '',
   atlas_notifyMode: 'all'
 }
@@ -114,6 +122,42 @@ export function supportGuoba () {
           required: true,
           componentProps: { placeholder: '0 0 5 * * *' }
         },
+        {
+          field: 'autoUpdate.retries',
+          label: '增量失败重试次数',
+          helpMessage: '增量抓取失败后的重试次数',
+          bottomHelpMessage: '默认 1。重试间隔见下方重试等待',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 0, max: 10, defaultValue: 1 }
+        },
+        {
+          field: 'autoUpdate.retryDelayMs',
+          label: '重试等待（毫秒）',
+          helpMessage: '增量抓取失败后重试前的等待时间',
+          bottomHelpMessage: '默认 30000 = 30 秒',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 1000, max: 600000, step: 1000, defaultValue: 30000 }
+        },
+        {
+          field: 'autoUpdate.fallbackToFull',
+          label: '失败降级全量',
+          helpMessage: '增量抓取多次失败后是否降级为全量抓取',
+          bottomHelpMessage: '默认开启。关闭则多次失败后直接报错停止',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true }
+        },
+        {
+          field: 'autoUpdate.timeoutMs',
+          label: '抓取超时（毫秒）',
+          helpMessage: '单次抓取的最大运行时间',
+          bottomHelpMessage: '默认 7200000 = 2 小时。全量初始化耗时较长可适当调大',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 600000, max: 21600000, step: 600000, defaultValue: 7200000 }
+        },
 
         // ==================== 通知设置 ====================
         { label: '通知设置', component: 'SOFT_GROUP_BEGIN' },
@@ -152,6 +196,10 @@ export function supportGuoba () {
           renderScale: cfg.renderScale ?? 1.5,
           'autoUpdate.enabled': au.enabled ?? true,
           'autoUpdate.cron': au.cron ?? '0 0 5 * * *',
+          'autoUpdate.retries': au.retries ?? 1,
+          'autoUpdate.retryDelayMs': au.retryDelayMs ?? 30000,
+          'autoUpdate.fallbackToFull': au.fallbackToFull ?? true,
+          'autoUpdate.timeoutMs': au.timeoutMs ?? 7200000,
           notifyGroups: (cfg.notifyGroups || '')
             ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
             : [],

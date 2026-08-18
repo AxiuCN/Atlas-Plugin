@@ -101,7 +101,7 @@ export class AtlasAdmin extends plugin {
     await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, true)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
-    runScrapeAsync().then(async (ret) => {
+    runScrapeAsync(cfg?.autoUpdate?.timeoutMs).then(async (ret) => {
       if (!ret.ok) {
         this._notifyResult(`[Atlas] 图鉴初始化失败：${ret.error}`)
         return
@@ -185,7 +185,8 @@ export class AtlasAdmin extends plugin {
       locales: ['zh'],
       retries: cfg?.autoUpdate?.retries ?? 1,
       retryDelayMs: cfg?.autoUpdate?.retryDelayMs ?? 30000,
-      fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true
+      fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true,
+      timeoutMs: cfg?.autoUpdate?.timeoutMs
     }).then(async (ret) => {
       if (ret.skipped) {
         // checkAndUpdate 内部重新检查发现版本未变（极端情况）
@@ -197,7 +198,7 @@ export class AtlasAdmin extends plugin {
         return
       }
 
-      // 空缺检查 + 定向重抓（仅针对缺失游戏，主页预取失效时带 --versions 补抓）
+      // 空缺检查 + 补抓（仅针对缺失游戏，子模块默认 manifest.latest）
       const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'], ['zh'])
       if (repairRet.missing?.length > 0) {
         if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
@@ -285,7 +286,8 @@ export class AtlasAdmin extends plugin {
         locales: ['zh'],
         retries: cfg?.autoUpdate?.retries ?? 1,
         retryDelayMs: cfg?.autoUpdate?.retryDelayMs ?? 30000,
-        fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true
+        fallbackToFull: cfg?.autoUpdate?.fallbackToFull ?? true,
+        timeoutMs: cfg?.autoUpdate?.timeoutMs
       })
 
       if (ret.skipped) {
@@ -298,7 +300,7 @@ export class AtlasAdmin extends plugin {
         return
       }
 
-      // 空缺检查 + 定向重抓（仅针对缺失游戏，主页预取失效时带 --versions 补抓）
+      // 空缺检查 + 补抓（仅针对缺失游戏，子模块默认 manifest.latest）
       const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'], ['zh'])
       if (repairRet.missing?.length > 0) {
         if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)

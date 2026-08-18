@@ -15,10 +15,36 @@ const defaultConfig = {
   renderScale: 1.5,
   autoUpdate: {
     enabled: true,
-    cron: '0 0 5 * * *'
+    cron: '0 0 5 * * *',
+    retries: 1,
+    retryDelayMs: 30000,
+    fallbackToFull: true,
+    timeoutMs: 2 * 60 * 60 * 1000
   },
   notifyGroups: [],
   notifyMode: 'all'
+}
+
+/**
+ * 深合并默认配置与运行时配置（autoUpdate 等嵌套对象逐字段兜底）
+ * @param {object} base - 默认配置
+ * @param {object|null} overlay - 运行时配置
+ * @returns {object}
+ */
+function deepMerge (base, overlay) {
+  if (!overlay || typeof overlay !== 'object' || Array.isArray(overlay)) {
+    return { ...base }
+  }
+  const result = { ...base }
+  for (const [key, value] of Object.entries(overlay)) {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)
+      && base[key] !== null && typeof base[key] === 'object' && !Array.isArray(base[key])) {
+      result[key] = deepMerge(base[key], value)
+    } else {
+      result[key] = value
+    }
+  }
+  return result
 }
 
 /**
@@ -29,7 +55,7 @@ const defaultConfig = {
 export function getPluginConfig () {
   if (fs.existsSync(configFile)) {
     try {
-      return { ...defaultConfig, ...YAML.parse(fs.readFileSync(configFile, 'utf8')) }
+      return deepMerge(defaultConfig, YAML.parse(fs.readFileSync(configFile, 'utf8')))
     } catch (e) {
       logger?.warn('[Atlas] 配置文件解析失败，使用默认配置')
       return defaultConfig
@@ -39,7 +65,7 @@ export function getPluginConfig () {
     fs.copyFileSync(exampleFile, configFile)
     logger?.info('[Atlas] 已从 config.yaml.example 创建配置文件')
     try {
-      return { ...defaultConfig, ...YAML.parse(fs.readFileSync(configFile, 'utf8')) }
+      return deepMerge(defaultConfig, YAML.parse(fs.readFileSync(configFile, 'utf8')))
     } catch (e) {
       return defaultConfig
     }
