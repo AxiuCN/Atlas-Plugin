@@ -14,7 +14,7 @@
 /* ===== 成就分类卡片 .achievement-card ===== */
 .achievement-card {
   background: #ffffff;
-  border: 1px solid #ede4cf;
+  border: 1px solid #d5c6a3;
   border-radius: 8px;
   padding: 18px 20px;
 }
@@ -23,13 +23,13 @@
 .achievement-card .ac-name {
   font-size: 19px;
   font-weight: 950;
-  color: #3b3a34;
+  color: #2f2b25;
 }
 
 /* ===== 成就完成数 .ac-count ===== */
 .achievement-card .ac-count {
   font-size: 15px;
-  color: #a88138;
+  color: #8f6b2f;
   margin-top: 2px;
 }
 
@@ -41,7 +41,7 @@
 /* ===== 成就条目 .achievement-item ===== */
 .achievement-item {
   background: #ffffff;
-  border: 1px solid #ede4cf;
+  border: 1px solid #d5c6a3;
   border-radius: 8px;
   padding: 16px 20px;
   margin-bottom: 6px;
@@ -51,12 +51,12 @@
 .achievement-item .ai-name {
   font-size: 18px;
   font-weight: 950;
-  color: #3b3a34;
+  color: #2f2b25;
 }
 
 /* ===== 成就描述 .ai-desc ===== */
 .achievement-item .ai-desc {
   font-size: 15px;
-  color: #8a8472;
+  color: #4a4538;
   margin-top: 2px;
 }
