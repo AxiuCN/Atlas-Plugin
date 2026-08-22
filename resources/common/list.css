@@ -16,9 +16,10 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 17px;
+  color: #a88138;
+  background: #f8f2e2;
+  border: 1px solid #e5dcc3;
+  border-radius: 6px;
   padding: 9px 20px;
   margin-bottom: 8px;
 }
@@ -37,22 +38,22 @@
   padding: 6px 14px;
   font-size: 16px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  color: #4a4538;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 6px;
 }
 
 /* ===== 空结果 .empty-box ===== */
 .empty-box {
   text-align: center;
   padding: 48px 0;
-  color: rgba(255, 255, 255, 0.35);
+  color: #a09a88;
   font-size: 18px;
 }
 
 /* ===== 空结果关键词 .empty-box .keyword ===== */
 .empty-box .keyword {
-  color: rgba(255, 255, 255, 0.6);
+  color: #8a8472;
   font-weight: 700;
 }

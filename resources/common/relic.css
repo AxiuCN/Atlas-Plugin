@@ -6,9 +6,9 @@
 
 /* ===== 圣遗物套装项 .bonus-item ===== */
 .bonus-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(61, 184, 224, 0.20);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(198, 161, 91, 0.35);
+  border-radius: 8px;
   padding: 18px 22px;
   margin-bottom: 6px;
 }
@@ -28,13 +28,13 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
   margin-bottom: 4px;
 }
 
 /* ===== 圣遗物效果描述 .bonus-desc ===== */
 .bonus-item .bonus-desc {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   white-space: pre-wrap;
 }

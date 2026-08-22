@@ -6,9 +6,9 @@
 
 /* ===== 精炼卡 .refine-item ===== */
 .refine-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 18px 22px;
   margin-bottom: 6px;
 }
@@ -21,11 +21,11 @@
   margin-bottom: 4px;
 }
 
-/* ===== 精炼等级 .refine-level ===== */
+/* ===== 精炼等级 .refine-level（深金） ===== */
 .refine-level {
   font-size: 15px;
   font-weight: 700;
-  color: #e0b040;
+  color: #a88138;
 }
 
 /* ===== 精炼名 .refine-name ===== */
@@ -33,13 +33,13 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 19px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
 }
 
 /* ===== 精炼描述 .refine-desc ===== */
 .refine-desc {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   line-height: 1.65;
   white-space: pre-wrap;
 }

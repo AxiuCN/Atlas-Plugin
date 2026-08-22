@@ -10,18 +10,19 @@
   margin-bottom: 4px;
 }
 
-/* ===== LINK 高亮 .link-ref ===== */
+/* ===== LINK 高亮 .link-ref（深金） ===== */
 .link-ref {
   font-weight: 700;
+  color: #a88138;
 }
 
 /* ===== LINK 详情条 .link-detail ===== */
 .link-detail {
   margin-top: 10px;
   padding: 10px 14px;
-  background: rgba(224, 176, 64, 0.08);
-  border-left: 3px solid #e0b040;
-  border-radius: 0 8px 8px 0;
+  background: rgba(198, 161, 91, 0.10);
+  border-left: 3px solid #c6a15b;
+  border-radius: 0 6px 6px 0;
   font-size: 15px;
   line-height: 1.6;
 }
@@ -29,20 +30,20 @@
 /* ===== LINK 详情名 .link-detail-name ===== */
 .link-detail-name {
   font-weight: 700;
-  color: #e0b040;
+  color: #a88138;
   margin-bottom: 2px;
 }
 
 /* ===== LINK 详情描述 .link-detail-desc ===== */
 .link-detail-desc {
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   white-space: pre-wrap;
 }
 
 /* ===== 内联描述文本 .desc-text ===== */
 .desc-text {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.65);
+  color: #6b6659;
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
@@ -57,9 +58,9 @@
 
 /* ===== 素材卡片 .material-card ===== */
 .material-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 12px 8px;
   display: flex;
   flex-direction: column;
@@ -78,7 +79,7 @@
 /* ===== 素材名称 .material-card-name ===== */
 .material-card-name {
   font-size: 20px;
-  color: rgba(255, 255, 255, 0.85);
+  color: #4a4538;
   line-height: 1.3;
   word-break: break-all;
   margin-bottom: 3px;
@@ -88,29 +89,29 @@
 .material-card-count {
   font-size: 20px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.65);
+  color: #8a8472;
 }
 
 /* ===== 材料消耗（旧格式） .material-cost ===== */
 .material-cost {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.70);
+  color: #6b6659;
   margin-top: 4px;
   line-height: 1.6;
 }
 
 /* ===== 资料列表容器 .profile-list ===== */
 .profile-list {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 /* ===== 资料列表项 .profile-item ===== */
 .profile-item {
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid #f0e9d8;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -130,11 +131,11 @@
   flex-shrink: 0;
 }
 
-/* ===== 资料序号 .profile-order ===== */
+/* ===== 资料序号 .profile-order（深金） ===== */
 .profile-order {
   font-size: 15px;
   font-weight: 700;
-  color: #e0b040;
+  color: #a88138;
   flex-shrink: 0;
   min-width: 18px;
 }
@@ -144,24 +145,25 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
 }
 
-/* ===== 资料标签 .profile-tag ===== */
+/* ===== 资料标签 .profile-tag（金色浅底） ===== */
 .profile-tag {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 4px;
   font-size: 14px;
   font-weight: 700;
-  background: rgba(61, 184, 224, 0.18);
-  color: #70d0ee;
+  background: rgba(198, 161, 91, 0.14);
+  border: 1px solid rgba(198, 161, 91, 0.35);
+  color: #a88138;
 }
 
 /* ===== 资料描述 .profile-desc ===== */
 .profile-desc {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.60);
+  color: #8a8472;
   width: 100%;
   margin-top: 2px;
 }

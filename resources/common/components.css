@@ -1,7 +1,7 @@
 /* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
 
 /* ═══════════════════════════════════════════════════════════════
-   角色页 character.html — Hero / 属性 / 技能 / 命座 / 故事 / LINK / 素材 / 资料
+   共享组件 — 卡片 / 分区标题 / 属性 / 表格 / 技能 / 命座 / 故事 / 列表 / 版权
    ═══════════════════════════════════════════════════════════════ */
 
 /* ===== 分区标题组件 .section-title ===== */
@@ -9,21 +9,22 @@
   display: flex;
   align-items: center;
   height: 34px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 17px;
+  background: #f8f2e2;
+  border: 1px solid #e5dcc3;
+  border-radius: 6px;
   padding: 0 18px;
   margin: 28px 0 14px;
   position: relative;
 }
 
-/* ===== 分区标题左侧蓝线 .section-title::before ===== */
+/* ===== 分区标题左侧金线 .section-title::before ===== */
 .section-title::before {
   content: '';
   display: inline-block;
-  width: 8px;
+  width: 6px;
   height: 18px;
-  background: #3db8e0;
-  border-radius: 99px;
+  background: #c6a15b;
+  border-radius: 4px;
   margin-right: 12px;
   flex-shrink: 0;
 }
@@ -32,7 +33,7 @@
 .section-title-text {
   font-size: 22px;
   font-weight: 950;
-  color: #fff;
+  color: #a88138;
 }
 
 /* ===== 分区标题 h3 回退 .detail-section h3 ===== */
@@ -40,24 +41,25 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 22px;
   font-weight: 600;
-  color: #fff;
+  color: #a88138;
   display: flex;
   align-items: center;
   height: 34px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 17px;
+  background: #f8f2e2;
+  border: 1px solid #e5dcc3;
+  border-radius: 6px;
   padding: 0 18px;
   margin: 28px 0 14px;
 }
 
-/* ===== 分区标题 h3 左侧蓝线 .detail-section h3::before ===== */
+/* ===== 分区标题 h3 左侧金线 .detail-section h3::before ===== */
 .detail-section h3::before {
   content: '';
   display: inline-block;
-  width: 8px;
+  width: 6px;
   height: 18px;
-  background: #3db8e0;
-  border-radius: 99px;
+  background: #c6a15b;
+  border-radius: 4px;
   margin-right: 12px;
   flex-shrink: 0;
 }
@@ -70,11 +72,11 @@
   margin-bottom: 4px;
 }
 
-/* ===== 属性格子 .stat-cell ===== */
+/* ===== 属性格子 .stat-cell（白卡） ===== */
 .stat-cell {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 14px 16px;
   text-align: center;
 }
@@ -83,7 +85,7 @@
 .stat-cell .stat-label {
   font-size: 15px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.50);
+  color: #8a8472;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
@@ -92,14 +94,14 @@
 .stat-cell .stat-value {
   font-size: 21px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.90);
+  color: #3b3a34;
 }
 
 /* ===== 白色卡片 .white-card ===== */
 .white-card {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 6px;
 }
@@ -109,9 +111,9 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -119,7 +121,7 @@
 .detail-table td {
   padding: 8px 16px;
   vertical-align: top;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid #f0e9d8;
 }
 
 /* ===== 表格末行去线 .detail-table tr:last-child td ===== */
@@ -129,7 +131,7 @@
 
 /* ===== 两列表格 标签列 .detail-table .label ===== */
 .detail-table .label {
-  color: rgba(255, 255, 255, 0.50);
+  color: #8a8472;
   width: 30%;
   white-space: nowrap;
   font-weight: 600;
@@ -137,7 +139,7 @@
 
 /* ===== 两列表格 值列 .detail-table .value ===== */
 .detail-table .value {
-  color: rgba(255, 255, 255, 0.85);
+  color: #4a4538;
   word-break: break-all;
   white-space: pre-wrap;
 }
@@ -154,20 +156,20 @@
 /* ===== 属性概览项 .meta-item ===== */
 .meta-item {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.82);
+  color: #4a4538;
 }
 
 /* ===== 属性概览标签 .mlabel ===== */
 .meta-item .mlabel {
-  color: rgba(255, 255, 255, 0.50);
+  color: #8a8472;
   margin-right: 4px;
 }
 
 /* ===== 技能卡 .skill-card ===== */
 .skill-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 6px;
 }
@@ -190,24 +192,25 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
 }
 
-/* ===== 技能类型标签 .skill-tag ===== */
+/* ===== 技能类型标签 .skill-tag（金色浅底） ===== */
 .skill-tag {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 4px;
   font-size: 14px;
   font-weight: 700;
-  background: rgba(61, 184, 224, 0.18);
-  color: #70d0ee;
+  background: rgba(198, 161, 91, 0.14);
+  border: 1px solid rgba(198, 161, 91, 0.35);
+  color: #a88138;
 }
 
 /* ===== 技能描述 .skill-desc ===== */
 .skill-desc {
   font-size: 17px;
-  color: rgba(255, 255, 255, 0.85);
+  color: #5a554a;
   line-height: 1.65;
   margin-bottom: 6px;
   white-space: pre-wrap;
@@ -222,7 +225,7 @@
 .skill-params .param-title {
   font-size: 15px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.45);
+  color: #8a8472;
   margin-bottom: 4px;
 }
 
@@ -231,8 +234,9 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
+  background: #fdfaf1;
+  border: 1px solid #ede4cf;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -240,19 +244,19 @@
 .mini-table th, .mini-table td {
   padding: 5px 10px;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid #f0e9d8;
 }
 
 /* ===== 参数小表 表头 .mini-table th ===== */
 .mini-table th {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.50);
+  background: rgba(198, 161, 91, 0.08);
+  color: #8a8472;
   font-weight: 600;
 }
 
 /* ===== 参数表数据格 .mini-table td ===== */
 .mini-table td {
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
 }
 
 /* ===== 命座网格 .con-grid ===== */
@@ -264,9 +268,9 @@
 
 /* ===== 命座格子 .con-item ===== */
 .con-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 16px 20px;
 }
 
@@ -282,18 +286,19 @@
 .con-header .con-icon {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 4px;
   object-fit: contain;
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(248, 242, 226, 0.6);
+  border: 1px solid #ede4cf;
   margin-bottom: 0;
 }
 
-/* ===== 命座序号 .con-order ===== */
+/* ===== 命座序号 .con-order（深金） ===== */
 .con-header .con-order {
   font-size: 16px;
   font-weight: 700;
-  color: #e0b040;
+  color: #a88138;
   flex-shrink: 0;
 }
 
@@ -302,23 +307,23 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 19px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
   margin: 0;
 }
 
 /* ===== 命座描述 .con-desc ===== */
 .con-desc {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
 /* ===== 故事卡 .story-item ===== */
 .story-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 18px 22px;
   margin-bottom: 6px;
 }
@@ -328,33 +333,34 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
   margin-bottom: 6px;
 }
 
 /* ===== 故事内容 .story-content ===== */
 .story-content {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   line-height: 1.7;
   white-space: pre-wrap;
 }
+
 /* ===== 通用列表项 .extra-item ===== */
 .extra-item {
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid #f0e9d8;
+  background: #ffffff;
   overflow: hidden;
 }
 
 /* ===== 通用列表首项圆角 .extra-item:first-child ===== */
 .extra-item:first-child {
-  border-radius: 12px 12px 0 0;
+  border-radius: 8px 8px 0 0;
 }
 
 /* ===== 通用列表末项去线+圆角 .extra-item:last-child ===== */
 .extra-item:last-child {
-  border-bottom: none; border-radius: 0 0 12px 12px;
+  border-bottom: none; border-radius: 0 0 8px 8px;
 }
 
 /* ===== 通用列表名 .extra-name ===== */
@@ -362,25 +368,25 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
+  color: #3b3a34;
 }
 
 /* ===== 通用列表描述 .extra-desc ===== */
 .extra-desc {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   margin-top: 2px;
   white-space: pre-wrap;
 }
 
 /* ===== 描述文本块 .desc-block ===== */
 .desc-block {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #ede4cf;
+  border-radius: 8px;
   padding: 18px 22px;
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.80);
+  color: #5a554a;
   line-height: 1.7;
   white-space: pre-wrap;
 }
@@ -389,11 +395,12 @@
 .extra-icon {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 4px;
   object-fit: contain;
   float: left;
   margin-right: 10px;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(248, 242, 226, 0.6);
+  border: 1px solid #ede4cf;
 }
 
 /* ===== 底部版权栏 .copyright（全模板共用） ===== */
@@ -403,9 +410,10 @@
   text-align: center;
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 17px;
+  color: #6b6659;
+  background: #f8f2e2;
+  border: 1px solid #e5dcc3;
+  border-radius: 6px;
   line-height: 2.2;
 }
 
@@ -413,6 +421,6 @@
 .hint {
   margin-top: 12px;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.35);
+  color: #a09a88;
   text-align: center;
 }
