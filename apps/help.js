@@ -28,9 +28,15 @@ export class AtlasHelp extends plugin {
       const { helpCfg, helpList } = await import(`file://${helpPath}?t=${Date.now()}`)
 
       // 按权限过滤分组
+      // auth: 'master' → 仅主人可见
+      // auth: 'alias' → 按配置 alias.set 判定（master 仅主人，group_admin/all 所有人可见；实际命令另有双闸把关）
       const helpGroup = []
       for (const group of helpList) {
         if (group.auth === 'master' && !e.isMaster) continue
+        if (group.auth === 'alias') {
+          const aliasSet = config?.alias?.set
+          if (aliasSet === 'master' && !e.isMaster) continue
+        }
         helpGroup.push({
           group: group.group,
           list: group.list.map(item => ({

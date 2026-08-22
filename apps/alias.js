@@ -1,12 +1,13 @@
 /**
  * Atlas 别名管理指令
  *
- * #图鉴别名帮助
  * #图鉴别名设置 <标准名> <别名>            （自动判断游戏）
  * #图鉴别名原神/星铁/绝区零设置 <标准名> <别名>
  * #图鉴别名删除 <别名>                     （自动判断游戏）
  * #图鉴别名原神/星铁/绝区零删除 <别名>
  * #图鉴别名列表 / #图鉴别名原神/星铁/绝区零列表
+ *
+ * 说明命令见 #图鉴帮助（help-cfg.js「别名管理」组，按 alias.set 权限过滤显示）。
  *
  * 权限：双闸设计——rule.permission 固定 master（框架第一道闸，兜底上限），
  * 函数内按配置 alias.set/del/list 的 level 用 checkPermission 二次判定
@@ -29,8 +30,6 @@ export class AtlasAlias extends plugin {
       event: 'message',
       priority: 8000,
       rule: [
-        // 帮助
-        { reg: /^#图鉴别名帮助$/, fnc: 'aliasHelp', permission: 'all' },
         // 设置（指定游戏）
         { reg: /^#图鉴别名原神设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetGi', permission: 'master' },
         { reg: /^#(?:星铁)图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetHsr', permission: 'master' },
@@ -76,29 +75,6 @@ export class AtlasAlias extends plugin {
       return true
     }
     return true // all
-  }
-
-  async aliasHelp (e) {
-    const lines = [
-      '【图鉴别名管理】',
-      '',
-      '设置：',
-      '  #图鉴别名设置 <标准名> <别名>',
-      '  #图鉴别名原神设置 <标准名> <别名>',
-      '  #图鉴别名星铁设置 <标准名> <别名>',
-      '  #图鉴别名绝区零设置 <标准名> <别名>',
-      '',
-      '删除：',
-      '  #图鉴别名删除 <别名>',
-      '  #图鉴别名原神/星铁/绝区零删除 <别名>',
-      '',
-      '查看：',
-      '  #图鉴别名列表 / #图鉴别名原神/星铁/绝区零列表',
-      '',
-      'ℹ️ 别名写入 Atlas-Plugin/config/alias/<游戏>/<类别>.yaml，保存即热更新生效',
-      'ℹ️ 预设别名不支持删除；管理员指令权限可按配置调整'
-    ]
-    return e.reply(lines.join('\n'), true)
   }
 
   // ── 设置 ──
