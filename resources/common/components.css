@@ -395,3 +395,24 @@
   margin-right: 10px;
   background: rgba(0, 0, 0, 0.25);
 }
+
+/* ===== 底部版权栏 .copyright（全模板共用） ===== */
+.copyright {
+  margin-top: 26px;
+  padding: 10px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 17px;
+  line-height: 2.2;
+}
+
+/* ===== 提示信息 .hint（跨模板） ===== */
+.hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+}
