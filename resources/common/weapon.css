@@ -1,0 +1,45 @@
+/* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
+
+/* ═══════════════════════════════════════════════════════════════
+   武器页 weapon.html — 精炼
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== 精炼卡 .refine-item ===== */
+.refine-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 6px;
+}
+
+/* ===== 精炼头部 .refine-header ===== */
+.refine-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* ===== 精炼等级 .refine-level ===== */
+.refine-level {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e0b040;
+}
+
+/* ===== 精炼名 .refine-name ===== */
+.refine-name {
+  font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ===== 精炼描述 .refine-desc ===== */
+.refine-desc {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.80);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}

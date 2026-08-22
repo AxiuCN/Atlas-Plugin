@@ -1,0 +1,79 @@
+/* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
+
+/* ═══════════════════════════════════════════════════════════════
+   列表页 list.html — 搜索结果分组
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== 搜索结果列表 .result-list ===== */
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===== 搜索结果分组标题 .group-title ===== */
+.group-title {
+  font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 17px;
+  padding: 9px 20px;
+  margin-bottom: 8px;
+}
+
+/* ===== 搜索结果分组容器 .group-items ===== */
+.group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 4px;
+}
+
+/* ===== 搜索结果条目 .group-item ===== */
+.group-item {
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+}
+
+/* ===== 空结果 .empty-box ===== */
+.empty-box {
+  text-align: center;
+  padding: 48px 0;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 18px;
+}
+
+/* ===== 空结果关键词 .empty-box .keyword ===== */
+.empty-box .keyword {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 700;
+}
+
+/* ===== 底部版权栏 .copyright ===== */
+.copyright {
+  margin-top: 26px;
+  padding: 10px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 17px;
+  line-height: 2.2;
+}
+
+/* ===== 提示信息 .hint ===== */
+.hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+}

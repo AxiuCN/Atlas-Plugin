@@ -1,0 +1,70 @@
+/* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
+
+/* Atlas-Plugin 通用样式 — 深色主题 */
+
+/* ===== 自定义字体: Number (tttgbnumber) ===== */
+@font-face {
+  font-family: 'Number';
+  src: url("./font/tttgbnumber.woff") format('woff'), url("./font/tttgbnumber.ttf") format('truetype');
+}
+
+/* ===== 自定义字体: NZBZ (印品南征北战) ===== */
+@font-face {
+  font-family: 'NZBZ';
+  src: url("./font/NZBZ.woff") format('woff'), url("./font/NZBZ.ttf") format('truetype');
+}
+
+/* ===== 自定义字体: YS (汉仪文黑) ===== */
+@font-face {
+  font-family: 'YS';
+  src: url("./font/HYWH-65W.woff") format('woff'), url("./font/HYWH-65W.ttf") format('truetype');
+}
+
+/* ===== 自定义字体: STZhongsong (华文中宋) ===== */
+@font-face {
+  font-family: 'STZhongsong';
+  src: url("./font/华文中宋.TTF") format('truetype');
+}
+
+/* ===== 自定义字体: MiSans (小米 Semibold) ===== */
+@font-face {
+  font-family: 'MiSans';
+  src: url("./font/MiSans-Semibold.ttf") format('truetype');
+}
+
+/* ===== 字体工具类: .font-YS ===== */
+.font-YS {
+  font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+
+/* ===== 字体工具类: .font-NZBZ ===== */
+.font-NZBZ {
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+
+/* ===== 字体工具类: .font-MiSans ===== */
+.font-MiSans {
+  font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   全局 — 所有模板共用
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== 全局重置 * ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===== 页面基础 body ===== */
+body {
+  font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  background: #1a1d22;
+  color: rgba(255, 255, 255, 0.88);
+  width: 900px;
+  padding: 12px 16px 16px;
+  line-height: 1.6;
+}

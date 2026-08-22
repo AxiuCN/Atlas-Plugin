@@ -1,0 +1,123 @@
+/* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
+
+/* ===== Hero 卡片 .hero ===== */
+.hero {
+  background: rgba(0, 0, 0, 0.45);
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  border-radius: 28px;
+  padding: 30px 38px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===== Hero 无立绘降级 .hero-plain ===== */
+.hero-plain {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ===== Hero 背景遮罩 .hero-bg ===== */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+/* ===== Hero 立绘图 .hero-portrait ===== */
+.hero-portrait {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Hero 文字容器 .hero-text ===== */
+.hero-text {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Hero 游戏标签 .hero-game ===== */
+.hero .hero-game {
+  font-size: 20px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.70);
+  margin-bottom: 4px;
+}
+
+/* ===== Hero 大标题 .hero-title ===== */
+.hero .hero-title {
+  font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-size: 52px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  line-height: 1.2;
+}
+
+/* ===== Hero 副标题 .hero-subtitle ===== */
+.hero .hero-subtitle {
+  font-size: 22px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 6px;
+}
+
+/* ===== Hero 标签容器 .hero-info ===== */
+.hero-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+}
+
+/* ===== Hero 标签项 .hero-info-item ===== */
+.hero-info-item {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ===== 技能图标 .skill-icon ===== */
+.skill-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== 技能头部文字行 .skill-header-text ===== */
+.skill-header-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ===== 命座图标 .con-icon ===== */
+.con-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: contain;
+  margin-bottom: 4px;
+  background: rgba(0, 0, 0, 0.25);
+}

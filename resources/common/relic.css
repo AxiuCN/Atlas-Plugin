@@ -1,0 +1,40 @@
+/* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
+
+/* ═══════════════════════════════════════════════════════════════
+   圣遗物页 relic.html — 套装效果列表
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== 圣遗物套装项 .bonus-item ===== */
+.bonus-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(61, 184, 224, 0.20);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 6px;
+}
+
+/* ===== 圣遗物部件图标 .bonus-icon ===== */
+.bonus-item .bonus-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  float: left;
+  margin-right: 10px;
+  margin-bottom: 4px;
+}
+
+/* ===== 圣遗物效果标签 .bonus-label ===== */
+.bonus-item .bonus-label {
+  font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+/* ===== 圣遗物效果描述 .bonus-desc ===== */
+.bonus-item .bonus-desc {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.80);
+  white-space: pre-wrap;
+}

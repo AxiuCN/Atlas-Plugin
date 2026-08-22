@@ -1,0 +1,62 @@
+/* Atlas-Plugin 样式 — 拆分自 common.css，按模板域分文件 */
+
+/* ═══════════════════════════════════════════════════════════════
+   成就页 achievement.html / achievement-category.html
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== 成就网格 .achievement-grid ===== */
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* ===== 成就分类卡片 .achievement-card ===== */
+.achievement-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+/* ===== 成就分类名 .ac-name ===== */
+.achievement-card .ac-name {
+  font-size: 19px;
+  font-weight: 950;
+  color: #fff;
+}
+
+/* ===== 成就完成数 .ac-count ===== */
+.achievement-card .ac-count {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 2px;
+}
+
+/* ===== 成就列表分组 .achievement-group ===== */
+.achievement-group {
+  margin-bottom: 16px;
+}
+
+/* ===== 成就条目 .achievement-item ===== */
+.achievement-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 6px;
+}
+
+/* ===== 成就名 .ai-name ===== */
+.achievement-item .ai-name {
+  font-size: 18px;
+  font-weight: 950;
+  color: #fff;
+}
+
+/* ===== 成就描述 .ai-desc ===== */
+.achievement-item .ai-desc {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+}
