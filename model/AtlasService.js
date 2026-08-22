@@ -528,6 +528,33 @@ export function getPageRecords (gameId, pageKey) {
 }
 
 /**
+ * 精确解析条目的类别（pageKey），用于别名管理等按类别定位的场景
+ * 匹配顺序：① 标准名精确（nameMatch 相等） ② 别名命中（aliases 含该词）
+ * 多页命中时按 PAGE_PRIORITY 取最优类别（角色 > 武器 > 圣遗物 > 其他）
+ * @param {string} gameId - gi/hsr/zzz
+ * @param {string} keyword - 标准名或别名
+ * @returns {string|null} pageKey（如 character/weapon/artifact…），未命中返回 null
+ */
+export function resolveEntryPageKey (gameId, keyword) {
+  ensureIndex()
+  const flat = indexCache.get(gameId) || []
+  if (!flat.length || !keyword) return null
+
+  const normal = normalizeForMatch(keyword)
+  if (!normal) return null
+
+  // 命中候选：标准名精确 或 别名反查（同名跨页/撞名时取 PAGE_PRIORITY 最优类别，
+  // 如"冰风迷途的勇士"既是 gcg 卡牌标准名又是圣遗物套装别名 → 偏向圣遗物主体）
+  const candidates = flat.filter(r =>
+    r.nameMatch === normal
+    || (r.aliases && [...r.aliases].some(a => normalizeForMatch(a) === normal))
+  )
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => (PAGE_PRIORITY[b.pageTitle] || 0) - (PAGE_PRIORITY[a.pageTitle] || 0))
+  return candidates[0].pageKey
+}
+
+/**
  * 重载索引（数据更新后调用）
  */
 export function reloadIndex () {

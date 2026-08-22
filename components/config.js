@@ -21,6 +21,11 @@ const defaultConfig = {
     fallbackToFull: true,
     timeoutMs: 2 * 60 * 60 * 1000
   },
+  alias: {
+    set: 'master',
+    del: 'master',
+    list: 'all'
+  },
   notifyGroups: [],
   notifyMode: 'all'
 }

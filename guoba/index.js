@@ -3,7 +3,7 @@
  *
  * 对应 defSet/config.yaml 模板变量:
  *   atlas_priority, atlas_renderScale,
- *   atlas_autoUpdate_enabled, atlas_autoUpdate_cron,
+ *   atlas_autoUpdate_*, atlas_alias_set/del/list,
  *   atlas_notifyGroups
  */
 import fs from 'node:fs'
@@ -27,6 +27,9 @@ const TEMPLATE_VARS = {
   'autoUpdate.retryDelayMs': 'atlas_autoUpdate_retryDelayMs',
   'autoUpdate.fallbackToFull': 'atlas_autoUpdate_fallbackToFull',
   'autoUpdate.timeoutMs': 'atlas_autoUpdate_timeoutMs',
+  'alias.set': 'atlas_alias_set',
+  'alias.del': 'atlas_alias_del',
+  'alias.list': 'atlas_alias_list',
   notifyGroups: 'atlas_notifyGroups',
   notifyMode: 'atlas_notifyMode'
 }
@@ -41,6 +44,9 @@ const DEFAULTS = {
   atlas_autoUpdate_retryDelayMs: '30000',
   atlas_autoUpdate_fallbackToFull: 'true',
   atlas_autoUpdate_timeoutMs: '7200000',
+  atlas_alias_set: 'master',
+  atlas_alias_del: 'master',
+  atlas_alias_list: 'all',
   atlas_notifyGroups: '',
   atlas_notifyMode: 'all'
 }
@@ -159,6 +165,54 @@ export function supportGuoba () {
           componentProps: { min: 600000, max: 21600000, step: 600000, defaultValue: 7200000 }
         },
 
+        // ==================== 别名权限 ====================
+        { label: '别名权限', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'alias.set',
+          label: '设置别名权限',
+          helpMessage: '允许执行 #图鉴别名设置 的权限',
+          bottomHelpMessage: 'master=仅主人 / group_admin=群主或管理员 / all=所有人。默认 master',
+          component: 'Select',
+          required: true,
+          componentProps: {
+            options: [
+              { label: '仅主人', value: 'master' },
+              { label: '群主/管理员', value: 'group_admin' },
+              { label: '所有人', value: 'all' }
+            ]
+          }
+        },
+        {
+          field: 'alias.del',
+          label: '删除别名权限',
+          helpMessage: '允许执行 #图鉴别名删除 的权限',
+          bottomHelpMessage: 'master=仅主人 / group_admin=群主或管理员 / all=所有人。默认 master',
+          component: 'Select',
+          required: true,
+          componentProps: {
+            options: [
+              { label: '仅主人', value: 'master' },
+              { label: '群主/管理员', value: 'group_admin' },
+              { label: '所有人', value: 'all' }
+            ]
+          }
+        },
+        {
+          field: 'alias.list',
+          label: '查看别名权限',
+          helpMessage: '允许执行 #图鉴别名列表 的权限',
+          bottomHelpMessage: '只读操作，默认 all',
+          component: 'Select',
+          required: true,
+          componentProps: {
+            options: [
+              { label: '仅主人', value: 'master' },
+              { label: '群主/管理员', value: 'group_admin' },
+              { label: '所有人', value: 'all' }
+            ]
+          }
+        },
+
         // ==================== 通知设置 ====================
         { label: '通知设置', component: 'SOFT_GROUP_BEGIN' },
         {
@@ -200,6 +254,9 @@ export function supportGuoba () {
           'autoUpdate.retryDelayMs': au.retryDelayMs ?? 30000,
           'autoUpdate.fallbackToFull': au.fallbackToFull ?? true,
           'autoUpdate.timeoutMs': au.timeoutMs ?? 7200000,
+          'alias.set': cfg.alias?.set ?? 'master',
+          'alias.del': cfg.alias?.del ?? 'master',
+          'alias.list': cfg.alias?.list ?? 'all',
           notifyGroups: (cfg.notifyGroups || '')
             ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
             : [],

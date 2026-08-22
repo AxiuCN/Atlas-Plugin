@@ -25,3 +25,11 @@ autoUpdate:
   fallbackToFull: true
   # 单次抓取超时毫秒数（默认 7200000 = 2 小时）
   timeoutMs: 7200000
+
+# ---------- 别名管理 ----------
+# #图鉴别名设置/删除 的权限（master=仅主人 / group_admin=群主或管理员 / all=所有人）
+alias:
+  set: master
+  del: master
+  # 列表查看默认为 all（只读，不涉敏感）
+  list: all
