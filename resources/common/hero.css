@@ -13,19 +13,19 @@
   gap: 24px;
   position: relative;
   overflow: hidden;
-  border: 1px solid #cdbb97;
+  border: 1px solid #d8d5d1;
 }
 
 /* ===== Hero 无立绘降级 .hero-plain ===== */
 .hero-plain {
-  background: #f8f2e2;
+  background: #f4f1ef;
 }
 
 /* ===== Hero 背景遮罩 .hero-bg（米色半透，弱化立绘保可读） ===== */
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: rgba(244, 239, 225, 0.9);
+  background: rgba(244, 241, 239, 0.9);
   pointer-events: none;
 }
 
@@ -38,7 +38,7 @@
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  background: #ffffff;
+  background: #f2efec;
 }
 
 /* ===== Hero 文字容器 .hero-text ===== */
@@ -53,7 +53,7 @@
 .hero .hero-game {
   font-size: 20px;
   font-weight: 650;
-  color: #4a4538;
+  color: #6b6b6b;
   margin-bottom: 4px;
 }
 
@@ -62,7 +62,7 @@
   font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 52px;
   font-weight: 600;
-  color: #2f2b25;
+  color: #3a3a3a;
   line-height: 1.2;
 }
 
@@ -70,7 +70,7 @@
 .hero .hero-subtitle {
   font-size: 22px;
   font-weight: 650;
-  color: #4a4538;
+  color: #6b6b6b;
   margin-top: 6px;
 }
 
@@ -87,9 +87,9 @@
   display: inline-block;
   padding: 3px 12px;
   border-radius: 4px;
-  background: rgba(140, 105, 45, 0.13);
-  border: 1px solid rgba(140, 105, 45, 0.45);
-  color: #8f6b2f;
+  background: rgba(110,110,110,0.10);
+  border: 1px solid rgba(120,120,120,0.35);
+  color: #333333;
   font-size: 16px;
   font-weight: 600;
 }
@@ -101,8 +101,8 @@
   border-radius: 6px;
   object-fit: contain;
   flex-shrink: 0;
-  background: #ffffff;
-  border: 1px solid #d5c6a3;
+  background: #f2efec;
+  border: 1px solid #d4d1cd;
 }
 
 /* ===== 技能头部文字行 .skill-header-text ===== */
@@ -120,6 +120,6 @@
   border-radius: 4px;
   object-fit: contain;
   margin-bottom: 4px;
-  background: #ffffff;
-  border: 1px solid #d5c6a3;
+  background: #f2efec;
+  border: 1px solid #d4d1cd;
 }
