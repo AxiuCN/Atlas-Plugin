@@ -167,3 +167,16 @@
   width: 100%;
   margin-top: 2px;
 }
+
+/* ===== 数据高亮色覆盖（原为深色背景设计，近白底重新映射为可读深色） ===== */
+/* nanoka 数据中 <color=#> 内联的高亮字，在浅色主题下过淡；
+   按语义色相映射为深色可读版（!important 压过内联 style） */
+[style*="#FFD780"], [style*="#ffd780"] { color: #8a6b2f !important; } /* 亮金 → 深金棕 */
+[style*="#FFE699"], [style*="#ffe699"] { color: #967a35 !important; } /* 淡金 → 中金 */
+[style*="#80C0FF"], [style*="#80c0ff"] { color: #1a6fb2 !important; } /* 亮蓝 → 深蓝 */
+[style*="#99FFFF"], [style*="#99ffff"] { color: #1f7a8d !important; } /* 青白 → 深青 */
+[style*="#80FFD7"], [style*="#80ffd7"] { color: #0f8a6f !important; } /* 青绿 → 深青绿 */
+[style*="#99FF88"], [style*="#99ff88"] { color: #2e7d32 !important; } /* 亮绿 → 深绿 */
+[style*="#FFACFF"], [style*="#ffacff"] { color: #8e4fa3 !important; } /* 淡紫 → 深紫 */
+[style*="#FF9999"], [style*="#ff9999"] { color: #b7463c !important; } /* 粉红 → 深朱 */
+[style*="#37FFFF"], [style*="#37ffff"], [style*="#38FFFF"], [style*="#38ffff"] { color: #0e7c88 !important; } /* 荧光青 → 深青蓝 */
