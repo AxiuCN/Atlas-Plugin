@@ -408,18 +408,15 @@
   filter: invert(1) brightness(0.9);
 }
 
-/* ===== 底部版权栏 .copyright（全模板共用） ===== */
+/* ===== 底部版权栏 .copyright（全模板共用，纯居中文字无边框） ===== */
 .copyright {
-  margin-top: 26px;
-  padding: 10px 0;
+  margin-top: 10px;
+  padding: 4px 0 2px;
   text-align: center;
   font-size: 14px;
   font-weight: 600;
   color: #6b6b6b;
-  background: #f4f1ef;
-  border: 1px solid #d8d5d1;
-  border-radius: 6px;
-  line-height: 2.2;
+  line-height: 1.8;
 }
 
 /* ===== 提示信息 .hint（跨模板） ===== */
