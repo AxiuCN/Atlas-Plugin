@@ -32,19 +32,25 @@
   src: url("./font/MiSans-Semibold.ttf") format('truetype');
 }
 
+/* ===== 自定义字体: hk4e（原神官方字体，含汉字/西文/数字） ===== */
+@font-face {
+  font-family: 'hk4e';
+  src: url("./font/hk4e_zh-cn.ttf") format('truetype');
+}
+
 /* ===== 字体工具类: .font-YS ===== */
 .font-YS {
-  font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-family: "hk4e", Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
 /* ===== 字体工具类: .font-NZBZ ===== */
 .font-NZBZ {
-  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-family: "hk4e", Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
 /* ===== 字体工具类: .font-MiSans ===== */
 .font-MiSans {
-  font-family: Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
 
@@ -61,7 +67,7 @@
 
 /* ===== 页面基础 body ===== */
 body {
-  font-family: Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-family: "hk4e", Number, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   background: #f4f1ef;
   color: #3a3a3a;
   width: 900px;
