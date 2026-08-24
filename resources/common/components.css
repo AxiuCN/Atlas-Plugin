@@ -64,11 +64,11 @@
   flex-shrink: 0;
 }
 
-/* ===== 属性网格 .stat-grid ===== */
+/* ===== 属性网格 .stat-grid（一行4格，适配 生命/攻击/防御/突破 四项） ===== */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
   margin-bottom: 4px;
 }
 
