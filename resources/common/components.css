@@ -282,15 +282,12 @@
   margin-bottom: 8px;
 }
 
-/* ===== 命座图标 .con-header .con-icon ===== */
+/* ===== 命座图标 .con-header .con-icon（无底无框，反相处理） ===== */
 .con-header .con-icon {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
   object-fit: contain;
   flex-shrink: 0;
-  background: #f2efec;
-  border: 1px solid #d4d1cd;
   margin-bottom: 0;
 }
 
@@ -391,16 +388,24 @@
   white-space: pre-wrap;
 }
 
-/* ===== 列表项图标 .extra-icon ===== */
+/* ===== 列表项图标 .extra-icon（无底无框，反相处理） ===== */
 .extra-icon {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
   object-fit: contain;
   float: left;
   margin-right: 10px;
-  background: #f2efec;
-  border: 1px solid #d4d1cd;
+}
+
+/* ===== 浅色线稿图标反相为深色（nanoka 素材为白色描边线稿，浅底上转深色可读） ===== */
+/* 仅线稿类图标反相；素材图(material-card-icon)为实色图标不反相 */
+.skill-icon,
+.con-icon,
+.extra-icon,
+.bangboo-icon,
+.bonus-icon,
+.profile-icon {
+  filter: invert(1) brightness(0.9);
 }
 
 /* ===== 底部版权栏 .copyright（全模板共用） ===== */

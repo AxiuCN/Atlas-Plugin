@@ -94,15 +94,12 @@
   font-weight: 600;
 }
 
-/* ===== 技能图标 .skill-icon ===== */
+/* ===== 技能图标 .skill-icon（无底无框，白线稿经 filter 反相为深色线稿） ===== */
 .skill-icon {
   width: 44px;
   height: 44px;
-  border-radius: 6px;
   object-fit: contain;
   flex-shrink: 0;
-  background: #f2efec;
-  border: 1px solid #d4d1cd;
 }
 
 /* ===== 技能头部文字行 .skill-header-text ===== */
@@ -113,13 +110,10 @@
   flex-wrap: wrap;
 }
 
-/* ===== 命座图标 .con-icon ===== */
+/* ===== 命座图标 .con-icon（同反相处理） ===== */
 .con-icon {
   width: 36px;
   height: 36px;
-  border-radius: 4px;
   object-fit: contain;
-  margin-bottom: 4px;
-  background: #f2efec;
-  border: 1px solid #d4d1cd;
+  margin-bottom: 0;
 }
