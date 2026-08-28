@@ -31,7 +31,7 @@
 
 /* ===== 分区标题文字 .section-title-text ===== */
 .section-title-text {
-  font-size: 22px;
+  font-size: 33px;
   font-weight: 950;
   color: #333333;
 }
@@ -39,12 +39,12 @@
 /* ===== 分区标题 h3 回退 .detail-section h3 ===== */
 .detail-section h3 {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 600;
   color: #333333;
   display: flex;
   align-items: center;
-  height: 34px;
+  height: 44px;
   background: #f4f1ef;
   border: 1px solid #d8d5d1;
   border-radius: 6px;
@@ -57,7 +57,7 @@
   content: '';
   display: inline-block;
   width: 6px;
-  height: 18px;
+  height: 22px;
   background: #4a4a4a;
   border-radius: 4px;
   margin-right: 12px;
@@ -83,7 +83,7 @@
 
 /* ===== 属性标签 .stat-label ===== */
 .stat-cell .stat-label {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   color: #6b6b6b;
   text-transform: uppercase;
@@ -92,7 +92,7 @@
 
 /* ===== 属性值 .stat-value ===== */
 .stat-cell .stat-value {
-  font-size: 21px;
+  font-size: 24px;
   font-weight: 700;
   color: #3a3a3a;
 }
@@ -110,7 +110,7 @@
 .detail-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 16px;
+  font-size: 24px;
   background: #fdfcfb;
   border: 1px solid #d4d1cd;
   border-radius: 8px;
@@ -155,7 +155,7 @@
 
 /* ===== 属性概览项 .meta-item ===== */
 .meta-item {
-  font-size: 16px;
+  font-size: 24px;
   color: #3a3a3a;
 }
 
@@ -190,7 +190,7 @@
 /* ===== 技能名 .skill-name ===== */
 .skill-name {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 600;
   color: #3a3a3a;
 }
@@ -200,7 +200,7 @@
   display: inline-block;
   padding: 3px 10px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 21px;
   font-weight: 700;
   background: rgba(110,110,110,0.10);
   border: 1px solid rgba(120,120,120,0.35);
@@ -209,7 +209,7 @@
 
 /* ===== 技能描述 .skill-desc ===== */
 .skill-desc {
-  font-size: 17px;
+  font-size: 26px;
   color: #555555;
   line-height: 1.65;
   margin-bottom: 6px;
@@ -223,7 +223,7 @@
 
 /* ===== 技能参数标题 .param-title ===== */
 .skill-params .param-title {
-  font-size: 15px;
+  font-size: 23px;
   font-weight: 700;
   color: #6b6b6b;
   margin-bottom: 4px;
@@ -233,7 +233,7 @@
 .mini-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 21px;
   background: #f5f2ef;
   border: 1px solid #d4d1cd;
   border-radius: 6px;
@@ -284,8 +284,8 @@
 
 /* ===== 命座图标 .con-header .con-icon（无底无框，反相处理） ===== */
 .con-header .con-icon {
-  width: 32px;
-  height: 32px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   flex-shrink: 0;
   margin-bottom: 0;
@@ -293,7 +293,7 @@
 
 /* ===== 命座序号 .con-order（深金） ===== */
 .con-header .con-order {
-  font-size: 16px;
+  font-size: 24px;
   font-weight: 700;
   color: #333333;
   flex-shrink: 0;
@@ -302,7 +302,7 @@
 /* ===== 命座名 .con-name ===== */
 .con-header .con-name {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 19px;
+  font-size: 29px;
   font-weight: 600;
   color: #3a3a3a;
   margin: 0;
@@ -310,7 +310,7 @@
 
 /* ===== 命座描述 .con-desc ===== */
 .con-desc {
-  font-size: 16px;
+  font-size: 24px;
   color: #555555;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -328,7 +328,7 @@
 /* ===== 故事标题 .story-title ===== */
 .story-title {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 18px;
+  font-size: 27px;
   font-weight: 600;
   color: #3a3a3a;
   margin-bottom: 6px;
@@ -336,7 +336,7 @@
 
 /* ===== 故事内容 .story-content ===== */
 .story-content {
-  font-size: 16px;
+  font-size: 24px;
   color: #555555;
   line-height: 1.7;
   white-space: pre-wrap;
@@ -363,14 +363,14 @@
 /* ===== 通用列表名 .extra-name ===== */
 .extra-name {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 18px;
+  font-size: 27px;
   font-weight: 600;
   color: #3a3a3a;
 }
 
 /* ===== 通用列表描述 .extra-desc ===== */
 .extra-desc {
-  font-size: 16px;
+  font-size: 24px;
   color: #555555;
   margin-top: 2px;
   white-space: pre-wrap;
@@ -382,7 +382,7 @@
   border: 1px solid #d4d1cd;
   border-radius: 8px;
   padding: 18px 22px;
-  font-size: 16px;
+  font-size: 24px;
   color: #555555;
   line-height: 1.7;
   white-space: pre-wrap;
@@ -390,8 +390,8 @@
 
 /* ===== 列表项图标 .extra-icon（无底无框，反相处理） ===== */
 .extra-icon {
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
   float: left;
   margin-right: 10px;
@@ -413,7 +413,7 @@
   margin-top: 10px;
   padding: 4px 0 2px;
   text-align: center;
-  font-size: 14px;
+  font-size: 21px;
   font-weight: 600;
   color: #6b6b6b;
   line-height: 1.8;
@@ -422,7 +422,7 @@
 /* ===== 提示信息 .hint（跨模板） ===== */
 .hint {
   margin-top: 12px;
-  font-size: 14px;
+  font-size: 21px;
   color: #888888;
   text-align: center;
 }

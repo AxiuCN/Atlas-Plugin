@@ -25,20 +25,20 @@
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: rgba(244, 241, 239, 0.9);
+  background: rgba(244, 241, 239, 0.3);
   pointer-events: none;
 }
 
 /* ===== Hero 立绘图 .hero-portrait ===== */
 .hero-portrait {
-  width: 150px;
-  height: 150px;
+  width: 180px;
+  height: 180px;
   object-fit: contain;
   border-radius: 6px;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  background: #f2efec;
+  background: rgba(242, 239, 236, 0.1);
 }
 
 /* ===== Hero 文字容器 .hero-text ===== */
@@ -51,10 +51,11 @@
 
 /* ===== Hero 游戏标签 .hero-game ===== */
 .hero .hero-game {
-  font-size: 20px;
-  font-weight: 650;
-  color: #6b6b6b;
+  font-size: 23px;
+  font-weight: 500;
+  color: #4a4a4a;
   margin-bottom: 4px;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
 }
 
 /* ===== Hero 大标题 .hero-title ===== */
@@ -64,14 +65,16 @@
   font-weight: 600;
   color: #3a3a3a;
   line-height: 1.2;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
 }
 
 /* ===== Hero 副标题 .hero-subtitle ===== */
 .hero .hero-subtitle {
-  font-size: 22px;
-  font-weight: 650;
-  color: #6b6b6b;
+  font-size: 26px;
+  font-weight: 500;
+  color: #4a4a4a;
   margin-top: 6px;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
 }
 
 /* ===== Hero 标签容器 .hero-info ===== */
@@ -90,14 +93,14 @@
   background: rgba(110,110,110,0.10);
   border: 1px solid rgba(120,120,120,0.35);
   color: #333333;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
 }
 
 /* ===== 技能图标 .skill-icon（无底无框，白线稿经 filter 反相为深色线稿） ===== */
 .skill-icon {
-  width: 44px;
-  height: 44px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -112,8 +115,8 @@
 
 /* ===== 命座图标 .con-icon（同反相处理） ===== */
 .con-icon {
-  width: 36px;
-  height: 36px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   margin-bottom: 0;
 }

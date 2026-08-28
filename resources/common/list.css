@@ -14,7 +14,7 @@
 /* ===== 搜索结果分组标题 .group-title ===== */
 .group-title {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 18px;
+  font-size: 27px;
   font-weight: 600;
   color: #333333;
   background: #f4f1ef;
@@ -36,7 +36,7 @@
 .group-item {
   display: inline-block;
   padding: 6px 14px;
-  font-size: 16px;
+  font-size: 24px;
   font-weight: 600;
   color: #3a3a3a;
   background: #fdfcfb;
@@ -49,7 +49,7 @@
   text-align: center;
   padding: 48px 0;
   color: #888888;
-  font-size: 18px;
+  font-size: 27px;
 }
 
 /* ===== 空结果关键词 .empty-box .keyword ===== */
