@@ -152,16 +152,26 @@ function _buildGI (list, detail, meta) {
 
   const sections = []
 
-  // ── 技能（含 LINK refs + 完整参数）──
+  // ── 技能（含 LINK refs 收集，refs 汇总到命座后独立栏）──
+  const allRefs = [] // 去重后的相关效果 [{name, desc}]
+  const refSeen = new Set() // 按名称去重（refs 数据本唯一，重复仅因多技能各自收集）
+  const collectRefs = (refs) => {
+    for (const ref of refs) {
+      if (!ref.name || refSeen.has(ref.name)) continue
+      refSeen.add(ref.name)
+      allRefs.push(ref)
+    }
+  }
+
   if (detail.skills && Array.isArray(detail.skills)) {
     const skillFields = detail.skills.map((s, i) => {
       const { resolved, refs } = resolveLinks(s.desc || '', 'gi')
+      collectRefs(refs)
       return {
         name: s.name || '',
         tag: _skillTag(s.name, 'gi'),
         icon: img(`detail.skills.${i}.promote.0.icon`),
         desc: _cleanForRender(resolved),
-        refs,
         params: _buildSkillParams(s.promote, 'gi')
       }
     })
@@ -196,6 +206,11 @@ function _buildGI (list, detail, meta) {
       }
     })
     sections.push({ title: '命之座', type: 'constellation-grid', items: conList })
+  }
+
+  // ── 相关效果（LINK refs 汇总，独立于技能栏，置于命座之后）──
+  if (allRefs.length > 0) {
+    sections.push({ title: '相关效果', type: 'list', isRefs: true, items: allRefs })
   }
 
   return { hero, metaFields, sections, _images: images }
@@ -431,10 +446,10 @@ function _applySkillsView (data) {
   return { ...data, sections }
 }
 
-/** 命座视图：仅命座 */
+/** 命座视图：仅命座 + 相关效果 */
 function _applyConstellationsView (data) {
   const sections = data.sections.filter(s =>
-    s.type === 'constellation-grid'
+    s.type === 'constellation-grid' || s.isRefs
   )
   return { ...data, sections }
 }

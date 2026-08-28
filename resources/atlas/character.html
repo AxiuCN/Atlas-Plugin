@@ -61,14 +61,6 @@
         {{if sk.desc}}
         <div class="skill-desc">{{@sk.desc}}</div>
         {{/if}}
-        {{if sk.refs && sk.refs.length > 0}}
-          {{each sk.refs ref}}
-          <div class="link-detail">
-            <div class="link-detail-name">{{ref.name}}</div>
-            {{if ref.desc}}<div class="link-detail-desc">{{@ref.desc}}</div>{{/if}}
-          </div>
-          {{/each}}
-        {{/if}}
         {{if sk.params && sk.params.rows.length > 0}}
         <div class="skill-params">
           <div class="param-title">{{sk.params.title || '属性'}}</div>
