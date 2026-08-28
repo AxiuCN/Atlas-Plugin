@@ -178,10 +178,11 @@ function _buildGI (list, detail, meta) {
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
   }
 
-  // ── 固有天赋（技能与命座之间）──
+  // ── 固有天赋（技能与命座之间，refs 一并收集进相关效果栏）──
   if (detail.passives && Array.isArray(detail.passives)) {
     const extras = detail.passives.map((p, i) => {
-      const { resolved } = resolveLinks(p.desc || '', 'gi')
+      const { resolved, refs } = resolveLinks(p.desc || '', 'gi')
+      collectRefs(refs)
       const unlockLabel = _passiveUnlock(p.unlock)
       return {
         name: unlockLabel ? `${p.name}（${unlockLabel}）` : p.name,
@@ -194,10 +195,11 @@ function _buildGI (list, detail, meta) {
     }
   }
 
-  // ── 命之座（不含 LINK refs）──
+  // ── 命之座（refs 一并收集进相关效果栏）──
   if (detail.constellations && Array.isArray(detail.constellations)) {
     const conList = detail.constellations.map((c, i) => {
-      const { resolved } = resolveLinks(c.desc || '', 'gi')
+      const { resolved, refs } = resolveLinks(c.desc || '', 'gi')
+      collectRefs(refs)
       return {
         order: i + 1,
         name: c.name || '',
