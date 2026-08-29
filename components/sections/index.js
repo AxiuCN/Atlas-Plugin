@@ -2,12 +2,12 @@
  * Sections builder 注册表
  * pageKey → builder 函数
  */
-import { buildCharacterData } from './character.js'
-import { buildWeaponData } from './weapon.js'
-import { buildRelicData } from './relic.js'
-import { buildMonsterData } from './monster.js'
-import { buildBangbooData } from './bangboo.js'
-import { buildItemData } from './item.js'
+import { buildCharacterData } from './character/index.js'
+import { buildWeaponData } from './weapon/index.js'
+import { buildRelicData } from './relic/index.js'
+import { buildMonsterData } from './monster/index.js'
+import { buildBangbooData } from './bangboo/index.js'
+import { buildItemData } from './item/index.js'
 
 const BUILDERS = {
   character: buildCharacterData,

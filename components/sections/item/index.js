@@ -1,5 +1,14 @@
 /**
- * 物品 sections builder
+ * 物品 sections builder（跨游戏统一）
+ * 类型/描述/来源
+ */
+import { cleanText, propLabel } from '../util.js'
+
+/**
+ * 构建物品页面数据（三游戏通用同一路径）
+ * @param {string} gameId - 'gi' | 'hsr' | 'zzz'
+ * @param {object} record - 完整 JSON（含 meta, content.list, content.detail）
+ * @returns {object} { metaFields, sections }
  */
 export function buildItemData (gameId, record) {
   const list = record?.content?.list || {}
@@ -10,12 +19,12 @@ export function buildItemData (gameId, record) {
   for (const key of itemKeys) {
     const val = detail[key] || list[key]
     if (val != null && typeof val !== 'object') {
-      metaFields.push({ label: _label(key), value: String(val) })
+      metaFields.push({ label: propLabel(key), value: String(val) })
     }
   }
 
   // 描述
-  const desc = _clean(detail.desc || detail.description || list.desc || list.description || '')
+  const desc = cleanText(detail.desc || detail.description || list.desc || list.description || '')
 
   const sections = []
   if (desc) {
@@ -32,18 +41,4 @@ export function buildItemData (gameId, record) {
   }
 
   return { metaFields, sections }
-}
-
-function _clean (s) {
-  if (!s) return ''
-  return String(s)
-    .replace(/\\n/g, '\n')
-    .replace(/\{RUBY_B#[^}]*}/g, '').replace(/\{RUBY_E#}/g, '')
-    .replace(/\{LINK#[^}]*}/g, '')
-    .replace(/<[^>]+>/g, '').trim()
-}
-
-function _label (k) {
-  const m = { item_type: '类型', material_type: '材料类型', rank: '品级', rarity: '稀有度', type: '类型' }
-  return m[k] || k
 }
