@@ -33,30 +33,35 @@ function matSortOrder (m) {
 
   // 分类：摩拉→经验书→区域特产→Boss素材→突破宝石→周本材料→智识之冕→天赋书→武器突破材料→怪物素材
   let cat
-  if (idNum === 202) cat = 0                           // 摩拉
+  if (idNum === 202 || idNum === 2) cat = 0            // 货币（gi 摩拉 / hsr 信用点）
   else if (idNum >= 104001 && idNum <= 104099) cat = 1  // 经验书
   else if (idNum >= 100000 && idNum <= 101999) cat = 2  // 区域特产
   else if (idNum >= 113000 && idNum <= 113999) cat = rank >= 5 ? 5 : 3  // Boss素材(rank<5) / 周本材料(rank≥5)
   else if (idNum >= 104100 && idNum <= 104199) cat = 4  // 突破宝石
   else if (idNum === 104319) cat = 6                     // 智识之冕
   else if (idNum >= 104300 && idNum <= 104399) cat = 7  // 天赋书
-  else if (idNum >= 114000 && idNum <= 114999) cat = 8  // 武器突破材料
-  else if (idNum >= 112000 && idNum <= 112999) cat = 9  // 怪物素材
+  else if (idNum >= 114000 && idNum <= 114999) cat = 8  // 武器突破材料(GI)
+  else if (idNum >= 112000 && idNum <= 112999) cat = 9  // 怪物素材(GI)
+  // HSR 光锥/角色素材：110xxx 行迹材料、111xxx 周本/原核、112xxx 怪物掉落、113xxx 工造、115/116xxx
+  else if (idNum >= 110000 && idNum < 120000) cat = 10  // HSR 素材
   else cat = 99
 
   // 系列分组：同类别内按id族聚齐，族内按品质升序
   // 怪物素材每 3 个 id 一族（史莱姆 002-004、地脉 020-022、花蜜 038-040…）
   // 武器突破材料每 4 个 id 一族（高塔孤王 001-004、漆黑陨铁 021-024…）
+  // HSR 素材按「段 + 族」聚齐（11011x/11012x/11100x/11200x…）
   // 其余类别无子系列，series=0 保持 cat 主导
   let series = 0
   if (cat === 9 && idNum >= 112002) series = Math.floor((idNum - 112000) / 3)
   else if (cat === 8) series = Math.floor((idNum - 114000) / 4)
+  else if (cat === 10) series = Math.floor(idNum / 10) % 1000
 
   return cat * 10000 + series * 100 + rank
 }
 
 /**
- * 材料图标查询：先查 meta.images 匹配，再按 UI_ItemIcon_<id> 模式直查 gallery
+ * 材料图标查询：先查 meta.images 匹配，再按命名约定直查 gallery
+ * 命名约定：gi 为 UI_ItemIcon_<id>.webp，hsr 为 itemfigures/<id>.webp
  */
 function matIcon (images, materialId, gameId) {
   if (!materialId) return ''
@@ -70,19 +75,34 @@ function matIcon (images, materialId, gameId) {
     }
   }
   // 兜底：按命名约定直查 gallery
-  const filename = materialId === 'mora'
-    ? 'UI_ItemIcon_202.webp'
-    : `UI_ItemIcon_${materialId}.webp`
-  const fullPath = path.join(backendRoot, 'gallery', gameId, filename)
+  let fullPath
+  if (gameId === 'hsr') {
+    const filename = materialId === 2 || materialId === '2'
+      ? '2.webp'
+      : `${materialId}.webp`
+    fullPath = path.join(backendRoot, 'gallery', 'hsr', 'itemfigures', filename)
+  } else {
+    const filename = materialId === 'mora'
+      ? 'UI_ItemIcon_202.webp'
+      : `UI_ItemIcon_${materialId}.webp`
+    fullPath = path.join(backendRoot, 'gallery', gameId, filename)
+  }
   if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
   return ''
+}
+
+/** 货币映射：gi 摩拉(202) / hsr 信用点(2) */
+const CURRENCY = {
+  gi: { id: 202, name: '摩拉' },
+  hsr: { id: 2, name: '信用点' }
 }
 
 /** 构建材料列表项（含图标，按类型+品质排序） */
 export function buildMatItems (agg, images, gameId) {
   const items = []
-  if (agg.cost > 0) {
-    items.push({ name: '摩拉', count: agg.cost, icon: matIcon(images, 'mora', gameId), id: 202, rank: 0 })
+  const cur = CURRENCY[gameId]
+  if (agg.cost > 0 && cur) {
+    items.push({ name: cur.name, count: agg.cost, icon: matIcon(images, cur.id, gameId), id: cur.id, rank: 0 })
   }
   for (const m of agg.mats) {
     items.push({ name: m.name, count: m.count, icon: matIcon(images, m.id, gameId), id: m.id, rank: m.rank })

@@ -3,6 +3,8 @@
  * 满级基础属性 + 叠影效果
  */
 import { cleanText, propLabel } from '../util.js'
+import { aggregateMats, buildMatItems } from '../materials.js'
+import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
 
 /**
  * 构建星铁光锥数据
@@ -56,5 +58,39 @@ export function buildHSRLightcone (list, detail, meta) {
     }
   }
 
+  // 升级素材（detail.stats[0~6].promotion_cost_list，item_id=2 为信用点）
+  if (detail.stats && Array.isArray(detail.stats)) {
+    const levels = detail.stats
+      .map(s => {
+        const list = Array.isArray(s?.promotion_cost_list) ? s.promotion_cost_list : []
+        const credit = list.find(c => c.item_id === 2)
+        const mats = list
+          .filter(c => c.item_id !== 2)
+          .map(c => ({
+            id: c.item_id,
+            count: c.item_num,
+            name: getHsrItemName(c.item_id) || String(c.item_id),
+            rank: _rarityRank(c.rarity)
+          }))
+        return { cost: credit?.item_num || 0, mats }
+      })
+      .filter(l => l.mats.length > 0 || l.cost > 0)
+    if (levels.length > 0) {
+      const agg = aggregateMats(levels)
+      const items = buildMatItems(agg, meta?.images || [], 'hsr')
+      if (items.length > 0) {
+        sections.push({ title: '升级素材', type: 'materials', items })
+      }
+    }
+  }
+
   return { metaFields, sections }
+}
+
+/** HSR rarity 字符串 → 排序 rank（NotNormal < Rare < VeryRare） */
+function _rarityRank (rarity) {
+  if (rarity === 'NotNormal') return 1
+  if (rarity === 'Rare') return 2
+  if (rarity === 'VeryRare') return 3
+  return 0
 }
