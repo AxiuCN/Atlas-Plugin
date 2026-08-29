@@ -5,6 +5,7 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/base.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/weapon.css"/>
 </head>
 <body>
@@ -41,6 +42,17 @@
         <div class="refine-desc">{{r.desc}}</div>
       </div>
       {{/each}}
+
+    {{else if section.type === 'materials'}}
+      <div class="material-grid">
+        {{each section.items m}}
+        <div class="material-card">
+          {{if m.icon}}<img class="material-card-icon" src="{{m.icon}}"/>{{/if}}
+          <div class="material-card-name">{{m.name}}</div>
+          {{if m.count}}<div class="material-card-count">×{{m.count}}</div>{{/if}}
+        </div>
+        {{/each}}
+      </div>
 
     {{else}}
       <table class="detail-table">

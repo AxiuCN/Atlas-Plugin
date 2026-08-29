@@ -1,8 +1,9 @@
 /**
  * 原神武器构建（GI）
- * 满级基础属性 + 精炼效果
+ * 满级基础属性 + 精炼效果 + 升级素材
  */
 import { cleanText, propLabel } from '../util.js'
+import { aggregateMats, buildMatItems } from '../materials.js'
 
 /**
  * 构建原神武器数据
@@ -58,6 +59,16 @@ export function buildGIWeapon (list, detail, meta) {
       }))
     if (refs.length > 0) {
       sections.push({ title: '精炼', type: 'refinements', items: refs })
+    }
+  }
+
+  // 升级素材（detail.materials: { "1"~"6": { mats, cost } }，与角色 ascensions 同构）
+  if (detail.materials && typeof detail.materials === 'object') {
+    const levels = Object.values(detail.materials)
+    const agg = aggregateMats(levels)
+    const items = buildMatItems(agg, meta?.images || [], 'gi')
+    if (items.length > 0) {
+      sections.push({ title: '升级素材', type: 'materials', items })
     }
   }
 
