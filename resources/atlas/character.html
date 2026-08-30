@@ -9,7 +9,14 @@
 </head>
 <body>
   {{if hero}}
-  <div class="hero"{{if hero.namecard}} style="background-image: url('{{hero.namecard}}')"{{/if}}>
+  <div class="hero"{{if hero.namecard && !hero.namecardImages}} style="background-image: url('{{hero.namecard}}')"{{/if}}>
+    {{if hero.namecardImages}}
+    <div class="hero-strip">
+      {{each hero.namecardImages img}}
+      <div class="hero-strip-cell" style="background-image: url('{{img}}')"></div>
+      {{/each}}
+    </div>
+    {{/if}}
     <div class="hero-bg"></div>
     {{if hero.portrait}}<img class="hero-portrait" src="{{hero.portrait}}"/>{{/if}}
     <div class="hero-text">

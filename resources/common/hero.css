@@ -29,6 +29,20 @@
   pointer-events: none;
 }
 
+/* ===== Hero 星魂拼接背景 .hero-strip（HSR 6 张 Rank 图横排） ===== */
+.hero-strip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  pointer-events: none;
+}
+
+.hero-strip-cell {
+  flex: 1;
+  background-size: cover;
+  background-position: center;
+}
+
 /* ===== Hero 立绘图 .hero-portrait ===== */
 .hero-portrait {
   width: 180px;

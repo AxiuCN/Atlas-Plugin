@@ -161,11 +161,14 @@ const HSR_DAMAGE_TYPE = {
   Wind: '风', Quantum: '量子', Imaginary: '虚数'
 }
 
-/** 星铁命途 → 中文 */
+/** 星铁命途 → 中文（含数据源职业码与官方命途名） */
 const HSR_PATH = {
   Destruction: '毁灭', TheHunt: '巡猎', Erudition: '智识', Harmony: '同谐',
   Nihility: '虚无', Preservation: '存护', Abundance: '丰饶', Elation: '欢愉',
-  Remembrance: '记忆'
+  Remembrance: '记忆',
+  // 数据源 base_type 职业码
+  Rogue: '巡猎', Warrior: '毁灭', Mage: '智识', Knight: '存护',
+  Priest: '丰饶', Warlock: '虚无', Shaman: '同谐', Memory: '记忆'
 }
 
 /** 星铁属性/命途英文 → 中文（未知值原样返回） */

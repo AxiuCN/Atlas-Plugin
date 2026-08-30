@@ -32,8 +32,8 @@ export function buildZZZ (list, detail, meta) {
     ? images.filter(i => i.fieldPath?.startsWith('skin.') && i.status === 'downloaded').pop()?.fieldPath
     : ''
   const hero = {
-    namecard: img(skinField) || img('icon') || img('detail.icon'),
-    portrait: img('icon') || img('detail.icon'),
+    namecard: skinField ? img(skinField) : (img('icon') || img('detail.icon')),
+    portrait: img('detail.partner_info.icon_path') || img('icon') || img('detail.icon'),
     title: '',
     element: elementType || list.element || '',
     weapon: weaponType || list.specialty || '',
