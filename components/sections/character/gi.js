@@ -103,6 +103,13 @@ export function buildGI (list, detail, meta) {
 
   const sections = []
 
+  // 星烁加强优先取特殊描述：special===true 且存在 special_desc 时用加强版，否则旧 desc
+  const pickDesc = (item) => {
+    if (!item) return ''
+    if (item.special === true && item.special_desc) return item.special_desc
+    return item.desc || ''
+  }
+
   // ── 技能（含 LINK refs 收集，refs 汇总到命座后独立栏）──
   const allRefs = [] // 去重后的相关效果 [{name, desc}]
   const refSeen = new Set() // 按名称去重（refs 数据本唯一，重复仅因多技能各自收集）
@@ -116,7 +123,7 @@ export function buildGI (list, detail, meta) {
 
   if (detail.skills && Array.isArray(detail.skills)) {
     const skillFields = detail.skills.map((s, i) => {
-      const { resolved, refs } = resolveLinks(s.desc || '', 'gi')
+      const { resolved, refs } = resolveLinks(pickDesc(s), 'gi')
       collectRefs(refs)
       return {
         name: s.name || '',
@@ -132,7 +139,7 @@ export function buildGI (list, detail, meta) {
   // ── 固有天赋（技能与命座之间，refs 一并收集进相关效果栏）──
   if (detail.passives && Array.isArray(detail.passives)) {
     const extras = detail.passives.map((p, i) => {
-      const { resolved, refs } = resolveLinks(p.desc || '', 'gi')
+      const { resolved, refs } = resolveLinks(pickDesc(p), 'gi')
       collectRefs(refs)
       const unlockLabel = passiveUnlock(p.unlock)
       return {
@@ -149,7 +156,7 @@ export function buildGI (list, detail, meta) {
   // ── 命之座（refs 一并收集进相关效果栏）──
   if (detail.constellations && Array.isArray(detail.constellations)) {
     const conList = detail.constellations.map((c, i) => {
-      const { resolved, refs } = resolveLinks(c.desc || '', 'gi')
+      const { resolved, refs } = resolveLinks(pickDesc(c), 'gi')
       collectRefs(refs)
       return {
         order: i + 1,
