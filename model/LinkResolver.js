@@ -20,11 +20,11 @@ const GAME_FOLDER = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
 /** @type {Map<string, Map<string, {name: string, desc: string, color: string}>>} gameId → recordId → entry */
 const linkIndexCache = new Map()
 
-/** {LINK#(N|S)ID}text{/LINK} 完整格式 */
-const LINK_WRAPPED_RE = /\{LINK#([NS])(\d+)}([\s\S]*?)\{\/LINK}/g
+/** {LINK#(N|S|P|T|TE)ID}text{/LINK} 完整格式（N=外部引用，S=技能自身，P=被动/固有天赋自身，T=命座自身，TE=命座子计数） */
+const LINK_WRAPPED_RE = /\{LINK#([NSP]|TE?)(\d+)}([\s\S]*?)\{\/LINK}/g
 
-/** {LINK#(N|S)ID} 裸格式（无闭合标签，无包裹文本） */
-const LINK_BARE_RE = /\{LINK#([NS])(\d+)}/g
+/** {LINK#(N|S|P|T|TE)ID} 裸格式（无闭合标签，无包裹文本） */
+const LINK_BARE_RE = /\{LINK#([NSP]|TE?)(\d+)}/g
 
 /* ============================================================
  *  索引加载

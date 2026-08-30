@@ -6,6 +6,42 @@ import { buildSkillParams } from './skillParams.js'
 import { imgUrl, propLabel, skillTag, cleanText } from '../util.js'
 
 /**
+ * 替换星铁描述中的参数占位符与 <unbreak> 标签
+ * 格式：#N[i] 整数 / #N[f1] 1位小数；<unbreak>值</unbreak> 保留内文去标签
+ * 占位符 #N 对应 paramList[N-1]；占位符后紧跟 % 时值 ×100（0.3 → 30%），否则原值（算式系数/次数）
+ * @param {string} text
+ * @param {Array} paramList
+ * @returns {string}
+ */
+function resolveHsrParams (text, paramList) {
+  if (!text) return ''
+  const fmtVal = (n, fmt, isPct) => {
+    let val = paramList?.[Number(n) - 1]
+    if (val == null) return null
+    // 百分比语义：星铁 percent 型数值以比例存储，param<1 时 ×100（0.3→30%），
+    // param>=1 时已是百分比数值直接显示（1→1%，避免 100% 误显示）
+    if (isPct && Number(val) < 1) val = Number(val) * 100
+    if (fmt === 'i') return String(Math.round(val))
+    if (fmt === 'f1') return Number(val).toFixed(1)
+    return String(val)
+  }
+  // 处理 <unbreak> 包裹：内部占位符按后随 % 决定倍率
+  let out = text.replace(/<unbreak>([^<]*)<\/unbreak>/g, (m, inner) =>
+    inner.replace(/#(\d+)\[([^\]]+)\]/g, (mm, n, fmt) => {
+      const isPct = inner.slice(inner.indexOf(mm) + mm.length, inner.indexOf(mm) + mm.length + 1) === '%'
+      const v = fmtVal(n, fmt, isPct)
+      return v == null ? mm : v
+    })
+  )
+  // 兜底处理未包裹 <unbreak> 的裸占位符（含其后 % 判断）
+  out = out.replace(/#(\d+)\[([^\]]+)\](%?)/g, (m, n, fmt, pct) => {
+    const v = fmtVal(n, fmt, pct === '%')
+    return v == null ? m : v + pct
+  })
+  return out
+}
+
+/**
  * 构建星铁角色数据
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
@@ -70,12 +106,18 @@ export function buildHSR (list, detail, meta) {
       : null
     const skillFields = Object.entries(detail.skills).map(([key, s], idx) => {
       const enh = enhSkills?.[idx] || null
+      const levelData = enh?.level || s.level
+      // param_list 取首级（等级 1）作为展示参数
+      const firstLv = levelData && typeof levelData === 'object'
+        ? levelData[Object.keys(levelData).find(k => /^\d+$/.test(k))] || null
+        : null
+      const rawDesc = enh?.desc || enh?.simple_desc || s.desc || s.simple_desc || ''
       return {
         name: s.name || '',
         tag: skillTag(s.type || s.type_name || '', 'hsr'),
         icon: skillIconMap.get(String(s.id)) || img(`detail.skills.${key}.level.0.icon`),
-        desc: cleanText(enh?.desc || enh?.simple_desc || s.desc || s.simple_desc || ''),
-        params: buildSkillParams(enh?.level || s.level, 'hsr')
+        desc: cleanText(resolveHsrParams(rawDesc, firstLv?.param_list)),
+        params: buildSkillParams(levelData, 'hsr')
       }
     })
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
@@ -94,7 +136,7 @@ export function buildHSR (list, detail, meta) {
         if (tree && Object.keys(tree)[0] !== nodeKey) continue
         const id = node?.level_up_skill_id?.[0]
         const enhNode = enhanced?.skill_trees?.[treeKey]?.[nodeKey] || null
-        const traceDesc = enhNode?.point_desc || node?.point_desc || ''
+        const traceDesc = resolveHsrParams(enhNode?.point_desc || node?.point_desc || '', enhNode?.param_list || node?.param_list)
         const skillName = (id != null && skillNameById.get(String(id))) || ''
         // 过滤纯属性占位树（无技能关联且无被动描述，如 point09-18 属性强化）
         if (!skillName && !traceDesc) continue
@@ -121,7 +163,7 @@ export function buildHSR (list, detail, meta) {
           order: Number(r.id || 0),
           name: enhRank?.name || r.name || '',
           icon: img(`detail.ranks.${k}.icon`),
-          desc: cleanText(enhRank?.desc || r.desc || '')
+          desc: cleanText(resolveHsrParams(enhRank?.desc || r.desc || '', enhRank?.param_list || r.param_list))
         }
       })
     sections.push({ title: '星魂', type: 'constellation-grid', items: conList })
