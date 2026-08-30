@@ -10,47 +10,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { fileURLToPath } from 'node:url'
+import { backendRoot } from '../AtlasService.js'
+import { getItemRecords } from './mapLoader.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const backendRoot = path.resolve(__dirname, '..', '..', 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
-const dataDir = path.join(backendRoot, 'data')
-const mapPath = path.join(dataDir, 'map.json')
-
-/** @type {Map<string, string>} itemId → 中文名（来自 map.json item records） */
-let nameCache = null
-
-/** @type {Map<string, string>} itemId → 相对路径（map.json records[].path） */
-let pathCache = null
+/** @type {object|null} item 页 records（名称+路径） */
+let recordsCache = null
 
 /** @type {Map<string, string>} itemId → 图标 file:// URL（按需懒加载） */
 let iconCache = null
 
 /**
- * 惰性加载 map.json 的 zzz item 页 records（id → {name, path}）
- * @returns {{ names: Map<string,string>, paths: Map<string,string> }}
+ * 惰性获取 ZZZ 物品 records（map.json 一次性解析，id → {name, path}）
+ * @returns {object}
  */
-function loadZzzItemIndex () {
-  if (nameCache) return { names: nameCache, paths: pathCache }
-  const names = new Map()
-  const paths = new Map()
-  if (fs.existsSync(mapPath)) {
-    try {
-      const raw = fs.readFileSync(mapPath, 'utf8')
-      const map = JSON.parse(raw)
-      const records = map?.games?.zzz?.locales?.zh?.pages?.item?.records
-      if (records && typeof records === 'object') {
-        for (const [id, rec] of Object.entries(records)) {
-          if (!rec?.name) continue
-          names.set(id, rec.name)
-          if (rec.path) paths.set(id, rec.path)
-        }
-      }
-    } catch { /* map 解析失败 — 空索引 */ }
-  }
-  nameCache = names
-  pathCache = paths
-  return { names, paths }
+function getZzzRecords () {
+  if (!recordsCache) recordsCache = getItemRecords('zzz')
+  return recordsCache
 }
 
 /**
@@ -60,7 +35,7 @@ function loadZzzItemIndex () {
  */
 export function getZZZItemName (id) {
   if (id == null) return ''
-  return loadZzzItemIndex().names.get(String(id)) || ''
+  return getZzzRecords()[String(id)]?.name || ''
 }
 
 /**
@@ -73,10 +48,10 @@ export function getZZZItemIcon (id) {
   if (iconCache && iconCache.has(key)) return iconCache.get(key)
   if (!iconCache) iconCache = new Map()
 
-  const relPath = loadZzzItemIndex().paths.get(key)
+  const relPath = getZzzRecords()[key]?.path
   let url = ''
   if (relPath) {
-    const fullPath = path.join(dataDir, relPath)
+    const fullPath = path.join(backendRoot, 'data', relPath)
     if (fs.existsSync(fullPath)) {
       try {
         const item = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
