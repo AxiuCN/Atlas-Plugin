@@ -60,34 +60,36 @@ function matSortOrder (m) {
 }
 
 /**
- * 材料图标查询：先查 meta.images 匹配，再按命名约定直查 gallery
+ * 材料图标查询：先按命名约定直查 gallery，再在 meta.images 中精确文件名兜底
  * 命名约定：gi 为 UI_ItemIcon_<id>.webp，hsr 为 itemfigures/<id>.webp
+ * 注意：meta.images 是条目自身图标集（角色/光锥立绘等），不能裸子串匹配——如 id=2 会被 "xx_2.webp" 误命中
  */
 function matIcon (images, materialId, gameId) {
   if (!materialId) return ''
-  // 先查已下载的 images 列表
+
+  // 约定文件名
+  let expectedName
+  if (gameId === 'hsr') {
+    expectedName = `${materialId}.webp`
+  } else {
+    expectedName = materialId === 'mora' ? 'UI_ItemIcon_202.webp' : `UI_ItemIcon_${materialId}.webp`
+  }
+
+  // 1) 优先按命名约定直查 gallery（素材图都在各自约定目录）
+  const convPath = gameId === 'hsr'
+    ? path.join(backendRoot, 'gallery', 'hsr', 'itemfigures', expectedName)
+    : path.join(backendRoot, 'gallery', gameId, expectedName)
+  if (fs.existsSync(convPath)) return pathToFileURL(convPath).href
+
+  // 2) 兜底：在 meta.images 中找「文件名精确等于约定名」的条目（避免裸子串误命中）
   if (Array.isArray(images)) {
-    const haystack = String(materialId)
-    const hit = images.find(i => i.localPath && i.localPath.includes(haystack))
+    const hit = images.find(i => i.localPath && path.basename(i.localPath) === expectedName)
     if (hit?.localPath) {
       const fullPath = path.join(backendRoot, hit.localPath)
       if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
     }
   }
-  // 兜底：按命名约定直查 gallery
-  let fullPath
-  if (gameId === 'hsr') {
-    const filename = materialId === 2 || materialId === '2'
-      ? '2.webp'
-      : `${materialId}.webp`
-    fullPath = path.join(backendRoot, 'gallery', 'hsr', 'itemfigures', filename)
-  } else {
-    const filename = materialId === 'mora'
-      ? 'UI_ItemIcon_202.webp'
-      : `UI_ItemIcon_${materialId}.webp`
-    fullPath = path.join(backendRoot, 'gallery', gameId, filename)
-  }
-  if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
+
   return ''
 }
 
