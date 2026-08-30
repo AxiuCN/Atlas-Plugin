@@ -154,3 +154,22 @@ export function propLabel (key) {
   }
   return labels[key] || key
 }
+
+/** 星铁属性类型 → 中文 */
+const HSR_DAMAGE_TYPE = {
+  Physical: '物理', Fire: '火', Ice: '冰', Lightning: '雷', Thunder: '雷',
+  Wind: '风', Quantum: '量子', Imaginary: '虚数'
+}
+
+/** 星铁命途 → 中文 */
+const HSR_PATH = {
+  Destruction: '毁灭', TheHunt: '巡猎', Erudition: '智识', Harmony: '同谐',
+  Nihility: '虚无', Preservation: '存护', Abundance: '丰饶', Elation: '欢愉',
+  Remembrance: '记忆'
+}
+
+/** 星铁属性/命途英文 → 中文（未知值原样返回） */
+export function hsrLabel (value) {
+  if (!value) return ''
+  return HSR_DAMAGE_TYPE[value] || HSR_PATH[value] || value
+}

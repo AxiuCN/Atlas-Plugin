@@ -4,6 +4,14 @@
  */
 import { imgUrl, propLabel, cleanText } from '../util.js'
 
+/** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
+function _formatZzzBirthday (birth) {
+  if (!birth || typeof birth !== 'string') return ''
+  const m = birth.trim().match(/^(\d{1,2})\/(\d{1,2})$/)
+  if (!m) return ''
+  return `${Number(m[1])}月${Number(m[2])}日`
+}
+
 /**
  * 构建绝区零角色数据
  * @param {object} list - record.content.list
@@ -19,13 +27,17 @@ export function buildZZZ (list, detail, meta) {
   const elementType = detail.element_type ? Object.values(detail.element_type)[0] : ''
   const weaponType = detail.weapon_type ? Object.values(detail.weapon_type)[0] : ''
 
+  // 立绘后景：优先角色皮肤图（meta.images 中 skin.* 的 fieldPath，通常竖版立绘），退角色图标
+  const skinField = Array.isArray(images)
+    ? images.filter(i => i.fieldPath?.startsWith('skin.') && i.status === 'downloaded').pop()?.fieldPath
+    : ''
   const hero = {
-    namecard: '',
+    namecard: img(skinField) || img('icon') || img('detail.icon'),
     portrait: img('icon') || img('detail.icon'),
     title: '',
     element: elementType || list.element || '',
     weapon: weaponType || list.specialty || '',
-    birthday: '',
+    birthday: _formatZzzBirthday(detail.partner_info?.birthday),
     constellation: '',
     rarity: meta?.rarity || list.rarity || ''
   }

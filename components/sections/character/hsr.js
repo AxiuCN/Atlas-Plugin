@@ -3,7 +3,7 @@
  * 将 nanoka 星铁条目 JSON 归一化为统一角色模板数据
  */
 import { buildSkillParams } from './skillParams.js'
-import { imgUrl, propLabel, skillTag, cleanText } from '../util.js'
+import { imgUrl, propLabel, skillTag, cleanText, hsrLabel } from '../util.js'
 
 /**
  * 替换星铁描述中的参数占位符与 <unbreak> 标签
@@ -60,11 +60,11 @@ export function buildHSR (list, detail, meta) {
 
   // Hero
   const hero = {
-    namecard: '',
-    portrait: img('icon') || img('detail.icon'),
+    namecard: img('derived.avatarDrawCard') || img('icon') || img('detail.icon'),
+    portrait: img('derived.avatarDrawCard') || img('icon') || img('detail.icon'),
     title: '',
-    element: list.damageType || '',
-    weapon: list.baseType || '',
+    element: hsrLabel(list.damageType || detail.damage_type || ''),
+    weapon: hsrLabel(list.baseType || detail.base_type || ''),
     birthday: '',
     constellation: '',
     rarity: meta?.rarity || list.rarity || ''
