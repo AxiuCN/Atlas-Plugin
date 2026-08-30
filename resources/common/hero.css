@@ -43,6 +43,21 @@
   background-position: center;
 }
 
+/* ===== Hero 右侧立绘 .hero-landscape（HSR avatarDrawCard 立绘覆盖右半，左右填满上下溢出） ===== */
+.hero-landscape {
+  position: absolute;
+  top: 0;
+  right: -5%;
+  bottom: 0;
+  width: 58%;
+  transform: translateY(0);
+  background-size: cover;
+  background-position: center 20%;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
 /* ===== Hero 立绘图 .hero-portrait ===== */
 .hero-portrait {
   width: 180px;

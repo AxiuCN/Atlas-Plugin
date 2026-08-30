@@ -59,13 +59,11 @@ export function buildHSR (list, detail, meta) {
     : null
 
   // Hero
-  // 头像用商店头像（avatarshopicon）；立绘后景用 6 张星魂 Rank 图拼接（namecardImages），单图兜底 avatarDrawCard
-  const rankImages = ['1', '2', '3', '4', '5', '6']
-    .map(n => img(`detail.ranks.${n}.icon`))
-    .filter(Boolean)
+  // 头像用商店头像（avatarshopicon）；立绘用 avatarDrawCard 覆盖 hero 右半（landscape）
   const hero = {
-    namecard: img('derived.avatarDrawCard') || img('icon') || img('detail.icon'),
-    namecardImages: rankImages.length ? rankImages : null,
+    namecard: '',
+    namecardImages: null,
+    landscape: img('derived.avatarDrawCard') || img('icon') || img('detail.icon'),
     portrait: img('icon') || img('detail.icon'),
     title: '',
     element: hsrLabel(list.damageType || detail.damage_type || ''),

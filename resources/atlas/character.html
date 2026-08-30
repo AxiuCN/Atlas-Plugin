@@ -17,6 +17,9 @@
       {{/each}}
     </div>
     {{/if}}
+    {{if hero.landscape}}
+    <div class="hero-landscape" style="background-image: url('{{hero.landscape}}')"></div>
+    {{/if}}
     <div class="hero-bg"></div>
     {{if hero.portrait}}<img class="hero-portrait" src="{{hero.portrait}}"/>{{/if}}
     <div class="hero-text">

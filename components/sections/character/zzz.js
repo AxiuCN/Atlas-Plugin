@@ -32,7 +32,9 @@ export function buildZZZ (list, detail, meta) {
     ? images.filter(i => i.fieldPath?.startsWith('skin.') && i.status === 'downloaded').pop()?.fieldPath
     : ''
   const hero = {
-    namecard: skinField ? img(skinField) : (img('icon') || img('detail.icon')),
+    // 立绘后景用第 3 张命座横版图（2580×1080），退皮肤图，再退角色图标
+    namecard: img('derived.mindscape.3') || img('derived.mindscape.2') || img('derived.mindscape.1')
+      || (skinField ? img(skinField) : '') || img('icon') || img('detail.icon'),
     portrait: img('detail.partner_info.icon_path') || img('icon') || img('detail.icon'),
     title: '',
     element: elementType || list.element || '',
