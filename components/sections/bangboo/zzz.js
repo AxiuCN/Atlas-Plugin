@@ -1,8 +1,10 @@
 /**
  * 绝区零邦布构建（ZZZ）
- * 基础属性 + 技能 A/B/C + 影画
+ * 基础属性 + 技能 A/B/C + 影画 + 养成素材
  */
 import { cleanText, propLabel } from '../util.js'
+import { aggregateMats } from '../materials.js'
+import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
 /**
  * 构建绝区零邦布数据
@@ -72,6 +74,37 @@ export function buildZZZBangboo (record) {
       }))
     if (items.length > 0) {
       sections.push({ title: '影画', type: 'constellation-grid', items })
+    }
+  }
+
+  // 养成素材（detail.level[1~6].materials 对象：{ "10": 15000, "102010": 4 }，id=10 为丁尼）
+  if (detail.level && typeof detail.level === 'object') {
+    const levels = Object.values(detail.level).map(lv => {
+      const mats = lv?.materials && typeof lv.materials === 'object'
+        ? Object.entries(lv.materials)
+            .filter(([id]) => id !== '10')
+            .map(([id, count]) => ({
+              id,
+              count: Number(count) || 0,
+              name: getZZZItemName(id) || String(id),
+              rank: 0
+            }))
+        : []
+      const currency = lv?.materials?.['10']
+      return { cost: Number(currency) || 0, mats }
+    }).filter(l => l.mats.length > 0 || l.cost > 0)
+    if (levels.length > 0) {
+      const agg = aggregateMats(levels)
+      const items = []
+      if (agg.cost > 0) {
+        items.push({ name: '丁尼', count: agg.cost, icon: getZZZItemIcon('10'), id: 10, rank: 0 })
+      }
+      for (const m of agg.mats) {
+        items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
+      }
+      if (items.length > 0) {
+        sections.push({ title: '养成素材', type: 'materials', items })
+      }
     }
   }
 
