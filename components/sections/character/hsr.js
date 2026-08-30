@@ -48,7 +48,22 @@ export function buildHSR (list, detail, meta) {
     metaFields.push(...propFields)
   }
 
-  // 技能（enhanced.skills 按顺序对应加强版 desc）
+  // 技能 → 图标映射：skill_trees 节点 level_up_skill_id[0] 指向技能 id，节点自带图标路径
+  const skillIconMap = new Map()
+  if (detail.skill_trees && typeof detail.skill_trees === 'object') {
+    for (const [treeKey, tree] of Object.entries(detail.skill_trees)) {
+      for (const [nodeKey, node] of Object.entries(tree || {})) {
+        const ids = node?.level_up_skill_id
+        if (!ids || !Array.isArray(ids) || ids.length === 0) continue
+        const icon = img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
+        for (const id of ids) {
+          if (!skillIconMap.has(String(id))) skillIconMap.set(String(id), icon)
+        }
+      }
+    }
+  }
+
+  // 技能（enhanced.skills 按顺序对应加强版 desc；图标经 skill_trees 锚点关联）
   if (detail.skills && typeof detail.skills === 'object') {
     const enhSkills = enhanced?.skills && typeof enhanced.skills === 'object'
       ? Object.values(enhanced.skills)
@@ -58,7 +73,7 @@ export function buildHSR (list, detail, meta) {
       return {
         name: s.name || '',
         tag: skillTag(s.type || s.type_name || '', 'hsr'),
-        icon: img(`detail.skills.${key}.level.0.icon`),
+        icon: skillIconMap.get(String(s.id)) || img(`detail.skills.${key}.level.0.icon`),
         desc: cleanText(enh?.desc || enh?.simple_desc || s.desc || s.simple_desc || ''),
         params: buildSkillParams(enh?.level || s.level, 'hsr')
       }
@@ -66,22 +81,28 @@ export function buildHSR (list, detail, meta) {
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
   }
 
-  // 行迹（enhanced.skill_trees 同键覆盖 point_desc）
+  // 行迹：取锚点唯一节点（普攻/战技/终结技/天赋/秘技 + 被动），名称用关联技能名或 point_desc
   if (detail.skill_trees && typeof detail.skill_trees === 'object') {
+    const skillNameById = new Map()
+    for (const s of Object.values(detail.skills || {})) {
+      if (s?.id != null && s.name) skillNameById.set(String(s.id), s.name)
+    }
     const extras = []
     for (const [treeKey, tree] of Object.entries(detail.skill_trees)) {
-      if (tree && typeof tree === 'object') {
-        for (const [nodeKey, node] of Object.entries(tree)) {
-          if (node?.anchor && node.anchor !== 'Point01') continue
-          if (node?.level_up_skill_id) {
-            const enhNode = enhanced?.skill_trees?.[treeKey]?.[nodeKey] || null
-            extras.push({
-              name: node.anchor || '',
-              desc: cleanText(enhNode?.point_desc || node.point_desc || ''),
-              icon: img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
-            })
-          }
-        }
+      for (const [nodeKey, node] of Object.entries(tree || {})) {
+        // 仅取锚点唯一节点（每棵树的第一个等级节点），避免 point01 的 6 级重复
+        if (tree && Object.keys(tree)[0] !== nodeKey) continue
+        const id = node?.level_up_skill_id?.[0]
+        const enhNode = enhanced?.skill_trees?.[treeKey]?.[nodeKey] || null
+        const traceDesc = enhNode?.point_desc || node?.point_desc || ''
+        const skillName = (id != null && skillNameById.get(String(id))) || ''
+        // 过滤纯属性占位树（无技能关联且无被动描述，如 point09-18 属性强化）
+        if (!skillName && !traceDesc) continue
+        extras.push({
+          name: skillName || traceDesc || node?.anchor || '',
+          desc: cleanText(traceDesc || ''),
+          icon: img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
+        })
       }
     }
     if (extras.length > 0) {
