@@ -5,6 +5,7 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/base.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
 </head>
 <body>
   <div class="hero">
@@ -61,6 +62,17 @@
           <div class="con-order">#{{c.order}}</div>
           <div class="con-name">{{c.name}}</div>
           <div class="con-desc">{{c.desc}}</div>
+        </div>
+        {{/each}}
+      </div>
+
+    {{else if section.type === 'materials'}}
+      <div class="material-grid">
+        {{each section.items m}}
+        <div class="material-card">
+          {{if m.icon}}<img class="material-card-icon" src="{{m.icon}}"/>{{/if}}
+          <div class="material-card-name">{{m.name}}</div>
+          {{if m.count}}<div class="material-card-count">×{{m.count}}</div>{{/if}}
         </div>
         {{/each}}
       </div>
