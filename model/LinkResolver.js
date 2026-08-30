@@ -20,11 +20,17 @@ const GAME_FOLDER = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
 /** @type {Map<string, Map<string, {name: string, desc: string, color: string}>>} gameId → recordId → entry */
 const linkIndexCache = new Map()
 
+/** @type {Map<string, number[]>} 文本链接参数：id → 数值数组（惰性全局缓存） */
+let paramArrayCache = null
+
 /** {LINK#(N|S|P|T|TE)ID}text{/LINK} 完整格式（N=外部引用，S=技能自身，P=被动/固有天赋自身，T=命座自身，TE=命座子计数） */
 const LINK_WRAPPED_RE = /\{LINK#([NSP]|TE?)(\d+)}([\s\S]*?)\{\/LINK}/g
 
 /** {LINK#(N|S|P|T|TE)ID} 裸格式（无闭合标签，无包裹文本） */
 const LINK_BARE_RE = /\{LINK#([NSP]|TE?)(\d+)}/g
+
+/** {PARAM#P<id>|<N>S<fmt>} 参数引用（N=数组下标从1计，S1=原值1位小数，S100=×100百分比） */
+const PARAM_RE = /\{PARAM#P(\d+)\|(\d+)S(\d+)\}/g
 
 /* ============================================================
  *  索引加载
@@ -78,6 +84,54 @@ export function loadLinkIndex (gameId) {
 /* ============================================================
  *  解析引擎
  * ============================================================ */
+
+/**
+ * 惰性加载文本链接参数数组（id → 数值数组）
+ * 数据源：data/items/简体中文/<游戏>/文本链接参数/<id>.json → content.list
+ * @returns {Map<string, number[]>}
+ */
+function loadParamArrays () {
+  if (paramArrayCache) return paramArrayCache
+  const map = new Map()
+  const paramDir = path.join(dataDir, 'items', '简体中文', '原神', '文本链接参数')
+  const scan = (dir) => {
+    if (!fs.existsSync(dir)) return
+    try {
+      for (const file of fs.readdirSync(dir)) {
+        const fp = path.join(dir, file)
+        if (fs.statSync(fp).isDirectory()) { scan(fp); continue }
+        if (!file.endsWith('.json')) continue
+        try {
+          const data = JSON.parse(fs.readFileSync(fp, 'utf8'))
+          const list = data?.content?.list
+          if (Array.isArray(list)) map.set(file.replace('.json', ''), list)
+        } catch { /* skip */ }
+      }
+    } catch { /* dir error */ }
+  }
+  scan(paramDir)
+  paramArrayCache = map
+  return map
+}
+
+/**
+ * 替换描述中的 {PARAM#P<id>|<N>S<fmt>} 参数引用
+ * @param {string} text
+ * @returns {string}
+ */
+function resolveParams (text) {
+  if (!text || !text.includes('{PARAM#')) return text
+  const arrays = loadParamArrays()
+  return text.replace(PARAM_RE, (m, id, n, fmt) => {
+    const arr = arrays.get(id)
+    if (!arr) return m
+    const raw = arr[Number(n) - 1]
+    if (raw == null) return m
+    let val = Number(raw)
+    if (fmt === '100') val *= 100 // 百分比
+    return String(fmt === '1' ? Number(val.toFixed(1)) : Math.round(val))
+  })
+}
 
 /**
  * 解析文本中的 LINK 标记，返回高亮文本和收集的效果引用
@@ -138,6 +192,9 @@ function resolveLinkDesc (entry) {
 
   let desc = entry.desc
     .replace(/\\n/g, '\n')
+
+  // {PARAM#P<id>|<N>S<fmt>} 参数引用 → 具体数值
+  desc = resolveParams(desc)
 
   // {0}/{1}/{2} 替换为 param 数组中对应值
   desc = desc.replace(/\{(\d+)}/g, (match, idx) => {
