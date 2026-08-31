@@ -4,6 +4,8 @@
  */
 import { buildSkillParams } from './skillParams.js'
 import { imgUrl, propLabel, skillTag, cleanText, hsrLabel } from '../util.js'
+import { aggregateMats } from '../materials.js'
+import { getHsrItemName, getHsrItemIcon } from '../../../model/itemIndex/hsr.js'
 
 /**
  * 替换星铁描述中的参数占位符与 <unbreak> 标签
@@ -172,5 +174,45 @@ export function buildHSR (list, detail, meta) {
     sections.push({ title: '星魂', type: 'constellation-grid', items: conList })
   }
 
+  // 升级素材（detail.stats[0~6].cost：与光锥 promotion_cost_list 同构，item_id=2 为信用点）
+  if (detail.stats && typeof detail.stats === 'object') {
+    const levels = Object.values(detail.stats)
+      .map(s => {
+        const list = Array.isArray(s?.cost) ? s.cost : []
+        const credit = list.find(c => c.item_id === 2)
+        const mats = list
+          .filter(c => c.item_id !== 2)
+          .map(c => ({
+            id: c.item_id,
+            count: c.item_num,
+            name: getHsrItemName(c.item_id) || String(c.item_id),
+            rank: _hsrRarityRank(c.rarity)
+          }))
+        return { cost: credit?.item_num || 0, mats }
+      })
+      .filter(l => l.mats.length > 0 || l.cost > 0)
+    if (levels.length > 0) {
+      const agg = aggregateMats(levels)
+      const items = []
+      if (agg.cost > 0) {
+        items.push({ name: '信用点', count: agg.cost, icon: getHsrItemIcon('2'), id: 2, rank: 0 })
+      }
+      for (const m of agg.mats) {
+        items.push({ name: m.name, count: m.count, icon: getHsrItemIcon(m.id), id: m.id, rank: m.rank })
+      }
+      if (items.length > 0) {
+        sections.push({ title: '升级素材', type: 'materials', items })
+      }
+    }
+  }
+
   return { hero, metaFields, sections, _images: images }
+}
+
+/** HSR rarity 字符串 → 排序 rank（NotNormal < Rare < VeryRare） */
+function _hsrRarityRank (rarity) {
+  if (rarity === 'NotNormal') return 1
+  if (rarity === 'Rare') return 2
+  if (rarity === 'VeryRare') return 3
+  return 0
 }

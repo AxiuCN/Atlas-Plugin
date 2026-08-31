@@ -3,6 +3,8 @@
  * 将 nanoka 绝区零条目 JSON 归一化为统一角色模板数据
  */
 import { imgUrl, propLabel, cleanText } from '../util.js'
+import { aggregateMats } from '../materials.js'
+import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
 /** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
 function _formatZzzBirthday (birth) {
@@ -125,12 +127,43 @@ export function buildZZZ (list, detail, meta) {
     sections.push({ title: '影画', type: 'constellation-grid', items: conList })
   }
 
+  // 养成素材（detail.level[1~6].materials 对象：{ "10": 24000, "100213": 4 }，id=10 为丁尼）
+  if (detail.level && typeof detail.level === 'object') {
+    const levels = Object.values(detail.level).map(lv => {
+      const mats = lv?.materials && typeof lv.materials === 'object'
+        ? Object.entries(lv.materials)
+            .filter(([id]) => id !== '10')
+            .map(([id, count]) => ({
+              id,
+              count: Number(count) || 0,
+              name: getZZZItemName(id) || String(id),
+              rank: 0
+            }))
+        : []
+      const currency = lv?.materials?.['10']
+      return { cost: Number(currency) || 0, mats }
+    }).filter(l => l.mats.length > 0 || l.cost > 0)
+    if (levels.length > 0) {
+      const agg = aggregateMats(levels)
+      const items = []
+      if (agg.cost > 0) {
+        items.push({ name: '丁尼', count: agg.cost, icon: getZZZItemIcon('10'), id: 10, rank: 0 })
+      }
+      for (const m of agg.mats) {
+        items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
+      }
+      if (items.length > 0) {
+        sections.push({ title: '养成素材', type: 'materials', items })
+      }
+    }
+  }
+
   // 资料
   if (detail.partner_info) {
     const pi = detail.partner_info
     const stories = []
     if (pi.profile_desc) stories.push({ title: '简介', content: cleanText(pi.profile_desc) })
-    if (pi.birthday) metaFields.push({ label: '生日', value: pi.birthday })
+    if (pi.birthday) metaFields.push({ label: '生日', value: _formatZzzBirthday(pi.birthday) })
     if (pi.full_name) metaFields.push({ label: '全名', value: pi.full_name })
     if (pi.stature) metaFields.push({ label: '身高', value: pi.stature })
     if (stories.length > 0) {
