@@ -7,7 +7,7 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { handleQuery } from '../modules/atlasQuery.js'
 import { SHORTCUT_SUFFIXES } from '../components/constants.js'
-import { isBlacklisted } from '../components/blacklist.js'
+import { isBlacklisted, isSlashMsg } from '../components/blacklist.js'
 
 const SUFFIX_REG = SHORTCUT_SUFFIXES.join('|')
 
@@ -37,6 +37,8 @@ export class atlasShortcut extends plugin {
   async shortcutGI (e) {
     // 黑名单命中：跳过不处理（返回 false 继续传递，不消费消息）
     if (isBlacklisted(e.msg)) return false
+    // /→# 转换消息不作为图鉴查询：跳过（返回 false 继续传递）
+    if (isSlashMsg(e)) return false
 
     let keyword = this.stripSuffix(e.msg.replace(/^#/, '').trim())
     let gameId = 'gi'
@@ -56,6 +58,8 @@ export class atlasShortcut extends plugin {
   async shortcutHSR (e) {
     // 黑名单命中：跳过不处理（返回 false 继续传递，不消费消息）
     if (isBlacklisted(e.msg)) return false
+    // /→# 转换消息不作为图鉴查询：跳过（返回 false 继续传递）
+    if (isSlashMsg(e)) return false
 
     return handleQuery(e, 'hsr', this.stripSuffix(e.msg.replace(/^\*/, '').trim()))
   }
@@ -63,6 +67,8 @@ export class atlasShortcut extends plugin {
   async shortcutZZZ (e) {
     // 黑名单命中：跳过不处理（返回 false 继续传递，不消费消息）
     if (isBlacklisted(e.msg)) return false
+    // /→# 转换消息不作为图鉴查询：跳过（返回 false 继续传递）
+    if (isSlashMsg(e)) return false
 
     return handleQuery(e, 'zzz', this.stripSuffix(e.msg.replace(/^%/, '').trim()))
   }

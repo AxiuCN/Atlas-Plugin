@@ -1,7 +1,7 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { handleQuery } from '../modules/atlasQuery.js'
 import { getPluginConfig } from '../components/config.js'
-import { isBlacklisted } from '../components/blacklist.js'
+import { isBlacklisted, isSlashMsg } from '../components/blacklist.js'
 
 const config = getPluginConfig()
 
@@ -24,6 +24,8 @@ export class atlas extends plugin {
   async atlasGI (e) {
     // 黑名单命中：跳过不处理（返回 false 继续传递，不消费消息）
     if (isBlacklisted(e.msg)) return false
+    // /→# 转换消息不作为图鉴查询：跳过（返回 false 继续传递）
+    if (isSlashMsg(e)) return false
 
     let keyword = e.msg.replace(/^#/, '').trim()
     let gameId = 'gi'
@@ -43,6 +45,8 @@ export class atlas extends plugin {
   async atlasHSR (e) {
     // 黑名单命中：跳过不处理（返回 false 继续传递，不消费消息）
     if (isBlacklisted(e.msg)) return false
+    // /→# 转换消息不作为图鉴查询：跳过（返回 false 继续传递）
+    if (isSlashMsg(e)) return false
 
     return handleQuery(e, 'hsr', e.msg.replace(/^\*/, '').trim())
   }
@@ -51,6 +55,8 @@ export class atlas extends plugin {
   async atlasZZZ (e) {
     // 黑名单命中：跳过不处理（返回 false 继续传递，不消费消息）
     if (isBlacklisted(e.msg)) return false
+    // /→# 转换消息不作为图鉴查询：跳过（返回 false 继续传递）
+    if (isSlashMsg(e)) return false
 
     return handleQuery(e, 'zzz', e.msg.replace(/^%/, '').trim())
   }

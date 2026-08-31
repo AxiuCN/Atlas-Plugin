@@ -77,3 +77,17 @@ export function isBlacklisted (msg) {
   if (!msg) return false
   return readBlacklist().regexps.some(re => re.test(msg))
 }
+
+/**
+ * 判断消息是否由 /→# 转换而来（框架 cfg.bot['/→#'] 开启时 /xxx → #xxx）
+ *
+ * 框架在 dealEvent 阶段只改写拼接出的 e.msg（/胡桃 → #胡桃），
+ * e.message 消息段原文保留 / 前缀，据此区分手打 # 与 / 转换两种来源。
+ * 命中时图鉴查询入口跳过（返回 false 继续传递），管理指令（#图鉴初始化等）不受影响。
+ * @param {object} e - Runtime 实例
+ * @returns {boolean} true = 由 / 前缀转换而来，应跳过图鉴查询
+ */
+export function isSlashMsg (e) {
+  const seg = e?.message?.find(i => i.type === 'text')
+  return typeof seg?.text === 'string' && /^\s*\//.test(seg.text)
+}
