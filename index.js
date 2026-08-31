@@ -11,10 +11,17 @@ const __dirname = path.dirname(__filename)
 const configDir = path.join(__dirname, 'config')
 const configFile = path.join(configDir, 'config.yaml')
 const exampleFile = path.join(configDir, 'config.yaml.example')
+const blacklistFile = path.join(configDir, 'blacklist.yaml')
+const blacklistExample = path.join(configDir, 'blacklist.yaml.example')
 
 if (!fs.existsSync(configFile) && fs.existsSync(exampleFile)) {
   fs.copyFileSync(exampleFile, configFile)
   logger?.info('[Atlas] 已从 config.yaml.example 创建配置文件')
+}
+
+if (!fs.existsSync(blacklistFile) && fs.existsSync(blacklistExample)) {
+  fs.copyFileSync(blacklistExample, blacklistFile)
+  logger?.info('[Atlas] 已从 blacklist.yaml.example 创建黑名单配置文件')
 }
 
 logger?.info('----Atlas-Plugin----')

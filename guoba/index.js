@@ -10,12 +10,30 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
+import { loadBlacklistPatterns, blacklistFile } from '../components/blacklist.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PLUGIN_DIR = path.join(__dirname, '..')
 const DEFSET_CONFIG_PATH = path.join(PLUGIN_DIR, 'defSet', 'config.yaml')
 const CONFIG_PATH = path.join(PLUGIN_DIR, 'config', 'config.yaml')
 const EXAMPLE_PATH = path.join(PLUGIN_DIR, 'config', 'config.yaml.example')
+
+/**
+ * 写入黑名单文件（保留文件头注释 + 动态 patterns 列表，JSON.stringify 保证正则特殊字符安全）
+ * @param {string[]} patterns
+ */
+function writeBlacklist (patterns) {
+  const lines = patterns.length
+    ? patterns.map(p => `  - ${JSON.stringify(p)}`).join('\n')
+    : '  []'
+  const content = `# Atlas-Plugin 黑名单
+# 每行一条正则，匹配完整消息文本（e.msg）
+# 命中时图鉴两个入口（快捷 + 常规查询）均跳过处理：不回复、不拦截，消息继续传给其他插件
+patterns:
+${lines}
+`
+  fs.writeFileSync(blacklistFile, content, 'utf8')
+}
 
 /** guoba field → defSet 模板变量名 */
 const TEMPLATE_VARS = {
@@ -240,6 +258,17 @@ export function supportGuoba () {
           }
         },
 
+        // ==================== 黑名单 ====================
+        { label: '黑名单', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'blacklist.patterns',
+          label: '图鉴黑名单正则',
+          helpMessage: '每行一条正则，匹配完整消息文本',
+          bottomHelpMessage: '命中正则时图鉴快捷入口与常规查询入口均跳过处理（不回复、不拦截），消息继续传给其他插件。示例：^#签到（拦截 #签到 开头）、#抽卡（包含匹配）',
+          component: 'InputTextArea',
+          componentProps: { rows: 8, placeholder: '^#签到\n#抽卡\n^#胡桃图鉴$' }
+        },
+
       ],
 
       getConfigData () {
@@ -260,7 +289,8 @@ export function supportGuoba () {
           notifyGroups: (cfg.notifyGroups || '')
             ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
             : [],
-          notifyMode: cfg.notifyMode || 'all'
+          notifyMode: cfg.notifyMode || 'all',
+          'blacklist.patterns': loadBlacklistPatterns().join('\n')
         }
       },
 
@@ -288,6 +318,16 @@ export function supportGuoba () {
           const configDir = path.join(PLUGIN_DIR, 'config')
           if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
           fs.writeFileSync(CONFIG_PATH, template, 'utf8')
+
+          // 黑名单独立文件（多行文本 → 逐行正则，不含模板变量）
+          const blacklistRaw = data['blacklist.patterns']
+          if (typeof blacklistRaw === 'string') {
+            const patterns = blacklistRaw
+              .split('\n')
+              .map(s => s.trim())
+              .filter(Boolean)
+            writeBlacklist(patterns)
+          }
 
           return Result.ok({}, '保存成功~')
         } catch (err) {
