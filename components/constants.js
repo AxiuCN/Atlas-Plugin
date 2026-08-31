@@ -21,6 +21,14 @@ export const GAME_FOLDERS = {
   zzz: '绝区零'
 }
 
+// 快捷入口/子视图后缀集合（atlasShortcut 正则与 atlasQuery 子视图解析共用）
+// 注意顺序：长后缀在前（"养成素材"需在"养成"/"素材"前匹配）
+export const SHORTCUT_SUFFIXES = [
+  '图鉴', '养成素材', '升级素材', '升级材料',
+  '天赋', '技能', '命座', '资料', '故事', '语音',
+  '养成', '素材', '材料', '升级'
+]
+
 // 页面 pageKey → 中文标签（三游戏通用回退）
 export const PAGE_LABELS = {
   // 通用

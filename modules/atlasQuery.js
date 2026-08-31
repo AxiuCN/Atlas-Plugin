@@ -6,19 +6,24 @@
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
-import { GAME_NAMES } from '../components/constants.js'
+import { GAME_NAMES, SHORTCUT_SUFFIXES } from '../components/constants.js'
 
-// 子视图后缀映射（{ suffix → subView }，故事和语音共享 stories，养成和素材共享 materials，天赋和技能共享 skills）
-const SUB_VIEW_SUFFIXES = [
-  { suffix: '天赋', subView: 'skills' },
-  { suffix: '技能', subView: 'skills' },
-  { suffix: '命座', subView: 'constellations' },
-  { suffix: '资料', subView: 'profile' },
-  { suffix: '故事', subView: 'stories' },
-  { suffix: '语音', subView: 'stories' },
-  { suffix: '养成', subView: 'materials' },
-  { suffix: '素材', subView: 'materials' }
-]
+// 子视图后缀映射（由 SHORTCUT_SUFFIXES 派生，剔除「图鉴」；故事/语音→stories，养成/素材/材料/升级→materials，天赋/技能→skills）
+// 注意：长后缀在前（parseSubView 顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"）
+const SUFFIX_TO_SUBVIEW = {
+  天赋: 'skills', 技能: 'skills',
+  命座: 'constellations',
+  资料: 'profile',
+  故事: 'stories', 语音: 'stories',
+  养成: 'materials', 素材: 'materials', 材料: 'materials',
+  升级素材: 'materials', 养成素材: 'materials', 升级材料: 'materials', 升级: 'materials'
+}
+
+/** 子视图后缀列表（长→短，图鉴除外） */
+const SUB_VIEW_SUFFIXES = SHORTCUT_SUFFIXES
+  .filter(s => s !== '图鉴')
+  .sort((a, b) => b.length - a.length)
+  .map(s => ({ suffix: s, subView: SUFFIX_TO_SUBVIEW[s] || 'materials' }))
 
 /**
  * 解析子视图后缀
