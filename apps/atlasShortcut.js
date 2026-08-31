@@ -25,12 +25,12 @@ export class atlasShortcut extends plugin {
     })
   }
 
-  /** 剥离结尾任一子视图后缀（长后缀优先，如"养成素材"整体剥离） */
+  /**
+   * 剥离「图鉴」后，其余子视图后缀（天赋/命座/养成素材等）保留，
+   * 交由 handleQuery 的 parseSubView 解析出 subView（默认视图=图鉴）。
+   */
   stripSuffix (raw) {
-    for (const suffix of SHORTCUT_SUFFIXES) {
-      if (raw.endsWith(suffix)) return raw.slice(0, -suffix.length).trim()
-    }
-    return raw.trim()
+    return raw.replace(/图鉴$/, '').trim()
   }
 
   async shortcutGI (e) {
