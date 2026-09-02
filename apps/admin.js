@@ -17,6 +17,7 @@ import {
   BACKEND_DIR
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
+import { renderStatusImage } from '../components/status.js'
 
 const config = getPluginConfig()
 
@@ -127,7 +128,13 @@ export class AtlasAdmin extends plugin {
         ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载 / ${status.images.placeholder} 占位`
         : ''
 
-      this._notifyResult(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
+      // 渲染状态图通知（失败回退文字）
+      const img = await renderStatusImage()
+      if (img) {
+        this._notifyResult(img)
+      } else {
+        this._notifyResult(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
+      }
     }).catch((err) => {
       logger?.error('[Atlas][管理] 初始化异常:', err)
       this._notifyResult(`[Atlas] 图鉴初始化异常：${err.message}`)
@@ -228,7 +235,14 @@ export class AtlasAdmin extends plugin {
       const modeLabel = ret.mode === 'full' ? '（全量补全）'
         : ret.mode === 'full_fallback' ? '（增量失败，降级全量）'
         : ''
-      this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}`)
+
+      // 渲染状态图通知（失败回退文字）
+      const img = await renderStatusImage()
+      if (img) {
+        this._notifyResult(img)
+      } else {
+        this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}`)
+      }
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
       this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
@@ -238,8 +252,8 @@ export class AtlasAdmin extends plugin {
   }
 
   /**
-   * 发送更新结果通知
-   * @param {string} msg - 通知消息
+   * 发送更新结果通知（文字或状态图）
+   * @param {string|object} msg - 通知消息：文字字符串，或 renderStatusImage 返回的 segment.image 对象
    */
   _notifyResult (msg) {
     const cfg = getPluginConfig()
@@ -319,7 +333,14 @@ export class AtlasAdmin extends plugin {
         : ret.mode === 'full_fallback' ? '（增量失败，降级全量）'
         : ''
       logger?.info('[Atlas][管理] 定时更新完成')
-      this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}`)
+
+      // 渲染状态图通知（失败回退文字）
+      const img = await renderStatusImage()
+      if (img) {
+        this._notifyResult(img)
+      } else {
+        this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}`)
+      }
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }
