@@ -1,100 +1,196 @@
-/* ===== 版本更新记录页 update-log.html ===== */
+/* ===== 版本更新记录页 update-log.html =====
+ * 严格复用图鉴体系：hero 头、.section-title 分区、hk4e 字体栈、图鉴字号、
+ * detail.css 的高亮色映射（亮金→深金棕等）、线稿图标 filter 反相。
+ * 变更标记：旧内容赤红删除线、新内容绿字；徽标：变更橙、新增绿。
+ */
 
 .log-body {
-  padding: 0 14px 10px;
+  padding: 12px 0 12px;
 }
 
-/* 分组标题行的统计信息 */
-.group-box .log-count {
-  font-size: 17px;
-  color: #8a8378;
+/* ===== 分区标题行的统计信息（跟随 .section-title 的字号层级） ===== */
+.log-count {
+  font-size: 21px;
+  color: #888888;
   font-weight: 400;
-  margin-left: 8px;
+  margin-left: 12px;
 }
 
-/* 条目列表 */
+/* ===== 条目容器 ===== */
 .log-items {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-/* 单个变更条目 */
-.log-item {
-  display: flex;
-  align-items: flex-start;
   gap: 10px;
+  margin-top: 10px;
+}
+
+/* ===== 分组容器，与 hero 同宽占满正文 ===== */
+.log-group {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+/* ===== 条目卡片——与 .con-item 完全一致，禁止收缩 ===== */
+.log-item {
+  width: 100%;
   background: #fdfcfb;
-  border: 1px solid #e2dfda;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border: 1px solid #d4d1cd;
+  border-radius: 8px;
+  padding: 16px 20px;
 }
 
-/* 条目图标 */
-.log-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  background: #f1ede6;
-}
-
-/* 条目主区 */
 .log-main {
-  flex: 1;
   min-width: 0;
 }
 
-/* 条目名 */
+/* ===== 条目名行 ===== */
 .log-name {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 21px;
-  color: #3a3a3a;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* 条目主图标（头像/肖像类，实色，不反相）——con-icon 58px 的 1.5 倍 */
+.log-icon {
+  width: 87px;
+  height: 87px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.log-name-text {
+  font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-size: 29px;
   font-weight: 600;
+  color: #3a3a3a;
 }
 
 .log-rarity {
-  font-size: 16px;
+  font-size: 20px;
   color: #8f6b2f;
   font-weight: 700;
 }
 
-/* 状态徽标：新版=绿，变更=红 */
+/* ===== 状态徽标：新增=绿，变更=橙 ===== */
 .log-badge {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
-  padding: 1px 8px;
+  padding: 2px 10px;
   border-radius: 10px;
   line-height: 1.5;
 }
 
 .log-added {
-  background: rgba(66, 159, 90, 0.14);
-  color: #2f9e5b;
-  border: 1px solid rgba(66, 159, 90, 0.45);
+  background: rgba(46, 125, 50, 0.16);
+  color: #2e7d32;
+  border: 1px solid rgba(46, 125, 50, 0.55);
 }
 
 .log-changed {
-  background: rgba(200, 67, 67, 0.12);
-  color: #c84343;
-  border: 1px solid rgba(200, 67, 67, 0.45);
+  background: rgba(214, 129, 33, 0.18);
+  color: #b45d0a;
+  border: 1px solid rgba(214, 129, 33, 0.6);
 }
 
-/* 变更字段行（只列字段名 + 所属子项） */
+/* ===== 变更明细容器 ===== */
 .log-changes {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 4px;
+  flex-direction: column;
+  gap: 10px;
 }
 
+/* ===== 单个字段变更 ===== */
 .log-change {
-  font-size: 16px;
+  border-top: 1px dashed #e5e2df;
+  padding-top: 10px;
+}
+
+/* ===== 字段标题：板块 · 字段名（所属子项） ===== */
+.log-change-head {
+  font-size: 22px;
   color: #6b6b6b;
-  background: #f6f3ee;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* ===== 单段融合变更文本——字号观感同 .skill-desc（26px） ===== */
+.log-change-text {
+  font-size: 26px;
+  color: #555555;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ===== 旧内容：红框（浅红底 + 红边框）+ 赤红删除线 ===== */
+.log-del {
+  background: rgba(192, 57, 43, 0.10);
+  border: 1px solid rgba(192, 57, 43, 0.5);
   border-radius: 4px;
-  padding: 1px 6px;
+  padding: 0 3px;
+  color: #c0392b;
+  text-decoration: line-through;
+  text-decoration-color: #c0392b;
+  text-decoration-thickness: 2px;
+}
+
+/* ===== 新内容：绿框（浅绿底 + 绿边框） ===== */
+.log-add {
+  background: rgba(46, 125, 50, 0.12);
+  border: 1px solid rgba(46, 125, 50, 0.55);
+  border-radius: 4px;
+  padding: 0 3px;
+  color: #2e7d32;
+}
+
+/* ===== 高亮文本——接 detail.css 色映射体系，不用统一金色 =====
+ * 模板为高亮段内联输出 style="color:{{color}}"（数据层已按
+ * detail.css 的 [style*="#FFD780"] 亮→深映射转换）
+ */
+.log-hl {
+  font-weight: 700;
+}
+
+/* ===== 图标变更对比 ===== */
+.log-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.log-icon-pair {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.log-icon-img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: invert(1) brightness(0.9); /* 技能/命座/天赋图标：白线稿反相为深色 */
+}
+
+/* 旧图标：赤红边框 / 新图标：绿边框 */
+.log-icon-before {
+  border: 2px solid #c0392b;
+  border-radius: 4px;
+}
+
+.log-icon-after {
+  border: 2px solid #2e7d32;
+  border-radius: 4px;
+}
+
+.log-icon-arrow {
+  font-size: 26px;
+  color: #6b6b6b;
+}
+
+.log-icon-context {
+  font-size: 18px;
+  color: #6b6b6b;
 }

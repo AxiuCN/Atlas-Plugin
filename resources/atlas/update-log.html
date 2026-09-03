@@ -5,11 +5,10 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/base.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
-  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/list.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/update-log.css"/>
 </head>
 <body>
-  <div class="hero">
+  <div class="hero hero-plain">
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · 版本更新记录</div>
       <div class="hero-title">{{fromVersion}} → {{toVersion}}</div>
@@ -21,20 +20,18 @@
 
   <div class="log-body">
     {{each groups group}}
-    <div class="group-box">
-      <div class="group-title">
-        {{group.title}}
-        <span class="log-count">共 {{group.items.length}} 条 · 新增 {{group.added}} · 变更 {{group.changed}}</span>
+    <div class="log-group">
+      <div class="section-title">
+        <div class="section-title-text">{{group.title}}</div>
+        <div class="log-count">共 {{group.items.length}} 条 · 新增 {{group.added}} · 变更 {{group.changed}}</div>
       </div>
       <div class="log-items">
         {{each group.items item}}
         <div class="log-item">
-          {{if item.icon}}
-          <img class="log-icon" src="{{item.icon}}" onerror="this.style.display='none'"/>
-          {{/if}}
           <div class="log-main">
             <div class="log-name">
-              {{item.name}}
+              {{if item.icon}}<img class="log-icon" src="{{item.icon}}" onerror="this.style.display='none'"/>{{/if}}
+              <span class="log-name-text">{{item.name}}</span>
               {{if item.rarity}}<span class="log-rarity">★{{item.rarity}}</span>{{/if}}
               {{if item.status === 'added'}}
               <span class="log-badge log-added">新增</span>
@@ -45,8 +42,28 @@
             {{if item.changes.length > 0}}
             <div class="log-changes">
               {{each item.changes c}}
-              <span class="log-change">{{c.section}}·{{c.label}}{{if c.context}}（{{c.context}}）{{/if}}</span>
+              <div class="log-change">
+                <div class="log-change-head">{{c.section}} · {{c.label}}{{if c.context}}（{{c.context}}）{{/if}}</div>
+                <!-- 注意：each 循环体必须无换行无缩进，否则 art-template 会把模板空白渲染成换行，
+                     在 white-space: pre-wrap 下每个变更片段之间出现大片垂直空白 -->
+                <div class="log-change-text">{{each c.parts part}}{{if part.type === 'del'}}<span class="log-del{{if part.color}} log-hl{{/if}}"{{if part.color}} style="color:{{part.color}}"{{/if}}>{{part.text}}</span>{{/if}}{{if part.type === 'add'}}<span class="log-add{{if part.color}} log-hl{{/if}}"{{if part.color}} style="color:{{part.color}}"{{/if}}>{{part.text}}</span>{{/if}}{{if part.type === 'same'}}{{if part.color}}<span class="log-hl" style="color:{{part.color}}">{{part.text}}</span>{{else}}{{part.text}}{{/if}}{{/if}}{{/each}}</div>
+              </div>
               {{/each}}
+              {{if item.iconChanges.length > 0}}
+              <div class="log-change">
+                <div class="log-change-head">图标</div>
+                <div class="log-icons">
+                  {{each item.iconChanges ic}}
+                  <div class="log-icon-pair">
+                    <img class="log-icon-img log-icon-before" src="{{ic.beforeIconUrl}}" onerror="this.style.display='none'"/>
+                    <span class="log-icon-arrow">→</span>
+                    <img class="log-icon-img log-icon-after" src="{{ic.afterIconUrl}}" onerror="this.style.display='none'"/>
+                    {{if ic.context}}<span class="log-icon-context">{{ic.context}}</span>{{/if}}
+                  </div>
+                  {{/each}}
+                </div>
+              </div>
+              {{/if}}
             </div>
             {{/if}}
           </div>
