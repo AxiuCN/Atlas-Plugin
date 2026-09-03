@@ -29,6 +29,13 @@ let indexCache = new Map()
 /** 游戏中文名映射（local，避免跨模块循环引用） */
 const GAME_CN = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
 
+/**
+ * 命中来源排序权重（最终排序时小者在前）
+ * name 名字/别名命中 >> fulltext 兜底全文命中 >> file 文件系统兜底
+ * 避免 Phase 3 全文扫描（技能名/描述沾边）反超 Phase 1 名字直接命中
+ */
+const SOURCE_RANK = { name: 0, fulltext: 1, file: 2 }
+
 /* ============================================================
  *  索引构建
  * ============================================================ */
@@ -254,7 +261,7 @@ export function search (gameId, keyword) {
   const scored = []
   for (const entry of flat) {
     const score = scoreEntry(entry, variants, trimmed)
-    if (score > 0) scored.push({ entry, score })
+    if (score > 0) scored.push({ entry, score, source: 'name' })
   }
 
   scored.sort((a, b) =>
@@ -307,7 +314,7 @@ export function search (gameId, keyword) {
           imageCount: 0,
           aliases: new Set([candidate.base])
         }
-        loaded.push({ entry, score })
+        loaded.push({ entry, score, source: 'file' })
       }
     }
   }
@@ -316,9 +323,10 @@ export function search (gameId, keyword) {
     return { type: 'empty', keyword: trimmed }
   }
 
-  // ===== 最终排序 =====
+  // ===== 最终排序：命中来源分层（名字命中 > 全文命中 > 文件兜底） =====
   loaded.sort((a, b) =>
-    b.score - a.score
+    (SOURCE_RANK[a.source] ?? 0) - (SOURCE_RANK[b.source] ?? 0)
+    || b.score - a.score
     || a.entry.name.localeCompare(b.entry.name, 'zh-Hans-CN')
   )
 
@@ -411,7 +419,7 @@ function findDetailFallbackMatches (flat, variants, seen) {
     if (!record) continue
 
     const score = (PAGE_PRIORITY[entry.pageTitle] || 0) + 120 + scoreLoadedItem(record, variants)
-    matches.push({ entry, score })
+    matches.push({ entry, score, source: 'fulltext' })
     seen.add(entry.filePath)
     if (matches.length >= MAX_RESULTS * 4) break
   }
