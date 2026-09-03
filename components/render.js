@@ -66,8 +66,9 @@ export async function renderAtlas (tpl, data = {}, opts = {}) {
   // 模板文件路径
   data.tplFile = `./plugins/Atlas-Plugin/resources/${app}/${tpl}.html`
 
-  // 缓存标识
-  data.saveId = data.saveId || tpl
+  // 缓存标识：唯一化避免并发渲染同模板时共享临时 HTML 文件互相覆盖
+  // （框架 dealTpl 按 name+saveId 写 temp/html/，同名并发会竞态输出错图）
+  data.saveId = data.saveId || `${tpl}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 
   data.imgType = imgType
 
