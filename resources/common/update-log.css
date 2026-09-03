@@ -1,0 +1,100 @@
+/* ===== 版本更新记录页 update-log.html ===== */
+
+.log-body {
+  padding: 0 14px 10px;
+}
+
+/* 分组标题行的统计信息 */
+.group-box .log-count {
+  font-size: 17px;
+  color: #8a8378;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* 条目列表 */
+.log-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 单个变更条目 */
+.log-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fdfcfb;
+  border: 1px solid #e2dfda;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+/* 条目图标 */
+.log-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #f1ede6;
+}
+
+/* 条目主区 */
+.log-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 条目名 */
+.log-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 21px;
+  color: #3a3a3a;
+  font-weight: 600;
+}
+
+.log-rarity {
+  font-size: 16px;
+  color: #8f6b2f;
+  font-weight: 700;
+}
+
+/* 状态徽标：新版=绿，变更=红 */
+.log-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+
+.log-added {
+  background: rgba(66, 159, 90, 0.14);
+  color: #2f9e5b;
+  border: 1px solid rgba(66, 159, 90, 0.45);
+}
+
+.log-changed {
+  background: rgba(200, 67, 67, 0.12);
+  color: #c84343;
+  border: 1px solid rgba(200, 67, 67, 0.45);
+}
+
+/* 变更字段行（只列字段名 + 所属子项） */
+.log-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+}
+
+.log-change {
+  font-size: 16px;
+  color: #6b6b6b;
+  background: #f6f3ee;
+  border-radius: 4px;
+  padding: 1px 6px;
+}

@@ -18,6 +18,7 @@ import {
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
 import { renderStatusImage } from '../components/status.js'
+import { runDiffScrape } from '../model/AtlasUpdater.js'
 
 const config = getPluginConfig()
 
@@ -135,6 +136,9 @@ export class AtlasAdmin extends plugin {
       } else {
         this._notifyResult(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
       }
+
+      // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
+      await runDiffScrape(['gi', 'hsr', 'zzz'])
     }).catch((err) => {
       logger?.error('[Atlas][管理] 初始化异常:', err)
       this._notifyResult(`[Atlas] 图鉴初始化异常：${err.message}`)
@@ -243,6 +247,9 @@ export class AtlasAdmin extends plugin {
       } else {
         this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}`)
       }
+
+      // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
+      await runDiffScrape(['gi', 'hsr', 'zzz'])
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
       this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
@@ -341,6 +348,9 @@ export class AtlasAdmin extends plugin {
       } else {
         this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}`)
       }
+
+      // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
+      await runDiffScrape(['gi', 'hsr', 'zzz'])
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }

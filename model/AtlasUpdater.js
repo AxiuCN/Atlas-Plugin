@@ -347,6 +347,35 @@ export function compareAtlasVersions (local = {}, remote = {}) {
 }
 
 /* ============================================================
+ *  版本变更记录（diff）抓取
+ * ============================================================ */
+
+/**
+ * 抓取版本变更记录（最新版 vs 前一版，覆盖写本地一份）
+ * 作为初始化/更新流程的最后一个步骤调用；失败仅记录日志，不阻断主流程。
+ * @param {string[]} [games] — 限定游戏，默认全部
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
+export async function runDiffScrape (games = ['gi', 'hsr', 'zzz']) {
+  try {
+    const result = await runSpawn('node', ['src/scrape-diff.mjs', '--game', games.join(',')], {
+      cwd: BACKEND_DIR,
+      timeoutMs: 120000,
+      outputLimit: 4000,
+      label: '版本记录抓取'
+    })
+    if (!result.ok) {
+      logger?.warn(`[Atlas][Updater] 版本记录抓取失败（不影响本次更新）: ${result.reason || result.stderr || result.code}`)
+      return { ok: false, reason: result.reason || 'diff_failed' }
+    }
+    return { ok: true }
+  } catch (err) {
+    logger?.warn(`[Atlas][Updater] 版本记录抓取异常（不影响本次更新）: ${err.message}`)
+    return { ok: false, reason: err.message }
+  }
+}
+
+/* ============================================================
  *  抓取命令（底层 spawn 封装）
  * ============================================================ */
 

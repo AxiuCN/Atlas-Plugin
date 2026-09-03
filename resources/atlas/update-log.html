@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/base.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/list.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/update-log.css"/>
+</head>
+<body>
+  <div class="hero">
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · 版本更新记录</div>
+      <div class="hero-title">{{fromVersion}} → {{toVersion}}</div>
+      {{if generatedAt}}
+      <div class="hero-subtitle">更新于 {{generatedAt}}</div>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="log-body">
+    {{each groups group}}
+    <div class="group-box">
+      <div class="group-title">
+        {{group.title}}
+        <span class="log-count">共 {{group.items.length}} 条 · 新增 {{group.added}} · 变更 {{group.changed}}</span>
+      </div>
+      <div class="log-items">
+        {{each group.items item}}
+        <div class="log-item">
+          {{if item.icon}}
+          <img class="log-icon" src="{{item.icon}}" onerror="this.style.display='none'"/>
+          {{/if}}
+          <div class="log-main">
+            <div class="log-name">
+              {{item.name}}
+              {{if item.rarity}}<span class="log-rarity">★{{item.rarity}}</span>{{/if}}
+              {{if item.status === 'added'}}
+              <span class="log-badge log-added">新增</span>
+              {{else}}
+              <span class="log-badge log-changed">变更</span>
+              {{/if}}
+            </div>
+            {{if item.changes.length > 0}}
+            <div class="log-changes">
+              {{each item.changes c}}
+              <span class="log-change">{{c.section}}·{{c.label}}{{if c.context}}（{{c.context}}）{{/if}}</span>
+              {{/each}}
+            </div>
+            {{/if}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="copyright">Data from nanoka.cc · Created By TRSS-yunzai & Atlas-Plugin</div>
+</body>
+</html>
