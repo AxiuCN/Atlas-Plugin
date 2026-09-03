@@ -173,8 +173,8 @@ function formatTime (iso) {
 function buildItem (gameId, item) {
   const textChanges = []
   const iconChanges = []
-  // 序号展开字段（stats.N.attr / quote.N.text / skill.{id}.{lv}.row / trace.N.*）按「section + 子实体」聚合
-  const seqGroups = new Map() // key: "section|entity" → { section, entity, count }
+  // 序号展开字段按「section + 展示名」聚合（zzz 被动同名称多变体、gi 技能同技能多等级都归一条）
+  const seqGroups = new Map() // key: "section|label" → { section, label, numCount, lvDescription }
   const pending = []
 
   for (const c of item.changes || []) {
@@ -193,30 +193,44 @@ function buildItem (gameId, item) {
       }
       continue
     }
-    // 序号展开字段：按 key 中的「section.N.」识别，合并同一子实体（技能/等级组）的逐条展开
     const group = seqGroupOf(c)
     if (group) {
-      const key = `${group.section}|${group.entity}`
+      const label = seqEntityLabel(c, group)
+      const key = `${group.section}|${label}`
       if (!seqGroups.has(key)) {
-        seqGroups.set(key, { section: group.section, entity: seqEntityLabel(c, group), count: 0 })
+        seqGroups.set(key, { section: group.section, label, numCount: 0, lvDescription: null })
       }
-      seqGroups.get(key).count++
+      const grp = seqGroups.get(key)
+      // 文本字段以 lv1（首个 description）为准；数值/参数行折叠计数
+      if (/\.(description|desc|text|title|name)$/i.test(c.key)) {
+        if (!grp.lvDescription) {
+          const parts = diffText(parseRichText(c.before ?? ''), parseRichText(c.after ?? ''))
+            .map(p => ({ ...p, color: mapHlColor(p.color) }))
+          if (parts.some(p => p.type === 'del' || p.type === 'add')) grp.lvDescription = parts
+        }
+      } else {
+        grp.numCount++
+      }
       continue
     }
     pending.push(c)
   }
 
-  // 聚合条目 → 按子实体合并为单条变更
-  for (const { section, entity, count } of seqGroups.values()) {
+  // 聚合条目：lv1 描述 diff 为准，数值折叠计数
+  for (const { section, label, numCount, lvDescription } of seqGroups.values()) {
+    const parts = []
+    if (lvDescription) parts.push(...lvDescription)
+    if (numCount > 0) {
+      parts.push({ type: 'same', text: `（另有 ${numCount} 处参数更新）`, color: '' })
+    }
+    if (!parts.some(p => p.type === 'del' || p.type === 'add') && numCount === 0) continue
     textChanges.push({
       key: `${section}.N.*`,
       section: SECTION_LABELS[section] || section,
       label: '更新',
-      context: entity || '',
-      parts: [
-        { type: 'same', text: `更新了 ${count} 处${sectionLabelHint(section)}`, color: '' }
-      ],
-      seqCount: count
+      context: label || '',
+      parts,
+      seqCount: numCount
     })
   }
 
@@ -259,14 +273,11 @@ function buildItem (gameId, item) {
  */
 function seqGroupOf (c) {
   const sec = c.section
-  if (!/^(skills|stats|quotes|stories|traces|recommend)/.test(sec)) return null
-  // 需要「两级数字段」才算等级展开（skill.{id}.{lv}.field / stats.{lv}.attr）
+  if (!/^(skills|stats|quotes|stories|traces|recommend|passives)/.test(sec)) return null
+  // 需要「两级数字段」才算等级/变体展开（skill.{id}.{lv}.field / passive.{id}.{var}.desc / stats.{lv}.attr）
   const m = c.key.match(/^([a-z_]+)\.([a-zA-Z0-9]+)\.[^.]+(\..*)?$/)
   if (!m) return null
-  const id = m[2]
-  // skills 按技能 id 分组；其余按 section 整体分组
-  if (sec === 'skills') return { section: sec, entity: id }
-  return { section: sec, entity: '' }
+  return { section: sec }
 }
 
 /** 聚合 section 的类型提示 */
@@ -280,16 +291,17 @@ function sectionLabelHint (section) {
 }
 
 /**
- * 聚合子实体的展示名：从 change 的 context 提取（如「巡风剑舞 · Lv.1」→「巡风剑舞」）
+ * 聚合子实体的展示名：从 change 的 context 提取
+ *  gi 技能「巡风剑舞 · Lv.1」→「巡风剑舞」；zzz 被动「核心被动：苍白血宴」原样
  * @param {object} c - change
- * @param {{section:string, entity:string}} group
+ * @param {{section:string}} group
  * @returns {string}
  */
 function seqEntityLabel (c, group) {
   const ctx = String(c.context || '').trim()
-  if (!ctx) return group.section === 'skills' ? `技能 ${group.entity}` : ''
-  // 提取「 · Lv.N」前缀作为技能名
-  const name = ctx.replace(/\s*[·・]\s*Lv\.?\s*[\d]+.*$/i, '').trim()
+  if (!ctx) return group.section === 'skills' ? '技能' : ''
+  // 提取「 · Lv.N」/「 · 变体N」前缀作为显示名
+  const name = ctx.replace(/\s*[·・]\s*(?:Lv\.?\s*|等级)?[\d]+.*$/i, '').trim()
   return name || ctx
 }
 
