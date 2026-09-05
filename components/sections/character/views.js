@@ -6,14 +6,18 @@ import { getSkillNames, getConstellationNames, getOutfits } from './names.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { imgUrl, formatFoodDesc, cleanForRender } from '../util.js'
 
-/** 默认视图：隐藏技能参数 + 去重 metaFields */
+/** 默认视图：隐藏技能参数等级表（保留固定属性小格）+ 去重 metaFields */
 export function applyDefaultView (data) {
-  // 隐藏技能参数
+  // 隐藏技能参数等级表；有固定属性（冷却/能量/体力等）时保留小格展示
   const sections = data.sections.map(s => {
     if (s.type === 'skill-cards' && s.skills) {
       return {
         ...s,
-        skills: s.skills.map(sk => ({ ...sk, params: null }))
+        skills: s.skills.map(sk =>
+          sk.params?.fixed?.length
+            ? { ...sk, params: { ...sk.params, rows: [] } }
+            : { ...sk, params: null }
+        )
       }
     }
     return s

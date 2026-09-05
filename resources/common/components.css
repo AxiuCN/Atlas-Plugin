@@ -229,6 +229,40 @@
   margin-bottom: 4px;
 }
 
+/* ===== 固定属性小格条 .param-fixed ===== */
+.skill-params .param-fixed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ===== 固定属性小格 .param-fixed-item ===== */
+.skill-params .param-fixed-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(180, 90, 60, 0.08);
+  border: 1px solid rgba(180, 90, 60, 0.28);
+  font-size: 21px;
+  white-space: nowrap;
+}
+
+/* ===== 固定属性标签 .param-fixed-label ===== */
+.skill-params .param-fixed-label {
+  color: #8a6b3f;
+  font-weight: 600;
+}
+
+/* ===== 固定属性值 .param-fixed-value ===== */
+.skill-params .param-fixed-value {
+  color: #3a3a3a;
+  font-weight: 700;
+  font-family: Number, "MiSans Semibold", MiSans, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+
 /* ===== 参数小表 .mini-table ===== */
 .mini-table {
   width: 100%;
