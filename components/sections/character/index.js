@@ -5,7 +5,7 @@
 import { buildGI } from './gi.js'
 import { buildHSR } from './hsr.js'
 import { buildZZZ } from './zzz.js'
-import { applyDefaultView, applySkillsView, applyConstellationsView, applyProfileView, applyStoriesView, applyMaterialsView } from './views.js'
+import { applyDefaultView, applySkillsView, applyRatesView, applyConstellationsView, applyProfileView, applyStoriesView, applyMaterialsView } from './views.js'
 
 /**
  * 将三游戏异构 JSON 归一化为统一的角色模板数据
@@ -33,6 +33,7 @@ export function buildCharacterData (gameId, record, subView = null) {
   }
   switch (subView) {
     case 'skills': return applySkillsView(fullData)
+    case 'rates': return applyRatesView(fullData)
     case 'constellations': return applyConstellationsView(fullData)
     case 'profile': return applyProfileView(fullData, gameId, detail)
     case 'stories': return applyStoriesView(fullData, gameId, detail)

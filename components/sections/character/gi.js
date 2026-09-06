@@ -130,7 +130,9 @@ export function buildGI (list, detail, meta) {
         tag: skillTag(s.name, 'gi'),
         icon: img(`detail.skills.${i}.promote.0.icon`),
         desc: cleanForRender(resolved),
-        params: buildSkillParams(s.promote, 'gi')
+        params: buildSkillParams(s.promote, 'gi'),
+        // 全等级转置表（倍率视图用，宽度自适应不抽样）
+        paramsAll: buildSkillParams(s.promote, 'gi', { allLevels: true })
       }
     })
     sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })

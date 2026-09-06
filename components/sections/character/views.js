@@ -34,6 +34,47 @@ export function applySkillsView (data) {
   return { ...data, sections }
 }
 
+/**
+ * 倍率视图：仅技能卡，参数表切换为全等级转置（paramsAll）
+ * 用于 #xxx倍率 等命令，渲染 character-rates 宽表模板；
+ * 全等级列过多时按每组等级列拆分出多张续表，宽度受限于容器
+ * @param {object} data - 角色模板数据
+ * @param {number} [perTable] - 每张续表包含的等级列数上限
+ */
+export function applyRatesView (data, perTable = 5) {
+  const sections = data.sections
+    .filter(s => s.type === 'skill-cards')
+    .map(s => ({
+      ...s,
+      skills: s.skills.map(sk => {
+        const params = sk.paramsAll && sk.paramsAll.rows?.length ? sk.paramsAll : sk.params
+        if (!params || !params.rows?.length) return { ...sk, params }
+        const tables = splitRateTables(params, perTable)
+        return { ...sk, params: { ...params, tables } }
+      })
+    }))
+  return { ...data, sections }
+}
+
+/**
+ * 全等级转置表 → 多张续表：按等级列数分块（每块保留「属性」首列）
+ * @param {object} params - 全等级转置表 { headers: ['属性','Lv1',...], rows: [{name, values:[]}] }
+ * @param {number} perTable - 每张表的等级列数上限
+ * @returns {Array<{headers: string[], rows: Array<{name:string, values:Array}>}>}
+ */
+function splitRateTables (params, perTable) {
+  const lvHeaders = params.headers.slice(1)
+  const tables = []
+  for (let i = 0; i < lvHeaders.length; i += perTable) {
+    const chunk = lvHeaders.slice(i, i + perTable)
+    tables.push({
+      headers: ['属性', ...chunk],
+      rows: params.rows.map(r => ({ name: r.name, values: r.values.slice(i, i + chunk.length) }))
+    })
+  }
+  return tables
+}
+
 /** 命座视图：仅命座 + 相关效果 */
 export function applyConstellationsView (data) {
   const sections = data.sections.filter(s =>

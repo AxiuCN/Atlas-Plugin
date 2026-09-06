@@ -71,7 +71,7 @@
         {{if sk.desc}}
         <div class="skill-desc">{{@sk.desc}}</div>
         {{/if}}
-        {{if sk.params && ((sk.params.fixed && sk.params.fixed.length > 0) || (sk.params.rows && sk.params.rows.length > 0))}}
+        {{if sk.params && ((sk.params.fixed && sk.params.fixed.length > 0) || (sk.params.tables && sk.params.tables.length > 0) || (sk.params.rows && sk.params.rows.length > 0))}}
         <div class="skill-params">
           {{if sk.params.fixed && sk.params.fixed.length > 0}}
           <div class="param-fixed">
@@ -80,7 +80,19 @@
             {{/each}}
           </div>
           {{/if}}
-          {{if sk.params.rows && sk.params.rows.length > 0}}
+          {{if sk.params.tables && sk.params.tables.length > 0}}
+          {{each sk.params.tables tbl}}
+          <div class="param-title">{{tbl.headers[1]}} — {{tbl.headers[tbl.headers.length - 1]}}</div>
+          <table class="mini-table">
+            <thead><tr>{{each tbl.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>
+            <tbody>
+              {{each tbl.rows row}}
+              <tr><td>{{row.name}}</td>{{each row.values v}}<td>{{each v seg}}<span class="param-seg">{{seg}}</span>{{if $index < v.length - 1}}<wbr/>{{/if}}{{/each}}</td>{{/each}}</tr>
+              {{/each}}
+            </tbody>
+          </table>
+          {{/each}}
+          {{else if sk.params.rows && sk.params.rows.length > 0}}
           <div class="param-title">{{sk.params.title || '属性'}}</div>
           <table class="mini-table">
             <thead><tr>{{each sk.params.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>

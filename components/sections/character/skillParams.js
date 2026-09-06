@@ -155,9 +155,11 @@ const GI_LEVEL_TARGETS = [9, 10, 11, 12, 13, 14]
  * 从技能 promote/level 数据构建参数表
  * @param {object} levelData — s.promote (GI) 或 s.level (HSR)
  * @param {string} game — 'gi' | 'hsr'
+ * @param {object} [opts] - 选项
+ * @param {boolean} [opts.allLevels] - 全等级输出（倍率视图用；默认 GI 抽样到 Lv9-14）
  * @returns {object|null} { headers: string[], rows: string[][], fixed: [] } | null
  */
-export function buildSkillParams (levelData, game) {
+export function buildSkillParams (levelData, game, opts = {}) {
   if (!levelData || typeof levelData !== 'object') return null
 
   const levels = Object.keys(levelData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
@@ -243,9 +245,10 @@ export function buildSkillParams (levelData, game) {
     }
   }
 
-  // 等级抽样（仅 GI）：固定列提取后（基于全等级判定）再抽样代表等级，收敛转置列数
+  // 等级抽样（仅 GI 默认视图）：固定列提取后（基于全等级判定）再抽样代表等级，收敛转置列数；
+  // 倍率视图（allLevels）保留全等级
   let finalRows = rows
-  if (game === 'gi') {
+  if (game === 'gi' && !opts.allLevels) {
     const targets = new Set(GI_LEVEL_TARGETS)
     const sampled = rows.filter(row => targets.has(Number(row[0])))
     // 理论必中（promote 均含 0-14）；异常缺失时退化为全等级

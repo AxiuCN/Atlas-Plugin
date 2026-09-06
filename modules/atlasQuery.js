@@ -12,6 +12,7 @@ import { GAME_NAMES, SHORTCUT_SUFFIXES } from '../components/constants.js'
 // 注意：长后缀在前（parseSubView 顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"）
 const SUFFIX_TO_SUBVIEW = {
   天赋: 'skills', 技能: 'skills',
+  天赋倍率: 'rates', 技能倍率: 'rates', 倍率表: 'rates', 倍率: 'rates',
   命座: 'constellations',
   资料: 'profile',
   故事: 'stories', 语音: 'stories',
@@ -117,10 +118,14 @@ export async function handleQuery (e, gameId, keyword) {
     if (subView) {
       // 带后缀 → 先按剥离后的关键词搜索
       result = search(gameId, searchKeyword)
-      // 首条结果为角色时保留（即使 type 为 list），否则回退到原始关键词搜索
+      // 首条结果为角色时保留（即使 type 为 list），否则回退：
+      //  - 倍率视图（rates）：回退剥离后缀的关键词普通查询（#xxx倍率 → #xxx 图鉴视图）
+      //  - 其他子视图：回退原始关键词搜索
       const topPageKey = result.results?.[0]?.pageKey
       if (result.type === 'empty' || topPageKey !== 'character') {
-        result = search(gameId, keyword)
+        result = subView === 'rates'
+          ? search(gameId, searchKeyword)
+          : search(gameId, keyword)
       }
     } else {
       result = search(gameId, keyword)
