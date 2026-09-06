@@ -51,6 +51,61 @@ export function formatBirthday (birth) {
   return `${birth[0]}月${birth[1]}日`
 }
 
+/**
+ * 原神 fight_prop_* 属性共用映射（角色突破属性 / 武器副属性同源键集）
+ * 值类型：percent — 小数倍率（0.24 → 24%）；flat — 固定数值（元素精通点数）
+ */
+const GI_PROP = {
+  'fight_prop_critical': ['暴击率', 'percent'],
+  'fight_prop_critical_hurt': ['暴击伤害', 'percent'],
+  'fight_prop_element_mastery': ['元素精通', 'flat'],
+  'fight_prop_charge_efficiency': ['元素充能效率', 'percent'],
+  'fight_prop_attack_percent': ['攻击力', 'percent'],
+  'fight_prop_hp_percent': ['生命值', 'percent'],
+  'fight_prop_defense_percent': ['防御力', 'percent'],
+  'fight_prop_heal_add': ['治疗加成', 'percent'],
+  'fight_prop_fire_add_hurt': ['火元素伤害加成', 'percent'],
+  'fight_prop_water_add_hurt': ['水元素伤害加成', 'percent'],
+  'fight_prop_elec_add_hurt': ['雷元素伤害加成', 'percent'],
+  'fight_prop_grass_add_hurt': ['草元素伤害加成', 'percent'],
+  'fight_prop_wind_add_hurt': ['风元素伤害加成', 'percent'],
+  'fight_prop_ice_add_hurt': ['冰元素伤害加成', 'percent'],
+  'fight_prop_rock_add_hurt': ['岩元素伤害加成', 'percent'],
+  'fight_prop_physical_add_hurt': ['物理伤害加成', 'percent']
+}
+
+/**
+ * fight_prop_* 键顺序（用于角色突破属性等单值场景的优先级遍历）
+ */
+export const GI_PROP_KEYS = Object.freeze(Object.keys(GI_PROP))
+
+/**
+ * 查询 fight_prop_* 属性信息（未知键返回原文标签 + raw 类型）
+ * @param {string} key
+ * @param {string} [prefix] - 标签前缀（如「突破·」「副属性·」），默认无
+ * @returns {{label: string, kind: 'percent'|'flat'|'raw'}}
+ */
+export function giPropInfo (key, prefix = '') {
+  const info = GI_PROP[key]
+  if (!info) return { label: key, kind: 'raw' }
+  return { label: prefix + info[0], kind: info[1] }
+}
+
+/**
+ * 按属性值类型格式化（percent 小数转百分比；flat 固定值取整；0/空跳过返回空串）
+ * @param {*} value
+ * @param {'percent'|'flat'|'raw'} kind
+ * @returns {string}
+ */
+export function formatGiProp (value, kind) {
+  if (value == null || kind === 'raw') return value == null ? '' : String(value)
+  const n = Number(value)
+  if (!Number.isFinite(n) || n === 0) return ''
+  if (kind === 'percent') return fmtPercent(n)
+  if (kind === 'flat') return String(Math.round(n))
+  return String(value)
+}
+
 /** 格式化特殊食物描述 */
 export function formatFoodDesc (sf) {
   const parts = []

@@ -4,7 +4,7 @@
  */
 import { resolveLinks } from '../../../model/LinkResolver.js'
 import { buildSkillParams } from './skillParams.js'
-import { imgUrl, elementLabel, weaponLabel, formatBirthday, fmtPercent, cleanForRender, skillTag, passiveUnlock } from '../util.js'
+import { imgUrl, elementLabel, weaponLabel, formatBirthday, cleanForRender, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
 
 /**
  * 构建原神角色数据
@@ -76,27 +76,16 @@ export function buildGI (list, detail, meta) {
       })
     }
 
-    // 突破属性
+    // 突破属性（第 6 次突破）——共用 GI_PROP 映射（与武器副属性同源）
     const asc = sm.ascension
     if (asc && asc.length > 0) {
       const last = asc[asc.length - 1] || {}
-      const propMap = [
-        ['fight_prop_critical_hurt', '暴击伤害'],
-        ['fight_prop_critical', '暴击率'],
-        ['fight_prop_element_mastery', '元素精通'],
-        ['fight_prop_physical_hurt', '物理伤害加成'],
-        ['fight_prop_attack_percent', '攻击力%'],
-        ['fight_prop_hp_percent', '生命值%'],
-        ['fight_prop_defense_percent', '防御力%'],
-        ['fight_prop_heal_add', '治疗加成']
-      ]
-      for (const [key, label] of propMap) {
-        if (last[key]) {
-          const v = last[key]
-          // 突破属性是小数，转百分比
-          metaFields.push({ label: label, value: fmtPercent(v) })
-          break
-        }
+      for (const key of GI_PROP_KEYS) {
+        const { label, kind } = giPropInfo(key, '突破·')
+        const v = last[key]
+        if (v == null || Number(v) === 0) continue
+        metaFields.push({ label, value: formatGiProp(v, kind) })
+        break
       }
     }
   }

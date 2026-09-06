@@ -2,7 +2,7 @@
  * 原神武器构建（GI）
  * 满级基础属性 + 精炼效果 + 升级素材
  */
-import { cleanText, propLabel } from '../util.js'
+import { cleanText, propLabel, giPropInfo, formatGiProp } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 
 /**
@@ -23,7 +23,7 @@ export function buildGIWeapon (list, detail, meta) {
     metaFields.push({ label: '基础攻击力', value: String(list.atk) })
   }
 
-  // 副属性满级值：stats_modifier 中非 atk 的条目（无突破加成）
+  // 副属性满级值：stats_modifier 中非 atk 的条目（无突破加成）——共用 GI_PROP 映射
   if (detail.stats_modifier) {
     const sm = detail.stats_modifier
     for (const [key, val] of Object.entries(sm)) {
@@ -31,18 +31,28 @@ export function buildGIWeapon (list, detail, meta) {
       const lv90Mult = val?.levels?.['90']
       const curve = lv90Mult != null ? val.base * lv90Mult : val.base
 
-      let label, displayValue
-      if (key.includes('element_mastery')) {
-        label = '元素精通'
-        displayValue = String(Math.round(curve))
-      } else if (key === 'hp' || key === 'def') {
-        label = propLabel(key)
-        displayValue = String(Math.round(curve))
+      // 共用映射（fight_prop_* 与角色突破属性同源），副属性统一加「副属性·」前缀
+      const { label, kind } = giPropInfo(key, '副属性·')
+      let finalLabel = label
+      let displayValue
+      if (kind === 'percent') {
+        displayValue = formatGiProp(curve, 'percent')
+      } else if (kind === 'flat') {
+        displayValue = formatGiProp(curve, 'flat')
       } else {
-        label = propLabel(key)
-        displayValue = (curve * 100).toFixed(1) + '%'
+        // 未知键：兼容既有 hp/def 基础属性与元素精通特判
+        if (key.includes('element_mastery')) {
+          finalLabel = '副属性·元素精通'
+          displayValue = String(Math.round(curve))
+        } else if (key === 'hp' || key === 'def') {
+          finalLabel = '副属性·' + propLabel(key)
+          displayValue = String(Math.round(curve))
+        } else {
+          displayValue = (curve * 100).toFixed(1) + '%'
+        }
       }
-      metaFields.push({ label, value: displayValue })
+      if (displayValue === '') continue
+      metaFields.push({ label: finalLabel, value: displayValue })
     }
   }
   const sections = []
