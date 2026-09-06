@@ -81,7 +81,7 @@ export function buildGI (list, detail, meta) {
     if (asc && asc.length > 0) {
       const last = asc[asc.length - 1] || {}
       for (const key of GI_PROP_KEYS) {
-        const { label, kind } = giPropInfo(key, '突破·')
+        const { label, kind } = giPropInfo(key, '突破 · ')
         const v = last[key]
         if (v == null || Number(v) === 0) continue
         metaFields.push({ label, value: formatGiProp(v, kind) })

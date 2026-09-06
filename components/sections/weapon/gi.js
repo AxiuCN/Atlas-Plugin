@@ -31,8 +31,8 @@ export function buildGIWeapon (list, detail, meta) {
       const lv90Mult = val?.levels?.['90']
       const curve = lv90Mult != null ? val.base * lv90Mult : val.base
 
-      // 共用映射（fight_prop_* 与角色突破属性同源），副属性统一加「副属性·」前缀
-      const { label, kind } = giPropInfo(key, '副属性·')
+      // 共用映射（fight_prop_* 与角色突破属性同源），副属性统一加「副属性 · 」前缀
+      const { label, kind } = giPropInfo(key, '副属性 · ')
       let finalLabel = label
       let displayValue
       if (kind === 'percent') {
@@ -42,10 +42,10 @@ export function buildGIWeapon (list, detail, meta) {
       } else {
         // 未知键：兼容既有 hp/def 基础属性与元素精通特判
         if (key.includes('element_mastery')) {
-          finalLabel = '副属性·元素精通'
+          finalLabel = '副属性 · 元素精通'
           displayValue = String(Math.round(curve))
         } else if (key === 'hp' || key === 'def') {
-          finalLabel = '副属性·' + propLabel(key)
+          finalLabel = '副属性 · ' + propLabel(key)
           displayValue = String(Math.round(curve))
         } else {
           displayValue = (curve * 100).toFixed(1) + '%'
