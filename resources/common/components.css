@@ -263,7 +263,7 @@
   font-family: Number, "MiSans Semibold", MiSans, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
-/* ===== 参数小表 .mini-table ===== */
+/* ===== 参数小表 .mini-table（转置：行=属性，列=等级） ===== */
 .mini-table {
   width: 100%;
   border-collapse: collapse;
@@ -272,13 +272,29 @@
   border: 1px solid #d4d1cd;
   border-radius: 6px;
   overflow: hidden;
+  table-layout: fixed;
 }
 
 /* ===== 参数小表 单元格 .mini-table th,td ===== */
 .mini-table th, .mini-table td {
-  padding: 5px 10px;
+  padding: 5px 8px;
   text-align: center;
   border-bottom: 1px solid #e5e2df;
+  vertical-align: middle;
+  line-height: 1.35;
+}
+
+/* ===== 参数表数据格 .mini-table td（保持 table-cell 表格布局，段间由 <wbr> 提供软换行点） ===== */
+.mini-table td {
+  color: #555555;
+  white-space: normal;
+  word-break: normal;
+}
+
+/* ===== 参数段 .param-seg（原子，段内不断行；段与段之间的 <wbr> 提供换行机会） ===== */
+.mini-table .param-seg {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* ===== 参数小表 表头 .mini-table th ===== */
@@ -286,11 +302,16 @@
   background: rgba(110,110,110,0.10);
   color: #6b6b6b;
   font-weight: 600;
+  white-space: nowrap; /* 等级列表头（Lv6 等）单行 */
 }
 
-/* ===== 参数表数据格 .mini-table td ===== */
-.mini-table td {
-  color: #555555;
+/* ===== 参数表 首列（属性名） ===== */
+.mini-table thead th:first-child,
+.mini-table tbody td:first-child {
+  text-align: left; /* td 为 table-cell，用 text-align 使属性名靠左 */
+  white-space: normal;
+  word-break: normal;
+  font-weight: 600;
 }
 
 /* ===== 命座网格 .con-grid ===== */

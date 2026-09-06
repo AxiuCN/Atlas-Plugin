@@ -86,7 +86,7 @@
             <thead><tr>{{each sk.params.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>
             <tbody>
               {{each sk.params.rows row}}
-              <tr>{{each row v}}<td>{{v}}</td>{{/each}}</tr>
+              <tr><td>{{row.name}}</td>{{each row.values v}}<td>{{each v seg}}<span class="param-seg">{{seg}}</span>{{if $index < v.length - 1}}<wbr/>{{/if}}{{/each}}</td>{{/each}}</tr>
               {{/each}}
             </tbody>
           </table>

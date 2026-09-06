@@ -5,6 +5,7 @@
 import { imgUrl, propLabel, cleanText } from '../util.js'
 import { aggregateMats } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
+import { transposeTable } from './skillParams.js'
 
 /** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
 function _formatZzzBirthday (birth) {
@@ -86,7 +87,7 @@ export function buildZZZ (list, detail, meta) {
               }
               rows.push(row)
             }
-            params = { headers, rows }
+            params = transposeTable({ headers, rows })
           }
         }
       }

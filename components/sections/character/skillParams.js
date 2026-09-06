@@ -108,24 +108,54 @@ function mergeSameRefs (tokens) {
 }
 
 /**
- * 将 token 流渲染为单格字符串：引用段取值，文本段归一化原样保留
+ * 将 token 流渲染为段数组：引用段取值、文本段归一化，
+ * 每段是独立原子（模板中 nowrap），换行只发生在段边界、不会断在段内
  * @param {Array} tokens
  * @param {Array} param - 该等级 param 数组
- * @returns {string}
+ * @returns {string[]}
  */
 function renderTokens (tokens, param) {
-  return tokens.map(t =>
-    t.type === 'ref'
-      ? fmtParam(param[t.paramIndex], t.format)
-      : normalizeText(t.text)
-  ).join('')
+  const segs = []
+  for (const t of tokens) {
+    const s = t.type === 'ref' ? fmtParam(param[t.paramIndex], t.format) : normalizeText(t.text)
+    if (s) segs.push(s)
+  }
+  return segs
 }
+
+/** 单元格值 → 段数组（原子多段，模板逐段 nowrap；字符串值包为单段） */
+function toSegs (v) {
+  return Array.isArray(v) ? v : [String(v ?? '')]
+}
+
+/**
+ * 横表 → 转置（行=属性，列=等级）
+ * GI/HSR/ZZZ 统一表格形态，等级列收敛、属性名做行标签，避免属性列过多横向溢出
+ * @param {object} params - 横表结构 { headers, rows, fixed?, ... }
+ * @returns {object} 转置后 { headers: ['属性','LvN',...], rows: [{name, values: segs[]}], ... }
+ */
+export function transposeTable (params) {
+  if (!params || !Array.isArray(params.headers) || !Array.isArray(params.rows) || !params.rows.length) {
+    return params
+  }
+  const [, ...attrHeaders] = params.headers
+  const lvLabels = params.rows.map(row => `Lv${row[0]}`)
+  const newHeaders = ['属性', ...lvLabels]
+  const newRows = attrHeaders.map((attr, ai) => ({
+    name: attr,
+    values: params.rows.map(row => toSegs(row[ai + 1]))
+  }))
+  return { ...params, headers: newHeaders, rows: newRows }
+}
+
+/** GI 转置前保留的代表等级（实战常用区间，收敛列数） */
+const GI_LEVEL_TARGETS = [9, 10, 11, 12, 13, 14]
 
 /**
  * 从技能 promote/level 数据构建参数表
  * @param {object} levelData — s.promote (GI) 或 s.level (HSR)
  * @param {string} game — 'gi' | 'hsr'
- * @returns {object|null} { headers: string[], rows: string[][] } | null
+ * @returns {object|null} { headers: string[], rows: string[][], fixed: [] } | null
  */
 export function buildSkillParams (levelData, game) {
   if (!levelData || typeof levelData !== 'object') return null
@@ -197,7 +227,8 @@ export function buildSkillParams (levelData, game) {
   const fixedCols = new Set()
   if (game === 'gi') {
     for (let ci = 1; ci < headers.length; ci++) {
-      const values = rows.map(row => row[ci])
+      // 单元格为段数组 → 按 join 后全文比较是否跨等级恒定
+      const values = rows.map(row => toSegs(row[ci]).join(''))
       if (values.length > 0 && values.every(v => v === values[0])) {
         fixed.push({ label: headers[ci], value: values[0] })
         fixedCols.add(ci)
@@ -212,5 +243,14 @@ export function buildSkillParams (levelData, game) {
     }
   }
 
-  return { headers, rows, fixed }
+  // 等级抽样（仅 GI）：固定列提取后（基于全等级判定）再抽样代表等级，收敛转置列数
+  let finalRows = rows
+  if (game === 'gi') {
+    const targets = new Set(GI_LEVEL_TARGETS)
+    const sampled = rows.filter(row => targets.has(Number(row[0])))
+    // 理论必中（promote 均含 0-14）；异常缺失时退化为全等级
+    if (sampled.length > 0) finalRows = sampled
+  }
+
+  return transposeTable({ headers, rows: finalRows, fixed })
 }
