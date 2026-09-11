@@ -19,7 +19,12 @@ export function applyDefaultView (data) {
       return { ...s, skills: s.skills.map(stripParams) }
     }
     if (s.type === 'skill-groups' && s.groups) {
-      return { ...s, groups: s.groups.map(g => g.skills ? { ...g, skills: g.skills.map(stripParams) } : g) }
+      return {
+        ...s,
+        groups: s.groups.map(g => g.subgroups
+          ? { ...g, subgroups: g.subgroups.map(sg => ({ ...sg, skills: (sg.skills || []).map(stripParams) })) }
+          : g)
+      }
     }
     return s
   })
@@ -36,24 +41,32 @@ export function applySkillsView (data) {
 }
 
 /**
- * 倍率视图：仅技能卡，参数表切换为全等级转置（paramsAll）
- * 用于 #xxx倍率 等命令，渲染 character-rates 宽表模板；
+ * 倍率视图：仅技能卡与忆灵技能组，参数表切换为全等级转置（paramsAll）
+ * 用于 #xxx倍率 等命令，渲染宽表模板；
  * 全等级列过多时按每组等级列拆分出多张续表，宽度受限于容器
  * @param {object} data - 角色模板数据
  * @param {number} [perTable] - 每张续表包含的等级列数上限
  */
 export function applyRatesView (data, perTable = 5) {
+  const toRates = (sk) => {
+    const params = sk.paramsAll && sk.paramsAll.rows?.length ? sk.paramsAll : sk.params
+    if (!params || !params.rows?.length) return { ...sk, params }
+    return { ...sk, params: { ...params, tables: splitRateTables(params, perTable) } }
+  }
+
   const sections = data.sections
-    .filter(s => s.type === 'skill-cards')
-    .map(s => ({
-      ...s,
-      skills: s.skills.map(sk => {
-        const params = sk.paramsAll && sk.paramsAll.rows?.length ? sk.paramsAll : sk.params
-        if (!params || !params.rows?.length) return { ...sk, params }
-        const tables = splitRateTables(params, perTable)
-        return { ...sk, params: { ...params, tables } }
-      })
-    }))
+    .filter(s => s.type === 'skill-cards' || s.type === 'skill-groups')
+    .map(s => {
+      if (s.type === 'skill-groups' && s.groups) {
+        return {
+          ...s,
+          groups: s.groups.map(g => g.subgroups
+            ? { ...g, subgroups: g.subgroups.map(sg => ({ ...sg, skills: (sg.skills || []).map(toRates) })) }
+            : g)
+        }
+      }
+      return { ...s, skills: (s.skills || []).map(toRates) }
+    })
   return { ...data, sections }
 }
 

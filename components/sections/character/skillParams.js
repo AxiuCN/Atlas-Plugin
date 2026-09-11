@@ -213,7 +213,7 @@ export function buildSkillParams (levelData, game, opts = {}) {
   if (!paramHeaders.length && paramList != null) {
     if (Array.isArray(paramList) && paramList.length > 0) {
       // HSR：param_list 为无标签数组，只展示描述中引用过的参数（未引用项为占位 0 值），
-      // 列名按参数序号给出，数值格式由描述推断
+      // 列名按参数序号给出（属性 N，与描述 #N 对应），数值格式由描述推断
       const formats = opts.formats || {}
       const used = Object.keys(formats)
         .map(Number)

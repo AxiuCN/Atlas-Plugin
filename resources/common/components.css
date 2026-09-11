@@ -179,46 +179,70 @@
   margin-bottom: 0;
 }
 
-/* ===== 忆灵技能组 .skill-group（组标题 + 组内技能卡） ===== */
-.skill-group {
+/* ===== 忆灵子栏 .sprite-group（忆灵名 + 忆灵图标） ===== */
+.sprite-group {
   margin-bottom: 12px;
 }
 
-/* ===== 忆灵组末项去间距 .skill-group:last-child ===== */
-.skill-group:last-child {
+/* ===== 忆灵子栏末项去间距 .sprite-group:last-child ===== */
+.sprite-group:last-child {
   margin-bottom: 0;
 }
 
-/* ===== 忆灵组标题 .skill-group-header ===== */
-.skill-group-header {
+/* ===== 忆灵标题 .sprite-title ===== */
+.sprite-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
-/* ===== 忆灵图标 .skill-group-icon（队伍头像类素材，不反相） ===== */
-.skill-group-icon {
-  width: 36px;
-  height: 36px;
+/* ===== 忆灵图标 .sprite-icon（忆灵队伍头像，实色不反相） ===== */
+.sprite-icon {
+  width: 44px;
+  height: 44px;
   object-fit: contain;
 }
 
-/* ===== 忆灵名 .skill-group-name ===== */
-.skill-group-name {
+/* ===== 忆灵名 .sprite-name ===== */
+.sprite-name {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
-  color: #6b6b6b;
+  color: #3a3a3a;
 }
 
-/* ===== 忆灵天赋描述 .skill-group-desc ===== */
-.skill-group-desc {
+/* ===== 忆灵技能分类子组 .sprite-sub（忆灵技 / 忆灵天赋） ===== */
+.sprite-sub {
+  margin-bottom: 10px;
+}
+
+/* ===== 忆灵分类子组末项去间距 .sprite-sub:last-child ===== */
+.sprite-sub:last-child {
+  margin-bottom: 0;
+}
+
+/* ===== 忆灵分类标题 .sprite-sub-title ===== */
+.sprite-sub-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+/* ===== 忆灵分类图标 .sprite-sub-icon（白线稿，反相为深色） ===== */
+.sprite-sub-icon {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: invert(1) brightness(0.9);
+}
+
+/* ===== 忆灵分类名 .sprite-sub-name ===== */
+.sprite-sub-name {
   font-size: 25px;
-  color: #555555;
-  line-height: 1.65;
-  margin-bottom: 8px;
-  white-space: pre-wrap;
+  font-weight: 600;
+  color: #6b6b6b;
 }
 
 /* ===== 技能卡头部 .skill-header ===== */

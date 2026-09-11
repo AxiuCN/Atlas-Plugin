@@ -6,11 +6,13 @@
  * - 星铁条目无 detail.properties，基础属性取自 detail.stats 最高突破档：
  *   满级（80 级）值 = *_base + 79 × *_add，与 miao-plugin meta-sr 的 baseAttr 一致
  * - 行迹体系在 detail.skill_trees，按 point_type 区分：
- *   1 = 属性加成（恒 10 个节点，汇总为总属性加成）
+ *   1 = 属性加成（恒 10 个节点，汇总为「总属性加成」栏）
  *   2 = 主技能树（与 detail.skills 内容重复，不单独展示）
  *   3 = 附加能力（恒 3 条，point_name 为名称）
- *   4 / 5 = 忆灵技能 / 忆灵天赋
- * - 忆灵技能数据在 detail.memosprite.skills，键即 point_type 4 节点的 level_up_skill_id
+ *   4 / 5 = 忆灵技 / 忆灵天赋（point_type 5 为仅有描述的忆灵额外天赋）
+ * - 忆灵技能数据在 detail.memosprite.skills，键即 point_type 4 节点的 level_up_skill_id；
+ *   栏目为「忆灵技能」，忆灵名 + 忆灵图标单独成子栏，其下按技能自身 type_name 分「忆灵技 / 忆灵天赋」
+ * - 栏目顺序：技能 → 忆灵技能 → 附加能力 → 总属性加成 → 星魂 → 升级素材
  */
 import { buildSkillParams } from './skillParams.js'
 import { imgUrl, skillTag, cleanText, hsrLabel } from '../util.js'
@@ -22,6 +24,10 @@ const HSR_STAT_FLAT = new Set(['SpeedDelta'])
 
 /** 技能类型排序权重（普攻 → 战技 → 终结技 → 天赋 → 秘技 → 其他） */
 const HSR_SKILL_ORDER = { Normal: 0, BPSkill: 1, Ultra: 2, Maze: 3, ElationDamage: 4, Assist: 5 }
+
+/** 忆灵技能的两个分类（memosprite.skills 的 type_name） */
+const SPRITE_SKILL = '忆灵技'
+const SPRITE_TALENT = '忆灵天赋'
 
 /** 满级等级（基础属性按 80 级计算，成长级数 = 80 - 1） */
 const HSR_MAX_LEVEL = 80
@@ -115,13 +121,12 @@ function buildBaseStats (detail) {
     if (base == null) return
     fields.push({ label, value: String(Math.round(Number(base) + growth * Number(add || 0))) })
   }
-  pushSum(`基础生命 (${HSR_MAX_LEVEL}级)`, top.hp_base, top.hp_add)
-  pushSum(`基础攻击 (${HSR_MAX_LEVEL}级)`, top.attack_base, top.attack_add)
-  pushSum(`基础防御 (${HSR_MAX_LEVEL}级)`, top.defence_base, top.defence_add)
-  if (top.speed_base != null) fields.push({ label: '速度', value: String(top.speed_base) })
-  if (top.critical_chance != null) fields.push({ label: '暴击率', value: (Number(top.critical_chance) * 100).toFixed(1) + '%' })
-  if (top.critical_damage != null) fields.push({ label: '暴击伤害', value: (Number(top.critical_damage) * 100).toFixed(1) + '%' })
-  if (top.base_aggro != null) fields.push({ label: '嘲讽值', value: String(top.base_aggro) })
+  pushSum('基础生命值', top.hp_base, top.hp_add)
+  pushSum('基础攻击力', top.attack_base, top.attack_add)
+  pushSum('基础防御力', top.defence_base, top.defence_add)
+  if (top.speed_base != null) fields.push({ label: '基础速度', value: String(top.speed_base) })
+  if (top.base_aggro != null) fields.push({ label: '嘲讽', value: String(top.base_aggro) })
+  if (detail.sp_need != null) fields.push({ label: '能量上限', value: String(detail.sp_need) })
   return fields
 }
 
@@ -167,14 +172,15 @@ export function buildHSR (list, detail, meta) {
     }
   }
 
-  // ── 属性概览：阵营 + 基础属性（80 级）+ 行迹总属性加成 ──
+  // ── 属性概览：阵营 + 基础属性（80 级）──
   const metaFields = []
   if (detail.chara_info?.camp) {
     metaFields.push({ label: '阵营', value: detail.chara_info.camp })
   }
   metaFields.push(...buildBaseStats(detail))
 
-  // 总属性加成：point_type 1 各节点 status_add_list 按属性累加（标签取数据自带中文名）
+  // 总属性加成：point_type 1 各节点 status_add_list 按属性累加（标签取数据自带中文名），
+  // 独立成栏置于附加能力之后
   const bonusMap = new Map()
   for (const { node } of traceNodes) {
     if (node.point_type !== 1) continue
@@ -186,11 +192,12 @@ export function buildHSR (list, detail, meta) {
       bonusMap.set(key, cur)
     }
   }
+  const bonusItems = []
   for (const [key, { name, sum }] of bonusMap) {
     const value = HSR_STAT_FLAT.has(key)
       ? String(Math.round(sum * 100) / 100)
       : (sum * 100).toFixed(1) + '%'
-    metaFields.push({ label: `加成 · ${name}`, value })
+    bonusItems.push({ label: name, value })
   }
 
   // 技能 → 图标映射：skill_trees 节点 level_up_skill_id 指向技能 id，节点自带图标路径
@@ -233,43 +240,72 @@ export function buildHSR (list, detail, meta) {
    * @param {object} s - 技能原始数据
    * @param {object} formats - 参数格式表
    * @param {string} [iconPath] - 图标 fieldPath
+   * @param {boolean} [plain] - 忆灵技能：不带图标与类型标签（类型由分组标题表达）
    * @returns {object}
    */
-  const toSkillField = (s, formats, iconPath) => {
+  const toSkillField = (s, formats, iconPath, plain = false) => {
     const rawDesc = s.desc || s.simple_desc || ''
     return {
       name: s.name || '',
-      tag: s.type_name || skillTag(s.type || '', 'hsr'),
-      icon: iconPath ? img(iconPath) : '',
+      tag: plain ? '' : (s.type_name || skillTag(s.type || '', 'hsr')),
+      icon: !plain && iconPath ? img(iconPath) : '',
       desc: cleanText(resolveHsrParams(rawDesc, firstLevelParams(s.level))),
       params: buildSkillParams(s.level, 'hsr', { formats })
     }
   }
 
-  // ── 忆灵技能 / 天赋（point_type 4 / 5）──
-  const spriteIcon = img('detail.memosprite.icon')
-  const spriteGroups = []
+  // ── 忆灵技能（point_type 4 / 5）：忆灵单独成子栏，其下按忆灵技 / 忆灵天赋分类 ──
+  const sprite = Object.keys(spriteSkills).length > 0 ? detail.memosprite : null
   const spriteSeen = new Set()
-  for (const { node } of traceNodes) {
-    if (node.point_type === 4) {
-      const groupSkills = []
-      for (const id of node.level_up_skill_id || []) {
-        const key = String(id)
-        if (spriteSeen.has(key)) continue
-        const skill = spriteSkills[key] || detail.skills?.[key]
-        if (!skill) continue
-        spriteSeen.add(key)
-        groupSkills.push(toSkillField(skill, skillFormats(skill), `detail.memosprite.skills.${key}.link.figure`))
-      }
-      if (groupSkills.length > 0) {
-        spriteGroups.push({ name: node.point_name || '', icon: spriteIcon, skills: groupSkills })
-      }
-    } else if (node.point_type === 5) {
-      // 忆灵天赋：仅有描述，无独立技能条目
-      const desc = cleanText(resolveHsrParams(node.point_desc, node.param_list))
-      if (desc) spriteGroups.push({ name: node.point_name || '', icon: spriteIcon, desc })
+  const spriteByType = new Map() // type_name → 技能条目[]
+  const spriteTypeIcons = new Map() // type_name → 分类图标（取所属 skill_trees 节点图标）
+  for (const { treeKey, nodeKey, node } of traceNodes) {
+    if (node.point_type !== 4) continue
+    const nodeIcon = img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
+    for (const id of node.level_up_skill_id || []) {
+      const key = String(id)
+      if (spriteSeen.has(key)) continue
+      const skill = spriteSkills[key] || detail.skills?.[key]
+      if (!skill) continue
+      spriteSeen.add(key)
+      const type = skill.type_name || ''
+      if (!spriteTypeIcons.has(type)) spriteTypeIcons.set(type, nodeIcon)
+      if (!spriteByType.has(type)) spriteByType.set(type, [])
+      spriteByType.get(type).push(toSkillField(skill, skillFormats(skill), null, true))
     }
   }
+  // point_type 5：忆灵额外天赋（仅有描述），并入忆灵天赋分类
+  for (const { node } of traceNodes) {
+    if (node.point_type !== 5) continue
+    const desc = cleanText(resolveHsrParams(node.point_desc, node.param_list))
+    if (!desc) continue
+    const type = SPRITE_TALENT
+    if (!spriteByType.has(type)) spriteByType.set(type, [])
+    spriteByType.get(type).push({ name: node.point_name || '', tag: '', icon: '', desc, params: null })
+  }
+
+  // 分类顺序固定为 忆灵技 → 忆灵天赋，其余类型按出现顺序补后
+  const spriteSubgroups = []
+  for (const type of [SPRITE_SKILL, SPRITE_TALENT]) {
+    if (!spriteByType.has(type)) continue
+    spriteSubgroups.push({ name: type, icon: spriteTypeIcons.get(type) || '', skills: spriteByType.get(type) })
+  }
+  for (const [type, skills] of spriteByType) {
+    if (type === SPRITE_SKILL || type === SPRITE_TALENT) continue
+    spriteSubgroups.push({ name: type, icon: spriteTypeIcons.get(type) || '', skills })
+  }
+
+  const spriteSection = spriteSubgroups.length > 0
+    ? (sprite
+        // 有忆灵：忆灵名 + 忆灵图标单独成子栏
+        ? { title: '忆灵技能', type: 'skill-groups', groups: [{ name: sprite.name || '', icon: img('detail.memosprite.icon'), subgroups: spriteSubgroups }] }
+        // 无忆灵（如欢愉技）：栏目标题取行迹节点名，技能直接列出
+        : {
+            title: traceNodes.find(x => x.node.point_type === 4)?.node.point_name || '特殊技能',
+            type: 'skill-groups',
+            groups: [{ name: '', icon: '', subgroups: spriteSubgroups.map(sg => ({ ...sg, name: '', icon: '' })) }]
+          })
+    : null
   // 忆灵技能若取自 detail.skills（如欢愉技），从技能区剔除避免重复
   const spriteCovered = new Set([...spriteSeen].filter(id => detail.skills?.[id]))
 
@@ -299,6 +335,9 @@ export function buildHSR (list, detail, meta) {
     }
   }
 
+  // ── 忆灵技能（point_type 4 / 5，置于附加能力之前）──
+  if (spriteSection) sections.push(spriteSection)
+
   // ── 附加能力（point_type 3，恒 3 条；名称取节点 point_name）──
   const extraAbilities = traceNodes
     .filter(({ node }) => node.point_type === 3)
@@ -312,9 +351,9 @@ export function buildHSR (list, detail, meta) {
     sections.push({ title: '附加能力', type: 'list', items: extraAbilities })
   }
 
-  // ── 忆灵（point_type 4 / 5，含忆灵技能与忆灵天赋）──
-  if (spriteGroups.length > 0) {
-    sections.push({ title: '忆灵', type: 'skill-groups', groups: spriteGroups })
+  // ── 总属性加成（行迹 point_type 1 汇总，置于附加能力之后）──
+  if (bonusItems.length > 0) {
+    sections.push({ title: '总属性加成', type: 'stat-grid', items: bonusItems })
   }
 
   // ── 星魂（enhanced.ranks 同键覆盖 desc）──
