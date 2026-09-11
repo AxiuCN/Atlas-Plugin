@@ -12,9 +12,11 @@ export function getSkillNames (detail, gameId, images) {
       names.push({ name: s.name, tag: skillTag(s.name, 'gi'), icon: imgUrl(images, `detail.skills.${i}.promote.0.icon`) })
     })
   } else if (gameId === 'hsr' && detail.skills && typeof detail.skills === 'object') {
-    Object.entries(detail.skills).forEach(([key, s]) => {
-      names.push({ name: s.name, tag: skillTag(s.type || s.type_name || '', 'hsr'), icon: imgUrl(images, `detail.skills.${key}.level.0.icon`) })
-    })
+    Object.entries(detail.skills)
+      .filter(([, s]) => s.type !== 'MazeNormal')
+      .forEach(([key, s]) => {
+        names.push({ name: s.name, tag: s.type_name || skillTag(s.type || '', 'hsr'), icon: imgUrl(images, `detail.skills.${key}.level.0.icon`) })
+      })
   } else if (gameId === 'zzz' && detail.skill && typeof detail.skill === 'object') {
     const skillOrder = ['basic', 'dodge', 'special', 'chain', 'core']
     const skillLabels = { basic: '普通攻击', dodge: '闪避', special: '特殊技', chain: '连携技', core: '核心技' }

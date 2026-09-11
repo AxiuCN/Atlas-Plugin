@@ -36,6 +36,22 @@ function fmtParam (value, format) {
 }
 
 /**
+ * 格式化无标签 param_list 单值（HSR）
+ * 数值语义由描述推断的格式决定：percent → 比例值 ×100（2 → 200%）；num → 按 f1/f2 保留小数位
+ * @param {*} value
+ * @param {{kind: 'percent'|'num', decimals: number}} [fmt]
+ * @returns {string}
+ */
+function fmtParamListValue (value, fmt) {
+  if (value == null || value === '') return ''
+  const n = Number(value)
+  if (Number.isNaN(n)) return String(value)
+  if (fmt?.kind === 'percent') return (n * 100).toFixed(fmt.decimals || 0) + '%'
+  if (fmt?.kind === 'num' && fmt.decimals > 0) return n.toFixed(fmt.decimals)
+  return fmtNum(n)
+}
+
+/**
  * 文本段归一（无空格拼接，节省排版空间，保留语义文字与单位）
  * - 纯 `+` → `+`；`,` / `，` → `/`；`*` / `×` → `×`
  * - 其余文字原样保留（如「每点」「攻击力」「秒」「*2」→「×2」）
@@ -157,6 +173,8 @@ const GI_LEVEL_TARGETS = [9, 10, 11, 12, 13, 14]
  * @param {string} game — 'gi' | 'hsr'
  * @param {object} [opts] - 选项
  * @param {boolean} [opts.allLevels] - 全等级输出（倍率视图用；默认 GI 抽样到 Lv9-14）
+ * @param {Object<number, {kind: 'percent'|'num', decimals: number}>} [opts.formats]
+ *   - 无标签 param_list（HSR）的按索引展示格式，由描述中的 `#N[fmt]%` 推断
  * @returns {object|null} { headers: string[], rows: string[][], fixed: [] } | null
  */
 export function buildSkillParams (levelData, game, opts = {}) {
@@ -194,10 +212,18 @@ export function buildSkillParams (levelData, game, opts = {}) {
 
   if (!paramHeaders.length && paramList != null) {
     if (Array.isArray(paramList) && paramList.length > 0) {
-      paramHeaders = paramList.map((_, i) => `属性${i + 1}`)
+      // HSR：param_list 为无标签数组，只展示描述中引用过的参数（未引用项为占位 0 值），
+      // 列名按参数序号给出，数值格式由描述推断
+      const formats = opts.formats || {}
+      const used = Object.keys(formats)
+        .map(Number)
+        .filter(i => i >= 0 && i < paramList.length)
+        .sort((a, b) => a - b)
+      const idxList = used.length > 0 ? used : paramList.map((_, i) => i)
+      paramHeaders = idxList.map(i => `属性 ${i + 1}`)
       getValues = (entry) => {
         const arr = entry?.param_list || []
-        return paramHeaders.map((_, i) => fmtNum(arr[i]))
+        return idxList.map(i => fmtParamListValue(arr[i], formats[i]))
       }
     } else if (typeof paramList === 'object') {
       paramHeaders = Object.keys(paramList)

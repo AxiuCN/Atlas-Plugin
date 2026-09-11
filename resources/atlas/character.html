@@ -108,6 +108,65 @@
       </div>
       {{/each}}
 
+    {{else if section.type === 'skill-groups'}}
+      {{each section.groups g}}
+      <div class="skill-group">
+        <div class="skill-group-header">
+          {{if g.icon}}<img class="skill-group-icon" src="{{g.icon}}"/>{{/if}}
+          <span class="skill-group-name">{{g.name}}</span>
+        </div>
+        {{if g.desc}}<div class="skill-group-desc">{{@g.desc}}</div>{{/if}}
+        {{each g.skills sk}}
+        <div class="skill-card">
+          <div class="skill-header">
+            {{if sk.icon}}<img class="skill-icon" src="{{sk.icon}}"/>{{/if}}
+            <div class="skill-header-text">
+              <span class="skill-name">{{sk.name}}</span>
+              {{if sk.tag}}<span class="skill-tag">{{sk.tag}}</span>{{/if}}
+            </div>
+          </div>
+          {{if sk.desc}}
+          <div class="skill-desc">{{@sk.desc}}</div>
+          {{/if}}
+          {{if sk.params && ((sk.params.fixed && sk.params.fixed.length > 0) || (sk.params.tables && sk.params.tables.length > 0) || (sk.params.rows && sk.params.rows.length > 0))}}
+          <div class="skill-params">
+            {{if sk.params.fixed && sk.params.fixed.length > 0}}
+            <div class="param-fixed">
+              {{each sk.params.fixed f}}
+              <span class="param-fixed-item"><span class="param-fixed-label">{{f.label}}</span><span class="param-fixed-value">{{f.value}}</span></span>
+              {{/each}}
+            </div>
+            {{/if}}
+            {{if sk.params.tables && sk.params.tables.length > 0}}
+            {{each sk.params.tables tbl}}
+            <div class="param-title">{{tbl.headers[1]}} — {{tbl.headers[tbl.headers.length - 1]}}</div>
+            <table class="mini-table">
+              <thead><tr>{{each tbl.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>
+              <tbody>
+                {{each tbl.rows row}}
+                <tr><td>{{row.name}}</td>{{each row.values v}}<td>{{each v seg}}<span class="param-seg">{{seg}}</span>{{if $index < v.length - 1}}<wbr/>{{/if}}{{/each}}</td>{{/each}}</tr>
+                {{/each}}
+              </tbody>
+            </table>
+            {{/each}}
+            {{else if sk.params.rows && sk.params.rows.length > 0}}
+            <div class="param-title">{{sk.params.title || '属性'}}</div>
+            <table class="mini-table">
+              <thead><tr>{{each sk.params.headers h}}<th>{{h}}</th>{{/each}}</tr></thead>
+              <tbody>
+                {{each sk.params.rows row}}
+                <tr><td>{{row.name}}</td>{{each row.values v}}<td>{{each v seg}}<span class="param-seg">{{seg}}</span>{{if $index < v.length - 1}}<wbr/>{{/if}}{{/each}}</td>{{/each}}</tr>
+                {{/each}}
+              </tbody>
+            </table>
+            {{/if}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+
     {{else if section.type === 'constellation-grid'}}
       <div class="con-grid">
         {{each section.items c}}

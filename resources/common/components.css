@@ -179,6 +179,48 @@
   margin-bottom: 0;
 }
 
+/* ===== 忆灵技能组 .skill-group（组标题 + 组内技能卡） ===== */
+.skill-group {
+  margin-bottom: 12px;
+}
+
+/* ===== 忆灵组末项去间距 .skill-group:last-child ===== */
+.skill-group:last-child {
+  margin-bottom: 0;
+}
+
+/* ===== 忆灵组标题 .skill-group-header ===== */
+.skill-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* ===== 忆灵图标 .skill-group-icon（队伍头像类素材，不反相） ===== */
+.skill-group-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+/* ===== 忆灵名 .skill-group-name ===== */
+.skill-group-name {
+  font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: #6b6b6b;
+}
+
+/* ===== 忆灵天赋描述 .skill-group-desc ===== */
+.skill-group-desc {
+  font-size: 25px;
+  color: #555555;
+  line-height: 1.65;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
 /* ===== 技能卡头部 .skill-header ===== */
 .skill-header {
   display: flex;

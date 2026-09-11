@@ -9,16 +9,17 @@ import { imgUrl, formatFoodDesc, cleanForRender } from '../util.js'
 /** 默认视图：隐藏技能参数等级表（保留固定属性小格）+ 去重 metaFields */
 export function applyDefaultView (data) {
   // 隐藏技能参数等级表；有固定属性（冷却/能量/体力等）时保留小格展示
+  const stripParams = (sk) =>
+    sk.params?.fixed?.length
+      ? { ...sk, params: { ...sk.params, rows: [] } }
+      : { ...sk, params: null }
+
   const sections = data.sections.map(s => {
     if (s.type === 'skill-cards' && s.skills) {
-      return {
-        ...s,
-        skills: s.skills.map(sk =>
-          sk.params?.fixed?.length
-            ? { ...sk, params: { ...sk.params, rows: [] } }
-            : { ...sk, params: null }
-        )
-      }
+      return { ...s, skills: s.skills.map(stripParams) }
+    }
+    if (s.type === 'skill-groups' && s.groups) {
+      return { ...s, groups: s.groups.map(g => g.skills ? { ...g, skills: g.skills.map(stripParams) } : g) }
     }
     return s
   })
@@ -26,10 +27,10 @@ export function applyDefaultView (data) {
   return { ...data, sections }
 }
 
-/** 天赋视图：仅技能 + 被动 + 相关效果（完整参数） */
+/** 天赋视图：仅技能（含忆灵技能组）+ 被动 + 相关效果（完整参数） */
 export function applySkillsView (data) {
   const sections = data.sections.filter(s =>
-    s.type === 'skill-cards' || s.type === 'list'
+    s.type === 'skill-cards' || s.type === 'skill-groups' || s.type === 'list'
   )
   return { ...data, sections }
 }
