@@ -13,6 +13,8 @@
  * - 忆灵技能数据在 detail.memosprite.skills，键即 point_type 4 节点的 level_up_skill_id；
  *   栏目为「忆灵技能」，忆灵名 + 忆灵图标单独成子栏，其下按技能自身 type_name 分「忆灵技 / 忆灵天赋」
  * - 栏目顺序：技能 → 忆灵技能 → 附加能力 → 总属性加成 → 星魂 → 升级素材
+ * - 角色加强（detail.enhanced['1']，10 个加强角色）：技能按 id 末 6 位、星魂按键、
+ *   行迹节点按 treeKey/nodeKey 取加强档案数据直接替换加强前内容（加强前的技能/行迹/星魂不再展示）
  */
 import { buildSkillParams } from './skillParams.js'
 import { imgUrl, skillTag, cleanText, hsrLabel } from '../util.js'
@@ -142,7 +144,7 @@ export function buildHSR (list, detail, meta) {
   const img = (fp) => imgUrl(images, fp)
   const sections = []
 
-  // 星烁加强（enhanced 集中覆盖档案）：单档位键 '1'，含加强版技能/行迹/星魂
+  // 角色加强（enhanced 集中覆盖档案）：单档位键 '1'，含加强版技能/行迹/星魂
   const enhanced = (detail.enhanced && typeof detail.enhanced === 'object' && !Array.isArray(detail.enhanced))
     ? detail.enhanced[Object.keys(detail.enhanced)[0]]
     : null
@@ -179,12 +181,19 @@ export function buildHSR (list, detail, meta) {
   }
   metaFields.push(...buildBaseStats(detail))
 
+  /**
+   * 行迹节点的加强版覆盖（加强档案的 skill_trees 与基础节点按 treeKey/nodeKey 一一对应，
+   * 未加强的节点内容与基础一致）
+   */
+  const enhNodeOf = (treeKey, nodeKey) => enhanced?.skill_trees?.[treeKey]?.[nodeKey] || null
+
   // 总属性加成：point_type 1 各节点 status_add_list 按属性累加（标签取数据自带中文名），
-  // 独立成栏置于附加能力之后
+  // 独立成栏置于附加能力之后；已加强角色取加强节点数据
   const bonusMap = new Map()
-  for (const { node } of traceNodes) {
+  for (const { treeKey, nodeKey, node } of traceNodes) {
     if (node.point_type !== 1) continue
-    for (const st of node.status_add_list || []) {
+    const enhStatus = enhNodeOf(treeKey, nodeKey)?.status_add_list
+    for (const st of (enhStatus?.length ? enhStatus : node.status_add_list) || []) {
       const key = st.property_type || st.name
       if (!key) continue
       const cur = bonusMap.get(key) || { name: st.name || key, sum: 0 }
@@ -311,11 +320,13 @@ export function buildHSR (list, detail, meta) {
 
   // ── 技能（排除秘技攻击与忆灵组已收录条目，按类型排序）──
   if (detail.skills && typeof detail.skills === 'object') {
-    const enhSkills = enhanced?.skills && typeof enhanced.skills === 'object'
-      ? Object.values(enhanced.skills)
-      : null
+    // 加强技能按 id 末 6 位与基础技能对应（加强档案键为前导 1 + 基础技能 id）
+    const enhSkillById = new Map()
+    for (const [enhKey, enhSkill] of Object.entries(enhanced?.skills || {})) {
+      enhSkillById.set(String(enhSkill?.id || enhKey).slice(-6), enhSkill)
+    }
     const skillFields = Object.entries(detail.skills)
-      .map(([key, s], idx) => ({ key, s, enh: enhSkills?.[idx] || null }))
+      .map(([key, s]) => ({ key, s, enh: enhSkillById.get(String(s.id).slice(-6)) || null }))
       // 排除秘技攻击（MazeNormal）、忆灵组已收录条目，以及数据中无描述的空占位条目
       .filter(({ key, s }) => s.type !== 'MazeNormal' && !spriteCovered.has(key) && (s.desc || s.simple_desc))
       .sort((a, b) => hsrSkillOrder(a.s) - hsrSkillOrder(b.s))
@@ -338,14 +349,17 @@ export function buildHSR (list, detail, meta) {
   // ── 忆灵技能（point_type 4 / 5，置于附加能力之前）──
   if (spriteSection) sections.push(spriteSection)
 
-  // ── 附加能力（point_type 3，恒 3 条；名称取节点 point_name）──
+  // ── 附加能力（point_type 3，恒 3 条；名称取节点 point_name，已加强角色取加强节点数据）──
   const extraAbilities = traceNodes
     .filter(({ node }) => node.point_type === 3)
-    .map(({ treeKey, nodeKey, node }) => ({
-      name: node.point_name || '',
-      desc: cleanText(resolveHsrParams(node.point_desc, node.param_list)),
-      icon: img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
-    }))
+    .map(({ treeKey, nodeKey, node }) => {
+      const enhNode = enhNodeOf(treeKey, nodeKey)
+      return {
+        name: enhNode?.point_name || node.point_name || '',
+        desc: cleanText(resolveHsrParams(enhNode?.point_desc || node.point_desc, enhNode?.param_list || node.param_list)),
+        icon: img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
+      }
+    })
     .filter(e => e.name || e.desc)
   if (extraAbilities.length > 0) {
     sections.push({ title: '附加能力', type: 'list', items: extraAbilities })
