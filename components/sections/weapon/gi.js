@@ -72,13 +72,14 @@ export function buildGIWeapon (list, detail, meta) {
     }
   }
 
-  // 升级素材（detail.materials: { "1"~"6": { mats, cost } }，与角色 ascensions 同构）
+  // 升级材料（detail.materials: { "1"~"4": { mats, cost } }，与角色 ascensions 同构）
+  // 注意：detail.xp_requirements 为升级经验表，不计入材料（与角色素材口径一致）
   if (detail.materials && typeof detail.materials === 'object') {
     const levels = Object.values(detail.materials)
     const agg = aggregateMats(levels)
     const items = buildMatItems(agg, meta?.images || [], 'gi')
     if (items.length > 0) {
-      sections.push({ title: '升级素材', type: 'materials', items })
+      sections.push({ title: '升级材料', type: 'materials', items })
     }
   }
 

@@ -58,7 +58,7 @@ export function buildHSRLightcone (list, detail, meta) {
     }
   }
 
-  // 升级素材（detail.stats[0~6].promotion_cost_list，item_id=2 为信用点）
+  // 晋阶材料（detail.stats[0~6].promotion_cost_list，item_id=2 为信用点）
   if (detail.stats && Array.isArray(detail.stats)) {
     const levels = detail.stats
       .map(s => {
@@ -79,7 +79,7 @@ export function buildHSRLightcone (list, detail, meta) {
       const agg = aggregateMats(levels)
       const items = buildMatItems(agg, meta?.images || [], 'hsr')
       if (items.length > 0) {
-        sections.push({ title: '升级素材', type: 'materials', items })
+        sections.push({ title: '晋阶材料', type: 'materials', items })
       }
     }
   }

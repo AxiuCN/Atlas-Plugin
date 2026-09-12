@@ -246,11 +246,15 @@ export function applyMaterialsView (data, gameId, detail) {
       }
     }
   } else if (gameId === 'hsr') {
-    // 突破材料：detail.stats[0~6].cost（item_id=2 为信用点）
+    // 晋阶材料：detail.stats[0~6].cost（item_id=2 为信用点）
     const ascLevels = Object.values(detail.stats || {}).map(s => _hsrCostToLevel(s?.cost))
-    sections.push(..._hsrMatSections(ascLevels, '突破材料（总计）', images))
+    sections.push(..._hsrMatSections(ascLevels, '晋阶材料（总计）', images))
 
-    // 行迹材料：detail.skill_trees 各等级节点的 material_list（技能升级 / 附加能力与属性加成解锁）
+    // 行迹材料：detail.skill_trees 各等级节点的 material_list
+    // 口径 = 整棵行迹树「全解锁 + 全满级」：技能升级（point_type 2，普攻 6 级、战技/终结技/天赋各 10 级）
+    // 连同附加能力（point_type 3，恒 3 个）与属性加成（point_type 1，恒 10 个）的一次性解锁材料一并计入。
+    // nanoka 页面的「行迹材料」只统计技能升级部分（符玄：信用点 2197500 / 命运足迹 6），
+    // 因其不含 point_type 1/3 的解锁消耗（信用点 802500 / 命运足迹 2），故本插件数值更大（3000000 / 8）。
     const traceLevels = []
     for (const tree of Object.values(detail.skill_trees || {})) {
       for (const node of Object.values(tree || {})) {
@@ -260,32 +264,18 @@ export function applyMaterialsView (data, gameId, detail) {
     }
     sections.push(..._hsrMatSections(traceLevels, '行迹材料（总计）', images))
   } else if (gameId === 'zzz') {
-    // 养成素材：detail.level[*].materials 对象（{ "10": 24000, "100213": 4 }，id=10 为丁尼）
-    const levels = Object.values(detail.level || {})
-      .filter(lv => lv && typeof lv.materials === 'object' && lv.materials)
-      .map(lv => {
-        const mats = Object.entries(lv.materials)
-          .filter(([id]) => id !== '10')
-          .map(([id, count]) => ({
-            id,
-            count: Number(count) || 0,
-            name: getZZZItemName(id) || String(id),
-            rank: 0
-          }))
-        return { cost: Number(lv.materials['10']) || 0, mats }
-      })
-      .filter(l => l.mats.length > 0 || l.cost > 0)
-    const agg = aggregateMats(levels)
-    const items = []
-    if (agg.cost > 0) {
-      items.push({ name: '丁尼', count: agg.cost, icon: getZZZItemIcon('10'), id: 10, rank: 0 })
+    // 突破素材：detail.level[*].materials（{ "10": 24000, "100213": 4 }，id=10 为丁尼）
+    const levelGroups = Object.values(detail.level || {}).map(lv => lv?.materials)
+    // 技能素材：detail.skill.{basic,dodge,special,chain,assist}.material（各技能独立升 1~12 级）
+    const skillGroups = []
+    for (const sk of Object.values(detail.skill || {})) {
+      for (const lv of Object.values(sk?.material || {})) skillGroups.push(lv)
     }
-    for (const m of agg.mats) {
-      items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
-    }
-    if (items.length > 0) {
-      sections.push({ title: '养成素材（总计）', type: 'materials', items })
-    }
+    // 被动素材：detail.passive.materials（核心被动 1~6 级）
+    const passiveGroups = Object.values(detail.passive?.materials || {})
+
+    sections.push(..._zzzMatSections(levelGroups, '突破素材（总计）'))
+    sections.push(..._zzzMatSections([...levelGroups, ...skillGroups, ...passiveGroups], '总育成素材（总计）'))
   }
 
   if (sections.length === 0) {
@@ -340,4 +330,38 @@ function _hsrRarityRank (rarity) {
   if (rarity === 'VeryRare') return 3
   if (rarity === 'SuperRare') return 4
   return 0
+}
+
+/**
+ * ZZZ 材料组 → materials 栏
+ * @param {Array} groups - [{ "10": 24000, "100213": 4 }, …]，id=10 为丁尼
+ * @param {string} title
+ * @returns {Array} sections
+ */
+function _zzzMatSections (groups, title) {
+  const levels = groups
+    .filter(g => g && typeof g === 'object')
+    .map(g => {
+      const mats = Object.entries(g)
+        .filter(([id]) => id !== '10')
+        .map(([id, count]) => ({
+          id,
+          count: Number(count) || 0,
+          name: getZZZItemName(id) || String(id),
+          rank: 0
+        }))
+      return { cost: Number(g['10']) || 0, mats }
+    })
+    .filter(l => l.mats.length > 0 || l.cost > 0)
+  if (levels.length === 0) return []
+
+  const agg = aggregateMats(levels)
+  const items = []
+  if (agg.cost > 0) {
+    items.push({ name: '丁尼', count: agg.cost, icon: getZZZItemIcon('10'), id: 10, rank: 0 })
+  }
+  for (const m of agg.mats) {
+    items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
+  }
+  return items.length > 0 ? [{ title, type: 'materials', items }] : []
 }

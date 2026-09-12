@@ -63,8 +63,9 @@ export function buildZZZWeapon (list, detail, meta) {
     }
   }
 
-  // 升级素材（detail.materials 扁平字符串："10:9600,101011:3|10:22400,101021:10|..."）
+  // 突破素材（detail.materials 扁平字符串："10:9600,101011:3|10:22400,101021:10|..."）
   // 格式：| 分档、, 分材料、id:count；id=10 为货币丁尼（转 cost）
+  // 注意：detail.level[*].exp 为升级经验表，不计入素材（与角色素材口径一致）
   if (detail.materials && typeof detail.materials === 'string') {
     const levels = detail.materials.split('|').map(lvl => {
       const parts = lvl.split(',').map(pair => {
@@ -88,7 +89,7 @@ export function buildZZZWeapon (list, detail, meta) {
         items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
       }
       if (items.length > 0) {
-        sections.push({ title: '升级素材', type: 'materials', items })
+        sections.push({ title: '突破素材', type: 'materials', items })
       }
     }
   }
