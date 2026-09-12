@@ -5,8 +5,10 @@
 import { getSkillNames, getConstellationNames, getOutfits } from './names.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { imgUrl, formatFoodDesc, cleanForRender } from '../util.js'
+import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
+import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
-/** 默认视图：隐藏技能参数等级表（保留固定属性小格）+ 去重 metaFields */
+/** 默认视图：隐藏技能参数等级表（保留固定属性小格），素材仅养成子视图展示 */
 export function applyDefaultView (data) {
   // 隐藏技能参数等级表；有固定属性（冷却/能量/体力等）时保留小格展示
   const stripParams = (sk) =>
@@ -14,20 +16,22 @@ export function applyDefaultView (data) {
       ? { ...sk, params: { ...sk.params, rows: [] } }
       : { ...sk, params: null }
 
-  const sections = data.sections.map(s => {
-    if (s.type === 'skill-cards' && s.skills) {
-      return { ...s, skills: s.skills.map(stripParams) }
-    }
-    if (s.type === 'skill-groups' && s.groups) {
-      return {
-        ...s,
-        groups: s.groups.map(g => g.subgroups
-          ? { ...g, subgroups: g.subgroups.map(sg => ({ ...sg, skills: (sg.skills || []).map(stripParams) })) }
-          : g)
+  const sections = data.sections
+    .filter(s => s.type !== 'materials')
+    .map(s => {
+      if (s.type === 'skill-cards' && s.skills) {
+        return { ...s, skills: s.skills.map(stripParams) }
       }
-    }
-    return s
-  })
+      if (s.type === 'skill-groups' && s.groups) {
+        return {
+          ...s,
+          groups: s.groups.map(g => g.subgroups
+            ? { ...g, subgroups: g.subgroups.map(sg => ({ ...sg, skills: (sg.skills || []).map(stripParams) })) }
+            : g)
+        }
+      }
+      return s
+    })
 
   return { ...data, sections }
 }
@@ -205,16 +209,23 @@ export function applyStoriesView (data, gameId, detail) {
   return { ...data, sections }
 }
 
-/** 养成/素材视图：聚合突破+天赋材料总数，附加图标 */
+/**
+ * 养成/素材视图：按游戏聚合养成材料（仅本子视图展示素材）
+ * GI: detail.materials.ascensions / talents；HSR: stats[].cost（突破）+ skill_trees 各节点 material_list（行迹）；
+ * ZZZ: detail.level[].materials（id=10 为丁尼）
+ * @param {object} data - 角色模板数据
+ * @param {string} gameId - 'gi' | 'hsr' | 'zzz'
+ * @param {object} detail - record.content.detail
+ */
 export function applyMaterialsView (data, gameId, detail) {
   const sections = []
   const materials = detail.materials
   const images = data._images || []
 
   if (gameId === 'gi' && materials) {
-    // 聚合突破材料
+    // 聚合突破材料（旅行者等数据仅有摩拉时也展示）
     const ascAgg = aggregateMats(materials.ascensions || [])
-    if (ascAgg.mats.length > 0) {
+    if (ascAgg.mats.length > 0 || ascAgg.cost > 0) {
       sections.push({
         title: '突破材料（总计）',
         type: 'materials',
@@ -234,6 +245,47 @@ export function applyMaterialsView (data, gameId, detail) {
         })
       }
     }
+  } else if (gameId === 'hsr') {
+    // 突破材料：detail.stats[0~6].cost（item_id=2 为信用点）
+    const ascLevels = Object.values(detail.stats || {}).map(s => _hsrCostToLevel(s?.cost))
+    sections.push(..._hsrMatSections(ascLevels, '突破材料（总计）', images))
+
+    // 行迹材料：detail.skill_trees 各等级节点的 material_list（技能升级 / 附加能力与属性加成解锁）
+    const traceLevels = []
+    for (const tree of Object.values(detail.skill_trees || {})) {
+      for (const node of Object.values(tree || {})) {
+        if (!Array.isArray(node?.material_list) || node.material_list.length === 0) continue
+        traceLevels.push(_hsrCostToLevel(node.material_list))
+      }
+    }
+    sections.push(..._hsrMatSections(traceLevels, '行迹材料（总计）', images))
+  } else if (gameId === 'zzz') {
+    // 养成素材：detail.level[*].materials 对象（{ "10": 24000, "100213": 4 }，id=10 为丁尼）
+    const levels = Object.values(detail.level || {})
+      .filter(lv => lv && typeof lv.materials === 'object' && lv.materials)
+      .map(lv => {
+        const mats = Object.entries(lv.materials)
+          .filter(([id]) => id !== '10')
+          .map(([id, count]) => ({
+            id,
+            count: Number(count) || 0,
+            name: getZZZItemName(id) || String(id),
+            rank: 0
+          }))
+        return { cost: Number(lv.materials['10']) || 0, mats }
+      })
+      .filter(l => l.mats.length > 0 || l.cost > 0)
+    const agg = aggregateMats(levels)
+    const items = []
+    if (agg.cost > 0) {
+      items.push({ name: '丁尼', count: agg.cost, icon: getZZZItemIcon('10'), id: 10, rank: 0 })
+    }
+    for (const m of agg.mats) {
+      items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
+    }
+    if (items.length > 0) {
+      sections.push({ title: '养成素材（总计）', type: 'materials', items })
+    }
   }
 
   if (sections.length === 0) {
@@ -245,4 +297,47 @@ export function applyMaterialsView (data, gameId, detail) {
   }
 
   return { ...data, sections }
+}
+
+/**
+ * HSR cost/material_list → aggregateMats 入参（item_id=2 为信用点，其余按物品索引取名称与图标）
+ * @param {Array} list - [{ item_id, item_num, rarity }]
+ * @returns {{cost: number, mats: Array}}
+ */
+function _hsrCostToLevel (list) {
+  const arr = Array.isArray(list) ? list : []
+  const credit = arr.find(c => c.item_id === 2)
+  const mats = arr
+    .filter(c => c.item_id !== 2)
+    .map(c => ({
+      id: c.item_id,
+      count: c.item_num,
+      name: getHsrItemName(c.item_id) || String(c.item_id),
+      rank: _hsrRarityRank(c.rarity)
+    }))
+  return { cost: credit?.item_num || 0, mats }
+}
+
+/**
+ * HSR 聚合结果 → materials 栏（信用点与材料图标、排序复用 buildMatItems）
+ * @param {Array} levels - [{ cost, mats }]
+ * @param {string} title
+ * @param {Array} images - record.meta.images
+ * @returns {Array} sections
+ */
+function _hsrMatSections (levels, title, images) {
+  const valid = levels.filter(l => l.mats.length > 0 || l.cost > 0)
+  if (valid.length === 0) return []
+  const agg = aggregateMats(valid)
+  const items = buildMatItems(agg, images, 'hsr')
+  return items.length > 0 ? [{ title, type: 'materials', items }] : []
+}
+
+/** HSR rarity 字符串 → 排序 rank（NotNormal < Rare < VeryRare < SuperRare） */
+function _hsrRarityRank (rarity) {
+  if (rarity === 'NotNormal') return 1
+  if (rarity === 'Rare') return 2
+  if (rarity === 'VeryRare') return 3
+  if (rarity === 'SuperRare') return 4
+  return 0
 }
