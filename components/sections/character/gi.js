@@ -159,9 +159,9 @@ export function buildGI (list, detail, meta) {
     sections.push({ title: '命之座', type: 'constellation-grid', items: conList })
   }
 
-  // ── 相关效果（LINK refs 汇总，独立于技能栏，置于命座之后）──
+  // ── 相关效果/规则术语（LINK refs 汇总，独立于技能栏，置于命座之后）──
   if (allRefs.length > 0) {
-    sections.push({ title: '相关效果', type: 'list', isRefs: true, items: allRefs })
+    sections.push({ title: '相关效果/规则术语', type: 'list', isRefs: true, items: allRefs })
   }
 
   return { hero, metaFields, sections, _images: images }

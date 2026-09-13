@@ -36,7 +36,7 @@ export function applyDefaultView (data) {
   return { ...data, sections }
 }
 
-/** 天赋视图：仅技能（含忆灵技能组）+ 被动 + 相关效果（完整参数） */
+/** 天赋视图：仅技能（含忆灵技能组）+ 被动 + 相关效果/规则术语（完整参数） */
 export function applySkillsView (data) {
   const sections = data.sections.filter(s =>
     s.type === 'skill-cards' || s.type === 'skill-groups' || s.type === 'list'
@@ -93,7 +93,7 @@ function splitRateTables (params, perTable) {
   return tables
 }
 
-/** 命座视图：仅命座 + 相关效果 */
+/** 命座视图：仅命座 + 相关效果/规则术语 */
 export function applyConstellationsView (data) {
   const sections = data.sections.filter(s =>
     s.type === 'constellation-grid' || s.isRefs

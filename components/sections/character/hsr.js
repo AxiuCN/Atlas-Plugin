@@ -12,7 +12,9 @@
  *   4 / 5 = 忆灵技 / 忆灵天赋（point_type 5 为仅有描述的忆灵额外天赋）
  * - 忆灵技能数据在 detail.memosprite.skills，键即 point_type 4 节点的 level_up_skill_id；
  *   栏目为「忆灵技能」，忆灵名 + 忆灵图标单独成子栏，其下按技能自身 type_name 分「忆灵技 / 忆灵天赋」
- * - 栏目顺序：技能 → 忆灵技能 → 附加能力 → 总属性加成 → 星魂 → 升级素材
+ * - 栏目顺序：技能 → 忆灵技能 → 附加能力 → 总属性加成 → 星魂 → 相关效果/规则术语
+ * - 相关效果/规则术语：技能/忆灵/行迹/星魂对象上的 `extra` 名词解释（如 开拓同行 / 助战技 / 源能），
+ *   按名词 id 去重汇总，与原神 LINK refs 同款排布（`isRefs` 标记，随天赋/命座子视图保留）
  * - 角色加强（detail.enhanced['1']，10 个加强角色）：技能按 id 末 6 位、星魂按键、
  *   行迹节点按 treeKey/nodeKey 取加强档案数据直接替换加强前内容（加强前的技能/行迹/星魂不再展示）
  * - 参数表列名：HSR param_list 无标签，取自 miao-plugin 星铁数据（model/MiaoParams.js）按各级数值
@@ -239,6 +241,20 @@ export function buildHSR (list, detail, meta) {
    */
   const enhNodeOf = (treeKey, nodeKey) => enhanced?.skill_trees?.[treeKey]?.[nodeKey] || null
 
+  // ── 相关效果：数据 extra 名词解释（如 开拓同行 / 助战技 / 源能），按名词 id 去重 ──
+  // 与原神 LINK refs 同款排布，汇总后单列一栏置于星魂之后
+  const allRefs = []
+  const refSeen = new Set()
+  const collectRefs = (...extras) => {
+    for (const extra of extras) {
+      for (const [id, e] of Object.entries(extra || {})) {
+        if (!e?.name || refSeen.has(id)) continue
+        refSeen.add(id)
+        allRefs.push({ name: e.name, desc: cleanMarkup(e.desc || '') })
+      }
+    }
+  }
+
   // 总属性加成：point_type 1 各节点 status_add_list 按属性累加（标签取数据自带中文名），
   // 独立成栏置于附加能力之后；已加强角色取加强节点数据
   const bonusMap = new Map()
@@ -338,6 +354,7 @@ export function buildHSR (list, detail, meta) {
       const type = skill.type_name || ''
       if (!spriteTypeIcons.has(type)) spriteTypeIcons.set(type, nodeIcon)
       if (!spriteByType.has(type)) spriteByType.set(type, [])
+      collectRefs(skill.extra)
       spriteByType.get(type).push(toSkillField(skill, skillFormats(skill), null, true))
     }
   }
@@ -346,6 +363,7 @@ export function buildHSR (list, detail, meta) {
     if (node.point_type !== 5) continue
     const desc = cleanMarkup(resolveHsrParams(node.point_desc, node.param_list))
     if (!desc) continue
+    collectRefs(node.extra)
     const type = SPRITE_TALENT
     if (!spriteByType.has(type)) spriteByType.set(type, [])
     spriteByType.get(type).push({ name: node.point_name || '', tag: '', icon: '', desc, params: null })
@@ -394,6 +412,7 @@ export function buildHSR (list, detail, meta) {
         const paramNames = matchParamNames(miaoKey, paramLevels(levelData))
         // 描述数值取无星魂常规上限档，并在随等级变化的数值后标注该档位
         const dl = descLevelParams(levelData, hsrBaseCap(s))
+        collectRefs(s.extra, enh?.extra)
         return {
           name: s.name || '',
           tag: s.type_name || skillTag(s.type || '', 'hsr'),
@@ -417,6 +436,7 @@ export function buildHSR (list, detail, meta) {
     .filter(({ node }) => node.point_type === 3)
     .map(({ treeKey, nodeKey, node }) => {
       const enhNode = enhNodeOf(treeKey, nodeKey)
+      collectRefs(node.extra, enhNode?.extra)
       return {
         name: enhNode?.point_name || node.point_name || '',
         desc: cleanMarkup(resolveHsrParams(enhNode?.point_desc || node.point_desc, enhNode?.param_list || node.param_list)),
@@ -440,6 +460,7 @@ export function buildHSR (list, detail, meta) {
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([k, r], i) => {
         const enhRank = enhanced?.ranks?.[k] || null
+        collectRefs(r.extra, enhRank?.extra)
         return {
           order: i + 1,
           name: enhRank?.name || r.name || '',
@@ -450,6 +471,11 @@ export function buildHSR (list, detail, meta) {
     if (conList.length > 0) {
       sections.push({ title: '星魂', type: 'constellation-grid', items: conList })
     }
+  }
+
+  // ── 相关效果/规则术语（extra 名词解释汇总，与原神 LINK refs 同款排布，置于星魂之后）──
+  if (allRefs.length > 0) {
+    sections.push({ title: '相关效果/规则术语', type: 'list', isRefs: true, items: allRefs })
   }
 
   return { hero, metaFields, sections, _images: images, recordName: charName !== rawName ? charName : '' }
