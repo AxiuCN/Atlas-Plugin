@@ -70,47 +70,48 @@
   background: rgba(242, 239, 236, 0.1);
 }
 
-/* ===== Hero 形态合体图 .hero-split-diag =====
- * 多形态角色（主角男女形态折叠为一条）的 hero 图：以左下-右上对角线划分两形态，
- * .split-a 取左上三角（索引首条形态），.split-b 取右下三角（折叠掉的另一形态）
+/* ===== Hero 形态合体图 .hero-split =====
+ * 多形态角色（主角男女形态折叠为一条）的 hero 图：以中间竖线对半划分两形态，
+ * .split-a 取左半（索引首条形态），.split-b 取右半（折叠掉的另一形态）
  */
-.hero-split-diag {
+.hero-split {
   background-image: none;
   overflow: hidden;
 }
 
-.hero-split-diag .split-cell {
+.hero-split .split-cell {
   position: absolute;
   inset: 0;
   background-repeat: no-repeat;
   pointer-events: none;
 }
 
-.hero-split-diag .split-a {
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+.hero-split .split-a {
+  clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
 }
 
-.hero-split-diag .split-b {
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+.hero-split .split-b {
+  clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
 }
 
 /* 立绘合体：保持 .hero-landscape 的铺满裁切 */
-.hero-landscape.hero-split-diag .split-cell {
+.hero-landscape.hero-split .split-cell {
   background-size: cover;
   background-position: center 20%;
 }
 
-/* 头像合体：等比缩放居中，并沿对角线补一条分隔线 */
-.hero-portrait.hero-split-diag .split-cell {
+/* 头像合体：等比缩放居中 */
+.hero-portrait.hero-split .split-cell {
   background-size: contain;
   background-position: center;
 }
 
-.hero-portrait.hero-split-diag::after {
+/* 中缝竖分隔线 */
+.hero-split-v::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom right,
+  background: linear-gradient(to right,
     transparent calc(50% - 1px),
     rgba(120, 120, 120, 0.5) calc(50% - 1px),
     rgba(120, 120, 120, 0.5) calc(50% + 1px),

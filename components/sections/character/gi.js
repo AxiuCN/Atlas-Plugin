@@ -4,8 +4,27 @@
  */
 import { resolveLinks } from '../../../model/LinkResolver.js'
 import { buildSkillParams } from './skillParams.js'
-import { imgUrl, weaponLabel, formatBirthday, cleanMarkup, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
+import { imgUrl, galleryUrl, weaponLabel, formatBirthday, cleanMarkup, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
 import { ELEMENT_CN } from '../../constants.js'
+import { familyName } from '../../protagonist.js'
+
+/** 奇偶（千星奇域人偶主角）各元素形态的 hero 背景：人偶名片 */
+const GI_MANEKIN_NAMECARD = 'UI_NameCardIcon_MarionetteNew'
+
+/**
+ * 旅行者各元素形态的 hero 背景：取对应地区的名片纹饰（数据里名片条目自带该资产，但旅行者条目未引用）
+ * 无属性形态即枪主（第三人称射击旅行者），用 TPS 名片
+ */
+const GI_TRAVELER_NAMECARD = {
+  Anemo: 'UI_NameCardIcon_Md', // 蒙德·风吟
+  Geo: 'UI_NameCardIcon_Ly', // 璃月·岩寂
+  Electro: 'UI_NameCardIcon_Daoqi1', // 稻妻·九条之纹
+  Dendro: 'UI_NameCardIcon_Xumi1', // 须弥·照览
+  Hydro: 'UI_NameCardIcon_Fontaine1', // 枫丹·奇械
+  Pyro: 'UI_NameCardIcon_Natlan1', // 纳塔·归火（远端缺图，本地无文件时留空）
+  Cryo: 'UI_NameCardIcon_Snezhnaya1', // 至冬·长夜
+  None: 'UI_NameCardIcon_Tps1' // 至冬·梭影（枪主）
+}
 
 /**
  * 构建原神角色数据
@@ -29,8 +48,13 @@ export function buildGI (list, detail, meta, opts = {}) {
   // ── Hero 区块 ──
   // 主角 chara_info.vision 为「无」，元素改取 list.element（数据源元素码）
   const vision = detail.chara_info?.vision || ''
+  // 旅行者（含无属性的枪主）自身无名片字段，hero 背景按元素取对应地区名片；奇偶取人偶名片
+  const family = familyName('gi', meta?.name || list.zh || '')
+  const familyCard = family === '旅行者'
+    ? GI_TRAVELER_NAMECARD[list.element || detail.element]
+    : (family === '奇偶' ? GI_MANEKIN_NAMECARD : '')
   const hero = {
-    namecard: img('detail.chara_info.namecard.icon'),
+    namecard: img('detail.chara_info.namecard.icon') || galleryUrl('gi', familyCard),
     portrait,
     portrait2,
     title: detail.chara_info?.title || '',
@@ -118,7 +142,9 @@ export function buildGI (list, detail, meta, opts = {}) {
     for (const ref of refs) {
       if (!ref.name || refSeen.has(ref.name)) continue
       refSeen.add(ref.name)
-      allRefs.push(ref)
+      // refs desc 由 LinkResolver 产出（<span style="color:#RRGGBB(AA)"> 与转义 \n 未处理），
+      // 与其它描述一致走 cleanMarkup：归一 6 位色号、转义换行，并剥除多余标签
+      allRefs.push({ name: ref.name, desc: cleanMarkup(ref.desc) })
     }
   }
 

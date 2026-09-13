@@ -549,8 +549,8 @@
  *  官方内联标注（三游戏共用，全模板生效）
  *  数据里的 <color=#X> 由 cleanMarkup() 归一为 6 位大写色号的内联 span；
  *  游戏内配色为深色背景设计，此处按色相统一映射为浅底可读深色（!important 压过内联 style）
- *  注意：选择器为子串匹配，长色号规则须写在短色号之后（同特异性下后者生效），
- *  如 #99FFFFFF（半透明白）必须排在 #99FFFF 之后
+ *  注意：选择器为子串匹配，同色系的长短写法须给同一颜色（如原神冰元素 #99FFFFFF / #99FFFF），
+ *  否则长色号会被短色号的规则截胡
  * ============================================================ */
 
 /* ── 原神 ── */
@@ -563,8 +563,7 @@
 [style*="#FFACFF"] { color: #8e4fa3 !important; } /* 淡紫 → 深紫 */
 [style*="#FF9999"] { color: #b7463c !important; } /* 粉红 → 深朱 */
 [style*="#37FFFF"], [style*="#38FFFF"] { color: #0e7c88 !important; } /* 荧光青 → 深青蓝 */
-[style*="#99FFFF"] { color: #1f7a8d !important; } /* 青白 → 深青 */
-[style*="#99FFFFFF"] { color: #8a8a8a !important; } /* 半透明白（说明文字）→ 弱化灰，须排在 #99FFFF 之后 */
+[style*="#99FFFF"], [style*="#99FFFFFF"] { color: #1f7a8d !important; } /* 原神冰元素（数据写作 8 位 #99FFFFFF，归一后 #99FFFF）→ 冰青 */
 
 /* ── 星铁 ── */
 [style*="#F29E38"] { color: #b06a12 !important; } /* 官方橙：数值/强化词条 → 深橙 */

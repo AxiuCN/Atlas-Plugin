@@ -52,6 +52,7 @@ export const helpList = [
     group: '图鉴信息',
     list: [
       { title: '#图鉴状态', desc: '查看各游戏数据版本、条目数、图片下载统计' },
+      { title: '#图鉴补丁', desc: '查看随插件分发的数据 / 图片 / 索引补丁与上游变更提醒' },
       { title: '#图鉴帮助', desc: '显示本帮助页' }
     ]
   }

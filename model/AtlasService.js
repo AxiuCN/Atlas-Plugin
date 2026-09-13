@@ -14,7 +14,19 @@ import {
   buildKeywordVariants,
   loadAliasMap
 } from './AliasLoader.js'
-import { familyName, variantOf, variantDisplayName, variantAliases } from '../components/protagonist.js'
+import { familyName, variantOf, variantDisplayName, variantAliases, familyGenderAliases } from '../components/protagonist.js'
+import {
+  patchImageUrl,
+  imageGameFolder,
+  applyDataPatch,
+  loadMapPatch,
+  mergePatch,
+  clearPatchCache,
+  loadDataPatch,
+  listDataPatchFiles,
+  listImagePatches,
+  getByPath
+} from '../components/patch.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -59,6 +71,12 @@ function ensureIndex () {
   logger?.info('[Atlas] 正在加载图鉴索引...')
   const raw = fs.readFileSync(mapPath, 'utf8')
   mapCache = JSON.parse(raw)
+  // 索引补丁（resources/patch/map.json）叠加在 map.json 之上，可修条目名 / 稀有度等索引字段
+  const mapPatch = loadMapPatch()
+  if (mapPatch) {
+    mergePatch(mapCache, mapPatch)
+    logger?.info('[Atlas] 已应用索引补丁 resources/patch/map.json')
+  }
   logger?.info('[Atlas] map.json 加载完成')
 
   for (const [gameId, gameData] of Object.entries(mapCache.games)) {
@@ -127,6 +145,7 @@ function ensureIndex () {
 
         const aliases = entryAliases(record, isFamilyOwner)
         for (const alias of variantAliases(gameId, info.family, info.label, indexName)) aliases.add(alias)
+        for (const alias of familyGenderAliases(info.family, info.label, isFamilyOwner)) aliases.add(alias)
         // GI 圣遗物名称是纯数字 ID，需从 JSON 内提取套装名作为别名
         if (gameId === 'gi' && pageKey === 'artifact') {
           try {
@@ -559,17 +578,21 @@ export function resolveRecordImage (record) {
   if (!images || !Array.isArray(images) || !images.length) return ''
   const picked = images.find(item => item?.localPath && item.status === 'downloaded' && !item.placeholder)
     || images.find(item => item?.localPath)
-  if (!picked?.localPath) return ''
+  if (!picked) return ''
+  // 插件图片补丁优先（补缺图 / 覆盖错图）
+  const patch = patchImageUrl(imageGameFolder(picked), picked.originalValue)
+  if (patch) return patch
+  if (!picked.localPath) return ''
   const fullPath = path.join(backendRoot, picked.localPath)
   return pathToFileURL(fullPath).href
 }
 
 /**
- * 加载单条记录 JSON 文件
+ * 加载单条记录 JSON 文件（原始内容，不套补丁；供补丁层做上游值比对）
  * @param {string} relativePath - map.json 中的相对路径
  * @returns {object|null}
  */
-export function loadRecord (relativePath) {
+export function loadRawRecord (relativePath) {
   try {
     const fullPath = path.join(dataDir, relativePath)
     if (!fs.existsSync(fullPath)) return null
@@ -577,6 +600,45 @@ export function loadRecord (relativePath) {
   } catch {
     return null
   }
+}
+
+/**
+ * 加载单条记录 JSON（套用 resources/patch/data 下的补丁）
+ * @param {string} relativePath - map.json 中的相对路径
+ * @returns {object|null}
+ */
+export function loadRecord (relativePath) {
+  const record = loadRawRecord(relativePath)
+  if (!record) return null
+  applyDataPatch(record, relativePath)
+  return record
+}
+
+/**
+ * 补丁概览（供 #图鉴补丁 展示）
+ * 数据补丁按 `_patch.upstream` 快照与上游当前值比对，不一致即提示复核（补丁仍会生效）
+ * @returns {{ dataPatches: Array, images: Array, mapPatch: boolean }}
+ */
+export function getPatchOverview () {
+  const dataPatches = listDataPatchFiles().map(relPath => {
+    const patch = loadDataPatch(relPath) || {}
+    const meta = patch._patch || {}
+    const upstream = meta.upstream || {}
+    const upstreamRecord = Object.keys(upstream).length ? loadRawRecord(relPath) : null
+    const changed = []
+    for (const [dotPath, expect] of Object.entries(upstream)) {
+      const current = getByPath(upstreamRecord, dotPath)
+      if (current !== expect) changed.push({ path: dotPath, expect, current })
+    }
+    return {
+      relPath,
+      note: meta.note || '',
+      updatedAt: meta.updatedAt || '',
+      fieldCount: Object.keys(upstream).length,
+      changed
+    }
+  })
+  return { dataPatches, images: listImagePatches(), mapPatch: !!loadMapPatch() }
 }
 
 /**
@@ -644,6 +706,7 @@ export function resolveEntryPageKey (gameId, keyword) {
 export function reloadIndex () {
   mapCache = null
   indexCache = new Map()
+  clearPatchCache() // 补丁文件可能随更新变化，一并失效
   ensureIndex()
 }
 

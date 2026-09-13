@@ -7,12 +7,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { backendRoot } from '../../model/AtlasService.js'
+import { patchImageUrl, imageGameFolder } from '../patch.js'
 
 // 元素/命途中文映射定义在 components/constants.js（索引层同样需要，避免循环依赖）
 export { elementLabel, hsrLabel } from '../constants.js'
 
 /**
  * 从 meta.images 数组查找指定 fieldPath 的本地文件 URL
+ * 插件图片补丁（resources/patch/gallery/）优先，用于补缺图与覆盖错图
  * @param {Array} images — record.meta.images
  * @param {string} fieldPath — 如 "detail.skills.0.promote.0.icon"
  * @returns {string} file:// URL，查不到返回空串
@@ -20,13 +22,31 @@ export { elementLabel, hsrLabel } from '../constants.js'
 export function imgUrl (images, fieldPath) {
   if (!images || !Array.isArray(images)) return ''
   const img = images.find(i => i.fieldPath === fieldPath)
-  if (img?.localPath) {
+  if (!img) return ''
+  const patch = patchImageUrl(imageGameFolder(img), img.originalValue)
+  if (patch) return patch
+  if (img.localPath) {
     const fullPath = path.join(backendRoot, img.localPath)
     if (fs.existsSync(fullPath)) {
       return pathToFileURL(fullPath).href
     }
   }
   return ''
+}
+
+/**
+ * 按资源名直接取 gallery 图片（数据 meta.images 未引用的素材，如主角各元素形态的地区名片）
+ * 同样优先取插件图片补丁
+ * @param {string} gameId - gi/hsr/zzz（对应 gallery/<gameId>/ 目录）
+ * @param {string} fileName - 资源名（不含扩展名），如 UI_NameCardIcon_Tps1
+ * @returns {string} file:// URL，本地不存在返回空串
+ */
+export function galleryUrl (gameId, fileName) {
+  if (!gameId || !fileName) return ''
+  const patch = patchImageUrl(gameId, fileName)
+  if (patch) return patch
+  const fullPath = path.join(backendRoot, 'gallery', gameId, `${fileName}.webp`)
+  return fs.existsSync(fullPath) ? pathToFileURL(fullPath).href : ''
 }
 
 /** 数值格式化：保留合理小数位 */
@@ -48,9 +68,10 @@ export function fmtPercent (v) {
   return (n * 100).toFixed(1) + '%'
 }
 
-/** 生日格式化：[1, 1] → "1月1日" */
+/** 生日格式化：[1, 1] → "1月1日"（缺月/日时返回空串，如枪主条目的 [null, null]） */
 export function formatBirthday (birth) {
   if (!birth || !Array.isArray(birth) || birth.length < 2) return ''
+  if (birth[0] == null || birth[1] == null) return ''
   return `${birth[0]}月${birth[1]}日`
 }
 
@@ -124,7 +145,8 @@ export function weaponLabel (weapon) {
     WEAPON_CLAYMORE: '双手剑',
     WEAPON_POLE: '长柄武器',
     WEAPON_CATALYST: '法器',
-    WEAPON_BOW: '弓'
+    WEAPON_BOW: '弓',
+    WEAPON_CROSSBOW: '枪' // 第三人称射击旅行者（枪主）条目残留的武器码
   }
   return map[weapon] || weapon
 }

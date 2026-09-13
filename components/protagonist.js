@@ -18,6 +18,12 @@ const PROTAGONIST = {
 }
 
 /**
+ * 形态族的社区简称：条目名带 `·男性/·女性` 的族（奇偶 = 千星奇域人偶主角），
+ * 习惯写作「偶」→ 男偶 / 女偶 / 火男偶
+ */
+const FAMILY_SHORT = { 奇偶: '偶' }
+
+/**
  * 形态族名：主角占位名换可读名，其余去掉末尾性别标记（奇偶·男性 → 奇偶）
  * @param {string} gameId - gi/hsr/zzz
  * @param {string} name - 条目名
@@ -82,5 +88,21 @@ export function variantAliases (gameId, family, label, displayName) {
   if (!label) return []
   const aliases = [displayName, `${label}${family}`]
   if (isProtagonistFamily(gameId, family)) aliases.push(`${label}主`)
+  return aliases
+}
+
+/**
+ * 带性别标记的形态族补充别名（奇偶 → 火偶 / 火男偶 / 火女偶；族名归属形态再挂 偶 / 男偶 / 女偶 / 族名）
+ * 男女形态已折叠为同一条，故两性写法都指向该条
+ * @param {string} family - 形态族名
+ * @param {string} label - 属性中文
+ * @param {boolean} isFamilyOwner - 是否为保留族名的形态
+ * @returns {string[]}
+ */
+export function familyGenderAliases (family, label, isFamilyOwner) {
+  const short = FAMILY_SHORT[family]
+  if (!short) return []
+  const aliases = [`${label}${short}`, `${label}男${short}`, `${label}女${short}`]
+  if (isFamilyOwner) aliases.push(family, short, `男${short}`, `女${short}`)
   return aliases
 }
