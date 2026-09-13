@@ -14,6 +14,7 @@ import {
   buildKeywordVariants,
   loadAliasMap
 } from './AliasLoader.js'
+import { familyName, variantOf, variantDisplayName, variantAliases } from '../components/protagonist.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -43,6 +44,9 @@ const SOURCE_RANK = { name: 0, fulltext: 1, file: 2 }
 /**
  * 加载 map.json 并构建搜索索引
  * 只在首次调用时加载，后续使用缓存
+ *
+ * 多形态角色（主角 / 同族变体）按属性派生变体名（见 components/protagonist.js），
+ * 男女形态折叠为一条索引，另一形态路径记入 variantPair
  */
 function ensureIndex () {
   if (mapCache) return
@@ -63,13 +67,66 @@ function ensureIndex () {
     if (!zhData) continue
 
     const seen = new Set()
+    /** 多形态角色的变体名 → 索引条目（同变体的另一形态记为 variantPair，供 hero 合体图使用） */
+    const variantFirst = new Map()
     for (const [pageKey, page] of Object.entries(zhData.pages)) {
       const pageTitle = PAGE_LABELS[pageKey] || page.title || pageKey
-      for (const [recordId, record] of Object.entries(page.records)) {
-        const dedupeKey = pageKey + '|' + record.name
-        if (seen.has(dedupeKey)) continue
+      const records = Object.entries(page.records)
+      // 形态族成员统计：同名条目（旅行者 / 三月七 / {NICKNAME}）或仅性别标记不同（奇偶·男性/女性）视为同族
+      const familySize = new Map()
+      for (const [, record] of records) {
+        const family = familyName(gameId, record.name)
+        familySize.set(family, (familySize.get(family) || 0) + 1)
+      }
+
+      // 多形态族预扫描：派生各条目变体名，并选出「保留族名别名」的形态
+      // （无属性形态优先 → 原神旅行者；否则首个形态 → 星铁开拓者取毁灭、三月七取存护）。
+      // 其余形态不再挂族名，避免整族同分导致 `#旅行者` / `#开拓者` 落到排序首条
+      const memberInfo = new Map()
+      const familyOwner = new Map()
+      for (const [recordId, record] of records) {
+        const family = familyName(gameId, record.name)
+        if ((familySize.get(family) || 0) <= 1) {
+          memberInfo.set(recordId, { family, label: '', name: record.name, multi: false })
+          continue
+        }
+        const loaded = loadRecord(record.path)
+        const variant = variantOf(gameId, loaded?.content?.list, loaded?.content?.detail)
+        memberInfo.set(recordId, {
+          family,
+          label: variant.label,
+          name: variantDisplayName(family, variant.label),
+          multi: true
+        })
+        const owner = familyOwner.get(family)
+        const preferOwner = !owner || (memberInfo.get(owner).label !== '' && variant.label === '')
+        if (preferOwner) familyOwner.set(family, recordId)
+      }
+
+      for (const [recordId, record] of records) {
+        const info = memberInfo.get(recordId)
+        const isMultiForm = info.multi
+        const isFamilyOwner = !isMultiForm || familyOwner.get(info.family) === recordId
+        const indexName = info.name
+
+        const dedupeKey = pageKey + '|' + indexName
+        if (seen.has(dedupeKey)) {
+          // 同变体的另一形态（男女）：不重复入索引，仅记录合体图配对条目并并入其检索别名
+          // （族名归属形态并入另一形态的原名，其余形态只并入其 id / 文件名，避免整族同分）
+          const first = variantFirst.get(dedupeKey)
+          if (first) {
+            if (!first.variantPair) first.variantPair = record.path
+            const ownerId = familyOwner.get(info.family)
+            for (const alias of entryAliases(record, !isMultiForm || first.recordId === ownerId)) {
+              first.aliases.add(alias)
+            }
+          }
+          continue
+        }
         seen.add(dedupeKey)
-        const aliases = buildEntryAliases(record)
+
+        const aliases = entryAliases(record, isFamilyOwner)
+        for (const alias of variantAliases(gameId, info.family, info.label, indexName)) aliases.add(alias)
         // GI 圣遗物名称是纯数字 ID，需从 JSON 内提取套装名作为别名
         if (gameId === 'gi' && pageKey === 'artifact') {
           try {
@@ -81,10 +138,10 @@ function ensureIndex () {
             }
           } catch {}
         }
-        flat.push({
-          name: record.name,
-          nameLower: record.name.toLowerCase(),
-          nameMatch: normalizeForMatch(record.name),
+        const entry = {
+          name: indexName,
+          nameLower: indexName.toLowerCase(),
+          nameMatch: normalizeForMatch(indexName),
           pageKey,
           pageTitle,
           rarity: record.rarity || '',
@@ -92,7 +149,9 @@ function ensureIndex () {
           filePath: record.path,
           imageCount: Number(record.imageCount || 0),
           aliases
-        })
+        }
+        if (isMultiForm) variantFirst.set(dedupeKey, entry)
+        flat.push(entry)
       }
     }
 
@@ -376,6 +435,23 @@ function buildEntryAliases (record) {
     path.basename(record.path || '', '.json'),
     stripDuplicateSuffix(path.basename(record.path || '', '.json'))
   ].filter(Boolean).map(String))
+  return aliases
+}
+
+/**
+ * 多形态族条目别名：非族名归属形态不再挂族名本身
+ * （旅行者的元素形态不挂「旅行者」、三月七·巡猎不挂「三月七」，避免整族同分抢首条）
+ * @param {object} record — map.json record
+ * @param {boolean} isFamilyOwner — 是否为保留族名的形态
+ * @returns {Set<string>}
+ */
+function entryAliases (record, isFamilyOwner = true) {
+  const aliases = buildEntryAliases(record)
+  if (isFamilyOwner) return aliases
+  const plain = normalizeForMatch(record.name)
+  for (const alias of [...aliases]) {
+    if (normalizeForMatch(alias) === plain) aliases.delete(alias)
+  }
   return aliases
 }
 

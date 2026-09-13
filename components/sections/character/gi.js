@@ -4,25 +4,37 @@
  */
 import { resolveLinks } from '../../../model/LinkResolver.js'
 import { buildSkillParams } from './skillParams.js'
-import { imgUrl, elementLabel, weaponLabel, formatBirthday, cleanMarkup, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
+import { imgUrl, weaponLabel, formatBirthday, cleanMarkup, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
+import { ELEMENT_CN } from '../../constants.js'
 
 /**
  * 构建原神角色数据
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
  * @param {object} meta - record.meta
- * @returns {object|null} { hero, metaFields, sections, _images }
+ * @param {object} [opts] - 索引附加数据：indexName（变体展示名）、siblingRecord（折叠掉的另一性别形态）
+ * @returns {object|null} { hero, metaFields, sections, _images, recordName }
  */
-export function buildGI (list, detail, meta) {
+export function buildGI (list, detail, meta, opts = {}) {
   const images = meta?.images || []
   const img = (fp) => imgUrl(images, fp)
 
+  // 多形态角色（旅行者 / 奇偶）折叠后，hero 头像取男女两形态合体（左下-右上对角线划分）
+  const siblingImages = opts.siblingRecord?.meta?.images || []
+  const portrait = img('icon') || img('detail.icon')
+  const portrait2 = siblingImages.length
+    ? (imgUrl(siblingImages, 'icon') || imgUrl(siblingImages, 'detail.icon'))
+    : ''
+
   // ── Hero 区块 ──
+  // 主角 chara_info.vision 为「无」，元素改取 list.element（数据源元素码）
+  const vision = detail.chara_info?.vision || ''
   const hero = {
     namecard: img('detail.chara_info.namecard.icon'),
-    portrait: img('icon') || img('detail.icon'),
+    portrait,
+    portrait2,
     title: detail.chara_info?.title || '',
-    element: detail.chara_info?.vision || elementLabel(list.element || ''),
+    element: (vision && vision !== '无') ? vision : (ELEMENT_CN[list.element] || ''),
     weapon: weaponLabel(list.weapon || detail.weapon || ''),
     birthday: formatBirthday(list.birth || detail.chara_info?.birth),
     constellation: detail.chara_info?.constellation || '',
@@ -164,5 +176,5 @@ export function buildGI (list, detail, meta) {
     sections.push({ title: '相关效果/规则术语', type: 'list', isRefs: true, items: allRefs })
   }
 
-  return { hero, metaFields, sections, _images: images }
+  return { hero, metaFields, sections, _images: images, recordName: opts.indexName || '' }
 }

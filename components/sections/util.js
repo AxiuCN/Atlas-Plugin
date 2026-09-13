@@ -8,6 +8,9 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { backendRoot } from '../../model/AtlasService.js'
 
+// 元素/命途中文映射定义在 components/constants.js（索引层同样需要，避免循环依赖）
+export { elementLabel, hsrLabel } from '../constants.js'
+
 /**
  * 从 meta.images 数组查找指定 fieldPath 的本地文件 URL
  * @param {Array} images — record.meta.images
@@ -124,15 +127,6 @@ export function weaponLabel (weapon) {
     WEAPON_BOW: '弓'
   }
   return map[weapon] || weapon
-}
-
-/** 元素类型中文映射（fallback，优先用 chara_info.vision 中文值） */
-export function elementLabel (element) {
-  const map = {
-    Cryo: '冰', Pyro: '火', Hydro: '水', Electro: '雷',
-    Anemo: '风', Geo: '岩', Dendro: '草'
-  }
-  return map[element] || element
 }
 
 /** 固有天赋解锁标签 */
@@ -260,28 +254,6 @@ export function propLabel (key) {
     BreakStun: '击破'
   }
   return labels[key] || key
-}
-
-/** 星铁属性类型 → 中文 */
-const HSR_DAMAGE_TYPE = {
-  Physical: '物理', Fire: '火', Ice: '冰', Lightning: '雷', Thunder: '雷',
-  Wind: '风', Quantum: '量子', Imaginary: '虚数'
-}
-
-/** 星铁命途 → 中文（含数据源职业码与官方命途名） */
-const HSR_PATH = {
-  Destruction: '毁灭', TheHunt: '巡猎', Erudition: '智识', Harmony: '同谐',
-  Nihility: '虚无', Preservation: '存护', Abundance: '丰饶', Elation: '欢愉',
-  Remembrance: '记忆',
-  // 数据源 base_type 职业码
-  Rogue: '巡猎', Warrior: '毁灭', Mage: '智识', Knight: '存护',
-  Priest: '丰饶', Warlock: '虚无', Shaman: '同谐', Memory: '记忆'
-}
-
-/** 星铁属性/命途英文 → 中文（未知值原样返回） */
-export function hsrLabel (value) {
-  if (!value) return ''
-  return HSR_DAMAGE_TYPE[value] || HSR_PATH[value] || value
 }
 
 /**

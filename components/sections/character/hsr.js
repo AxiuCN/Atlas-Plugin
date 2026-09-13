@@ -22,7 +22,8 @@
  * - 描述内联数值取「无星魂常规上限」档（行迹树节点数：普攻/忆灵技/忆灵天赋 6、战技/终结技/天赋/
  *   欢愉技 10、秘技 1），随等级变化的数值后标注 （Lv.N）（miao 图鉴同款）；常量参数不标注；
  *   官方 <color>/<u> 高亮由 cleanMarkup() 保留，色相映射见 components.css
- * - 开拓者条目名为占位符 {NICKNAME}（5 命途 × 2 性别），展示名按命途记为「开拓者·<命途>」
+ * - 开拓者条目名为占位符 {NICKNAME}（5 命途 × 2 性别）：形态名在索引层按命途派生为「开拓者·<命途>」
+ *   （见 components/protagonist.js），男女形态折叠为一条，hero 立绘/头像取两者合体图
  */
 import { buildSkillParams, varyingIndexes } from './skillParams.js'
 import { matchParamNames } from '../../../model/MiaoParams.js'
@@ -183,9 +184,10 @@ function buildBaseStats (detail) {
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
  * @param {object} meta - record.meta
+ * @param {object} [opts] - 索引附加数据：indexName（变体展示名）、siblingRecord（折叠掉的另一性别形态）
  * @returns {object|null} { hero, metaFields, sections, _images, recordName }
  */
-export function buildHSR (list, detail, meta) {
+export function buildHSR (list, detail, meta, opts = {}) {
   const images = meta?.images || []
   const img = (fp) => imgUrl(images, fp)
   const sections = []
@@ -195,21 +197,30 @@ export function buildHSR (list, detail, meta) {
     ? detail.enhanced[Object.keys(detail.enhanced)[0]]
     : null
 
-  // 开拓者条目名为游戏占位符 {NICKNAME}（5 个命途 × 2 性别共 10 条）：展示名按命途区分，
-  // 参数名查询键取 miao 的「穹·<命途>」目录（同命途男女形态数据一致，取其一即可）
+  // 开拓者条目名为游戏占位符 {NICKNAME}（5 个命途 × 2 性别共 10 条）：展示名按命途区分（索引层同名，
+  // 见 components/protagonist.js），参数名查询键取 miao 的「穹·<命途>」目录（同命途男女形态数据一致，取其一即可）
   const rawName = list.zh || meta?.name || ''
   const isTrailblazer = rawName === '{NICKNAME}'
   const pathCn = isTrailblazer ? hsrLabel(detail.base_type || '') : ''
   const charName = isTrailblazer && pathCn ? `开拓者·${pathCn}` : rawName
   const miaoKey = isTrailblazer && pathCn ? `穹·${pathCn}` : rawName
 
+  // 折叠掉的另一性别形态：hero 立绘/头像取两者合体（左下-右上对角线划分）
+  const siblingImages = opts.siblingRecord?.meta?.images || []
+  const landscape = img('derived.avatarDrawCard') || img('icon') || img('detail.icon')
+  const landscape2 = siblingImages.length ? imgUrl(siblingImages, 'derived.avatarDrawCard') : ''
+  const portrait = img('icon') || img('detail.icon')
+  const portrait2 = siblingImages.length ? imgUrl(siblingImages, 'icon') : ''
+
   // Hero
   // 头像用商店头像（avatarshopicon）；立绘用 avatarDrawCard 覆盖 hero 右半（landscape）
   const hero = {
     namecard: '',
     namecardImages: null,
-    landscape: img('derived.avatarDrawCard') || img('icon') || img('detail.icon'),
-    portrait: img('icon') || img('detail.icon'),
+    landscape,
+    landscape2,
+    portrait,
+    portrait2,
     title: '',
     element: hsrLabel(list.damageType || detail.damage_type || ''),
     weapon: hsrLabel(list.baseType || detail.base_type || ''),
@@ -478,6 +489,6 @@ export function buildHSR (list, detail, meta) {
     sections.push({ title: '相关效果/规则术语', type: 'list', isRefs: true, items: allRefs })
   }
 
-  return { hero, metaFields, sections, _images: images, recordName: charName !== rawName ? charName : '' }
+  return { hero, metaFields, sections, _images: images, recordName: opts.indexName || (charName !== rawName ? charName : '') }
 }
 

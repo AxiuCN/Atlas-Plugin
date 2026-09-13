@@ -2,7 +2,7 @@
  * 图鉴数据构建工具（纯数据转换，不涉及业务编排）
  * 供 modules/atlasQuery.js 使用
  */
-import { resolveRecordImage } from '../model/AtlasService.js'
+import { resolveRecordImage, loadRecord } from '../model/AtlasService.js'
 import { stripLinks } from '../model/LinkResolver.js'
 import {
   GAME_NAMES,
@@ -158,7 +158,9 @@ export function buildDetailData (gameId, result) {
   // 类型专用 sections builder
   const builder = getSectionBuilder(pageKey)
   if (builder) {
-    const typeData = builder(gameId, record, result.subView || null)
+    // 多形态角色折叠后：另一形态（男女）的条目用于 hero 合体图，索引变体名用于展示名
+    const siblingRecord = result.variantPair ? loadRecord(result.variantPair) : null
+    const typeData = builder(gameId, record, result.subView || null, { siblingRecord, indexName: result.name })
     if (typeData) {
       return {
         gameName: GAME_NAMES[gameId],

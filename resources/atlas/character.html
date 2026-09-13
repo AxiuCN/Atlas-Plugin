@@ -18,10 +18,24 @@
     </div>
     {{/if}}
     {{if hero.landscape}}
+    {{if hero.landscape2}}
+    <div class="hero-landscape hero-split-diag">
+      <span class="split-cell split-a" style="background-image: url('{{hero.landscape}}')"></span>
+      <span class="split-cell split-b" style="background-image: url('{{hero.landscape2}}')"></span>
+    </div>
+    {{else}}
     <div class="hero-landscape" style="background-image: url('{{hero.landscape}}')"></div>
     {{/if}}
+    {{/if}}
     <div class="hero-bg"></div>
-    {{if hero.portrait}}<img class="hero-portrait" src="{{hero.portrait}}"/>{{/if}}
+    {{if hero.portrait2}}
+    <div class="hero-portrait hero-split-diag">
+      <span class="split-cell split-a" style="background-image: url('{{hero.portrait}}')"></span>
+      <span class="split-cell split-b" style="background-image: url('{{hero.portrait2}}')"></span>
+    </div>
+    {{else if hero.portrait}}
+    <img class="hero-portrait" src="{{hero.portrait}}"/>
+    {{/if}}
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · {{pageTitle}}{{if hero.rarity}} · {{hero.rarity}}{{/if}}</div>
       <div class="hero-title">{{name}}</div>

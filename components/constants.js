@@ -144,6 +144,44 @@ export const TEMPLATE = {
   ACHIEVEMENT_CATEGORY: 'achievement-category'
 }
 
+/* ===== 属性/命途中文映射 =====
+ * 索引层（形态族变体命名）与 sections 层（角色 hero 展示）共用，
+ * 放在常量层以避开 model → components/sections 的循环依赖
+ */
+
+/** 原神元素英文 → 中文 */
+export const ELEMENT_CN = {
+  Cryo: '冰', Pyro: '火', Hydro: '水', Electro: '雷',
+  Anemo: '风', Geo: '岩', Dendro: '草'
+}
+
+/** 星铁属性英文 → 中文 */
+export const HSR_DAMAGE_CN = {
+  Physical: '物理', Fire: '火', Ice: '冰', Lightning: '雷', Thunder: '雷',
+  Wind: '风', Quantum: '量子', Imaginary: '虚数'
+}
+
+/** 星铁命途 → 中文（含数据源职业码与官方命途名） */
+export const HSR_PATH_CN = {
+  Destruction: '毁灭', TheHunt: '巡猎', Erudition: '智识', Harmony: '同谐',
+  Nihility: '虚无', Preservation: '存护', Abundance: '丰饶', Elation: '欢愉',
+  Remembrance: '记忆',
+  // 数据源 base_type 职业码
+  Rogue: '巡猎', Warrior: '毁灭', Mage: '智识', Knight: '存护',
+  Priest: '丰饶', Warlock: '虚无', Shaman: '同谐', Memory: '记忆'
+}
+
+/** 原神元素英文 → 中文（未知值原样返回） */
+export function elementLabel (value) {
+  return ELEMENT_CN[value] || value
+}
+
+/** 星铁属性/命途英文 → 中文（未知值原样返回） */
+export function hsrLabel (value) {
+  if (!value) return ''
+  return HSR_DAMAGE_CN[value] || HSR_PATH_CN[value] || value
+}
+
 // Data 目录路径（相对于 submodule）
 export const DATA_DIR = 'tool/nanoka-atlas-backend/nanoka-atlas-backend/data'
 

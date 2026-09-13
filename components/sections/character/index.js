@@ -12,16 +12,17 @@ import { applyDefaultView, applySkillsView, applyRatesView, applyConstellationsV
  * @param {string} gameId - 'gi' | 'hsr' | 'zzz'
  * @param {object} record - 完整 JSON（含 meta, content.list, content.detail）
  * @param {string|null} subView - 子视图: skills | constellations | profile | stories | materials
+ * @param {object} [opts] - 附加数据（siblingRecord：折叠掉的另一形态条目，用于 hero 合体图）
  * @returns {object} 模板数据 { hero, metaFields, sections }
  */
-export function buildCharacterData (gameId, record, subView = null) {
+export function buildCharacterData (gameId, record, subView = null, opts = {}) {
   const list = record?.content?.list || {}
   const detail = record?.content?.detail || {}
   const meta = record?.meta
 
   let fullData
-  if (gameId === 'gi') fullData = buildGI(list, detail, meta)
-  else if (gameId === 'hsr') fullData = buildHSR(list, detail, meta)
+  if (gameId === 'gi') fullData = buildGI(list, detail, meta, opts)
+  else if (gameId === 'hsr') fullData = buildHSR(list, detail, meta, opts)
   else if (gameId === 'zzz') fullData = buildZZZ(list, detail, meta)
   else return null
 
