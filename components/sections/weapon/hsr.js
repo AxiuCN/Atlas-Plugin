@@ -2,7 +2,7 @@
  * 星铁光锥构建（HSR）
  * 满级基础属性 + 叠影效果
  */
-import { cleanText, propLabel } from '../util.js'
+import { cleanMarkup, propLabel, resolveHsrParams } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
 
@@ -33,18 +33,18 @@ export function buildHSRLightcone (list, detail, meta) {
   // 叠影
   if (detail.refinements) {
     const name = detail.refinements.name || ''
-    const desc = cleanText(detail.refinements.desc || '')
+    const desc = cleanMarkup(detail.refinements.desc || '')
     let refs = []
     if (detail.refinements.level && typeof detail.refinements.level === 'object') {
       refs = Object.entries(detail.refinements.level)
         .filter(([k]) => /^\d+$/.test(k))
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([k, r]) => {
-          let refDesc = ''
-          if (r?.param_list) {
-            refDesc = Object.values(r.param_list).join(' / ')
-          }
-          return { level: `叠影 ${k}`, name, desc: refDesc || desc }
+          // 叠影描述为带占位符的富文本，按该叠影档位的 param_list 取值后保留官方高亮
+          const refDesc = r?.param_list && detail.refinements.desc
+            ? cleanMarkup(resolveHsrParams(detail.refinements.desc, r.param_list))
+            : (r?.param_list ? Object.values(r.param_list).join(' / ') : desc)
+          return { level: `叠影 ${k}`, name, desc: refDesc }
         })
     }
     if (refs.length > 0) {

@@ -4,7 +4,7 @@
  */
 import { getSkillNames, getConstellationNames, getOutfits } from './names.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
-import { imgUrl, formatFoodDesc, cleanForRender } from '../util.js'
+import { imgUrl, formatFoodDesc, cleanMarkup } from '../util.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
@@ -161,7 +161,7 @@ export function applyStoriesView (data, gameId, detail) {
     if (charaInfo.stories && typeof charaInfo.stories === 'object') {
       const storyItems = Object.values(charaInfo.stories)
         .filter(s => s && s.title && s.text)
-        .map(s => ({ title: s.title, content: cleanForRender(s.text) }))
+        .map(s => ({ title: s.title, content: cleanMarkup(s.text) }))
       if (storyItems.length > 0) {
         sections.push({ title: '故事', type: 'stories', items: storyItems })
       }
@@ -173,7 +173,7 @@ export function applyStoriesView (data, gameId, detail) {
         .filter(q => q && q.title && q.text)
         .map(q => ({
           title: q.title + (q.unlocked?.length ? `（${q.unlocked.join('；')}）` : ''),
-          content: cleanForRender(q.text)
+          content: cleanMarkup(q.text)
         }))
       if (quoteItems.length > 0) {
         sections.push({ title: '语音', type: 'stories', items: quoteItems })
@@ -185,11 +185,11 @@ export function applyStoriesView (data, gameId, detail) {
   if (gameId === 'zzz' && detail.partner_info) {
     const pi = detail.partner_info
     const zzzItems = []
-    if (pi.profile_desc) zzzItems.push({ title: '简介', content: cleanForRender(pi.profile_desc) })
+    if (pi.profile_desc) zzzItems.push({ title: '简介', content: cleanMarkup(pi.profile_desc) })
     if (pi.stories && typeof pi.stories === 'object') {
       for (const [k, story] of Object.entries(pi.stories)) {
         if (story && story.title && story.text) {
-          zzzItems.push({ title: story.title, content: cleanForRender(story.text) })
+          zzzItems.push({ title: story.title, content: cleanMarkup(story.text) })
         }
       }
     }

@@ -2,7 +2,7 @@
  * 绝区零角色构建（ZZZ）
  * 将 nanoka 绝区零条目 JSON 归一化为统一角色模板数据
  */
-import { imgUrl, propLabel, cleanText } from '../util.js'
+import { imgUrl, propLabel, cleanMarkup } from '../util.js'
 import { transposeTable } from './skillParams.js'
 
 /** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
@@ -73,7 +73,7 @@ export function buildZZZ (list, detail, meta) {
       if (sk.description && Array.isArray(sk.description)) {
         main = sk.description[0]
         if (main) {
-          desc = cleanText(main.desc || '')
+          desc = cleanMarkup(main.desc || '')
           if (main.param && Array.isArray(main.param)) {
             const headers = ['等级', ...(main.param.map(p => p.name || ''))]
             const maxLevel = Math.max(...main.param.map(p => (p.level || []).length), 0)
@@ -104,7 +104,7 @@ export function buildZZZ (list, detail, meta) {
   if (detail.potential_detail && typeof detail.potential_detail === 'object') {
     const extras = Object.entries(detail.potential_detail).map(([k, p]) => ({
       name: p.name || p.level_show_name || '',
-      desc: cleanText(p.desc || ''),
+      desc: cleanMarkup(p.desc || ''),
       icon: img(`detail.potential_detail.${k}.icon`)
     })).filter(e => e.name)
     if (extras.length > 0) {
@@ -121,7 +121,7 @@ export function buildZZZ (list, detail, meta) {
         order: Number(k),
         name: t.name || '',
         icon: img(`detail.talent.${k}.icon`),
-        desc: cleanText(t.desc || '')
+        desc: cleanMarkup(t.desc || '')
       }))
     sections.push({ title: '影画', type: 'constellation-grid', items: conList })
   }
@@ -130,7 +130,7 @@ export function buildZZZ (list, detail, meta) {
   if (detail.partner_info) {
     const pi = detail.partner_info
     const stories = []
-    if (pi.profile_desc) stories.push({ title: '简介', content: cleanText(pi.profile_desc) })
+    if (pi.profile_desc) stories.push({ title: '简介', content: cleanMarkup(pi.profile_desc) })
     if (pi.birthday) metaFields.push({ label: '生日', value: _formatZzzBirthday(pi.birthday) })
     if (pi.full_name) metaFields.push({ label: '全名', value: pi.full_name })
     if (pi.stature) metaFields.push({ label: '身高', value: pi.stature })

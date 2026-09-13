@@ -2,7 +2,7 @@
  * 星铁遗器套装构建（HSR）
  * 套装效果 + 部件
  */
-import { cleanText } from '../util.js'
+import { cleanMarkup } from '../util.js'
 
 /**
  * 构建星铁遗器套装数据
@@ -21,7 +21,7 @@ export function buildHSRRelicset (list, detail, meta) {
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([num, data]) => ({
         require: Number(num),
-        desc: cleanText(data?.desc || '')
+        desc: cleanMarkup(data?.desc || '')
       }))
     if (bonuses.length > 0) {
       sections.push({ title: '套装效果', type: 'list', items: bonuses.map(b => ({
@@ -34,7 +34,7 @@ export function buildHSRRelicset (list, detail, meta) {
   // 部件
   if (detail.parts && typeof detail.parts === 'object') {
     const pieces = Object.values(detail.parts).map(p => ({
-      name: p.name || '', desc: cleanText(p.desc || '')
+      name: p.name || '', desc: cleanMarkup(p.desc || '')
     })).filter(p => p.name)
     if (pieces.length > 0) {
       sections.push({ title: '部件', type: 'list', items: pieces.map(p => ({

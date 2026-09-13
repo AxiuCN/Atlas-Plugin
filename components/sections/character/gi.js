@@ -4,7 +4,7 @@
  */
 import { resolveLinks } from '../../../model/LinkResolver.js'
 import { buildSkillParams } from './skillParams.js'
-import { imgUrl, elementLabel, weaponLabel, formatBirthday, cleanForRender, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
+import { imgUrl, elementLabel, weaponLabel, formatBirthday, cleanMarkup, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
 
 /**
  * 构建原神角色数据
@@ -118,7 +118,7 @@ export function buildGI (list, detail, meta) {
         name: s.name || '',
         tag: skillTag(s.name, 'gi'),
         icon: img(`detail.skills.${i}.promote.0.icon`),
-        desc: cleanForRender(resolved),
+        desc: cleanMarkup(resolved),
         params: buildSkillParams(s.promote, 'gi'),
         // 全等级转置表（倍率视图用，宽度自适应不抽样）
         paramsAll: buildSkillParams(s.promote, 'gi', { allLevels: true })
@@ -135,7 +135,7 @@ export function buildGI (list, detail, meta) {
       const unlockLabel = passiveUnlock(p.unlock)
       return {
         name: unlockLabel ? `${p.name}（${unlockLabel}）` : p.name,
-        desc: cleanForRender(resolved),
+        desc: cleanMarkup(resolved),
         icon: img(`detail.passives.${i}.icon`)
       }
     }).filter(e => e.name)
@@ -153,7 +153,7 @@ export function buildGI (list, detail, meta) {
         order: i + 1,
         name: c.name || '',
         icon: img(`detail.constellations.${i}.icon`),
-        desc: cleanForRender(resolved)
+        desc: cleanMarkup(resolved)
       }
     })
     sections.push({ title: '命之座', type: 'constellation-grid', items: conList })

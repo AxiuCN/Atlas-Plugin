@@ -2,7 +2,7 @@
  * 物品 sections builder（跨游戏统一）
  * 类型/描述/来源
  */
-import { cleanText, propLabel } from '../util.js'
+import { cleanMarkup, propLabel } from '../util.js'
 
 /**
  * 构建物品页面数据（三游戏通用同一路径）
@@ -24,7 +24,7 @@ export function buildItemData (gameId, record) {
   }
 
   // 描述
-  const desc = cleanText(detail.desc || detail.description || list.desc || list.description || '')
+  const desc = cleanMarkup(detail.desc || detail.description || list.desc || list.description || '')
 
   const sections = []
   if (desc) {

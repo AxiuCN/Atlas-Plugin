@@ -30,12 +30,12 @@
   <div class="detail-section">
     <h3>{{section.title}}</h3>
     {{if section.type === 'text'}}
-      <div class="desc-block">{{section.text}}</div>
+      <div class="desc-block">{{@section.text}}</div>
     {{else if section.type === 'list'}}
       {{each section.items item}}
       <div class="extra-item">
         <div class="extra-name">{{item.name}}</div>
-        {{if item.desc}}<div class="extra-desc">{{item.desc}}</div>{{/if}}
+        {{if item.desc}}<div class="extra-desc">{{@item.desc}}</div>{{/if}}
       </div>
       {{/each}}
     {{else}}

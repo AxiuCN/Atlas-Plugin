@@ -38,7 +38,7 @@
           <span class="skill-name">{{sk.name}}</span>
           {{if sk.tag}}<span class="skill-tag">{{sk.tag}}</span>{{/if}}
         </div>
-        {{if sk.desc}}<div class="skill-desc">{{sk.desc}}</div>{{/if}}
+        {{if sk.desc}}<div class="skill-desc">{{@sk.desc}}</div>{{/if}}
         {{if sk.params && sk.params.rows.length > 0}}
         <div class="skill-params">
           <div class="param-title">{{sk.params.title || '属性'}}</div>
@@ -61,7 +61,7 @@
         <div class="con-item">
           <div class="con-order">#{{c.order}}</div>
           <div class="con-name">{{c.name}}</div>
-          <div class="con-desc">{{c.desc}}</div>
+          <div class="con-desc">{{@c.desc}}</div>
         </div>
         {{/each}}
       </div>

@@ -544,3 +544,65 @@
   color: #888888;
   text-align: center;
 }
+
+/* ============================================================
+ *  官方内联标注（三游戏共用，全模板生效）
+ *  数据里的 <color=#X> 由 cleanMarkup() 归一为 6 位大写色号的内联 span；
+ *  游戏内配色为深色背景设计，此处按色相统一映射为浅底可读深色（!important 压过内联 style）
+ *  注意：选择器为子串匹配，长色号规则须写在短色号之后（同特异性下后者生效），
+ *  如 #99FFFFFF（半透明白）必须排在 #99FFFF 之后
+ * ============================================================ */
+
+/* ── 原神 ── */
+[style*="#FFD780"] { color: #8a6b2f !important; } /* 亮金 → 深金棕 */
+[style*="#FFE699"] { color: #967a35 !important; } /* 淡金 → 中金 */
+[style*="#80C0FF"] { color: #1a6fb2 !important; } /* 亮蓝 → 深蓝 */
+[style*="#3399CC"] { color: #1a6fb2 !important; } /* 中蓝 → 深蓝 */
+[style*="#80FFD7"] { color: #0f8a6f !important; } /* 青绿 → 深青绿 */
+[style*="#99FF88"] { color: #2e7d32 !important; } /* 亮绿 → 深绿 */
+[style*="#FFACFF"] { color: #8e4fa3 !important; } /* 淡紫 → 深紫 */
+[style*="#FF9999"] { color: #b7463c !important; } /* 粉红 → 深朱 */
+[style*="#37FFFF"], [style*="#38FFFF"] { color: #0e7c88 !important; } /* 荧光青 → 深青蓝 */
+[style*="#99FFFF"] { color: #1f7a8d !important; } /* 青白 → 深青 */
+[style*="#99FFFFFF"] { color: #8a8a8a !important; } /* 半透明白（说明文字）→ 弱化灰，须排在 #99FFFF 之后 */
+
+/* ── 星铁 ── */
+[style*="#F29E38"] { color: #b06a12 !important; } /* 官方橙：数值/强化词条 → 深橙 */
+[style*="#DE7A66"] { color: #a8543f !important; } /* 珊瑚 → 深珊瑚 */
+[style*="#F9B0F0"] { color: #a3559c !important; } /* 淡粉紫 → 深紫 */
+
+/* ── 绝区零 ── */
+[style*="#FFFFFF"] { color: #333333 !important; } /* 白色（属性/数值）→ 正文深灰 */
+[style*="#2BAD00"] { color: #1f7a34 !important; } /* 亮绿 → 深绿 */
+[style*="#31CC00"] { color: #2e7d32 !important; } /* 荧光绿 → 深绿 */
+[style*="#F0D12B"] { color: #8f7318 !important; } /* 亮黄 → 深黄褐 */
+[style*="#D9A600"] { color: #8a6b2f !important; } /* 金 → 深金棕 */
+[style*="#FFAF2C"] { color: #a06a12 !important; } /* 橙 → 深橙 */
+[style*="#FF5521"] { color: #c2451c !important; } /* 橙红 → 深橙红 */
+[style*="#FF3333"] { color: #c0392b !important; } /* 红 → 深红 */
+[style*="#FE437E"] { color: #b03060 !important; } /* 玫红 → 深玫红 */
+[style*="#FFA9DD"] { color: #b2508f !important; } /* 粉 → 深粉 */
+[style*="#2EB6FF"] { color: #1a6fb2 !important; } /* 蓝 → 深蓝 */
+[style*="#A6C5FD"] { color: #3f6bb0 !important; } /* 淡蓝 → 中蓝 */
+[style*="#98EFF0"] { color: #1f7a8d !important; } /* 青 → 深青 */
+[style*="#959595"] { color: #7a7a7a !important; } /* 灰（弱化说明） */
+
+/* ===== 机制度词条 .kw（数据 <u>）：下划线区分 ===== */
+.kw {
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 0, 0, 0.3);
+  text-underline-offset: 3px;
+}
+
+/* ===== 补充说明 .note（数据 <i>）：斜体弱化 ===== */
+.note {
+  font-style: italic;
+  color: #6b6b6b;
+}
+
+/* ===== 描述数值的档位标注 .lv-tag（如「（Lv.6）」）===== */
+.lv-tag {
+  font-size: 0.84em;
+  color: #9a9a9a !important;
+  margin-left: 1px;
+}

@@ -2,7 +2,7 @@
  * 原神圣遗物构建（GI）
  * 套装效果 + 各部位
  */
-import { cleanText, imgUrl } from '../util.js'
+import { cleanMarkup, imgUrl } from '../util.js'
 
 /**
  * 构建原神圣遗物数据
@@ -30,7 +30,7 @@ export function buildGIArtifact (list, detail, meta) {
     const bonuses = detail.affix.map(a => ({
       require: a.affix_id ? (a.affix_id % 10 ? 4 : 2) : 2,
       name: a.name || '',
-      desc: cleanText(a.desc || '')
+      desc: cleanMarkup(a.desc || '')
     }))
     if (bonuses.length > 0) {
       sections.push({ title: '套装效果', type: 'list', items: bonuses.map(b => ({
@@ -44,8 +44,8 @@ export function buildGIArtifact (list, detail, meta) {
   if (detail.parts && typeof detail.parts === 'object') {
     const images = meta?.images || []
     const pieces = Object.entries(detail.parts).map(([key, p]) => ({
-      name: p.name || '', type: p.type || '', desc: cleanText(p.desc || ''),
-      story: cleanText(p.story || ''),
+      name: p.name || '', type: p.type || '', desc: cleanMarkup(p.desc || ''),
+      story: cleanMarkup(p.story || ''),
       icon: imgUrl(images, `detail.parts.${key}.icon`)
     })).filter(p => p.name)
     if (pieces.length > 0) {

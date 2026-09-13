@@ -143,8 +143,57 @@ export function passiveUnlock (unlock) {
 }
 
 /**
- * 渲染用清洗：保留 HTML 标签（span 高亮等），清理 RUBY 标记和换行符
- * 同时将 <color=#RGB>text</color> 转为 <span style="color:#RGB">text</span>
+ * 内联色号归一化：8 位十六进制去掉 alpha、统一大写；非十六进制（如 ZZZ 的 POSITIVE_WITH_GREYITE）返回 null
+ * 归一后 CSS 侧每个色相只需写一条 6 位大写选择器
+ * @param {string} color
+ * @returns {string|null}
+ */
+export function normalizeInlineColor (color) {
+  const c = String(color || '').trim()
+  const m8 = c.match(/^#([0-9a-fA-F]{8})$/)
+  if (m8) return '#' + m8[1].slice(0, 6).toUpperCase()
+  const m6 = c.match(/^#([0-9a-fA-F]{6})$/)
+  if (m6) return '#' + m6[1].toUpperCase()
+  const m3 = c.match(/^#([0-9a-fA-F]{3})$/)
+  if (m3) return '#' + m3[1].split('').map(x => x + x).join('').toUpperCase()
+  return null
+}
+
+/**
+ * 渲染用清洗：保留官方内联标注（高亮色/下划线词条/斜体注记），其余标签剥除
+ * - `<color=#RGB>…</color>`（含 LINK 解析后残留的 `<span style="color:#RGB">`）→ 归一为 6 位大写色号的内联 span，
+ *   由 components.css 按色相映射为浅底可读色
+ * - `<u>…</u>` → `<span class="kw">`（机制度词条）
+ * - `<i>…</i>` → `<span class="note">`（补充说明）
+ * - `<unbreak>` / `<iconmap>` / `<term>` / `<icon>` 等其余标签一律剥除
+ * 模板以 `{{@}}` 原样渲染本函数输出，故只放行函数自身生成的 span
+ * @param {string} str
+ * @returns {string}
+ */
+export function cleanMarkup (str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/\\n/g, '\n')
+    .replace(/\{RUBY_B#[^}]*}/g, '')
+    .replace(/\{RUBY_E#}/g, '')
+    .replace(/\{LINK#[^}]*}/g, '')
+    .replace(/<color=([^>]+)>([\s\S]*?)<\/color>/g, (m, color, inner) => {
+      const hex = normalizeInlineColor(color)
+      return hex ? `<span style="color:${hex}">${inner}</span>` : inner
+    })
+    .replace(/<span style="color:([^"]+)"([^>]*)>/g, (m, color, rest) => {
+      const hex = normalizeInlineColor(color)
+      return hex ? `<span style="color:${hex}"${rest}>` : `<span${rest}>`
+    })
+    .replace(/<u>([\s\S]*?)<\/u>/g, '<span class="kw">$1</span>')
+    .replace(/<i>([\s\S]*?)<\/i>/g, '<span class="note">$1</span>')
+    .replace(/<(?!\/?span\b)[^>]*>/g, '')
+    .trim()
+}
+
+/**
+ * 渲染用清洗（旧路径）：保留任意 HTML 标签，仅转 <color>
+ * 保留供故事/语音等已确定无其它标签的字段使用
  */
 export function cleanForRender (str) {
   if (!str) return ''
@@ -158,7 +207,10 @@ export function cleanForRender (str) {
     .trim()
 }
 
-/** 清理 HTML、RUBY 标记、LINK 占位符、换行符（纯文本场景） */
+/**
+ * 清理 HTML、RUBY 标记、LINK 占位符、换行符（纯文本场景）
+ * 描述类字段请用 cleanMarkup()（保留官方高亮）；本函数用于确需无标签纯文本的字段
+ */
 export function cleanText (str) {
   if (!str) return ''
   return String(str)
@@ -230,4 +282,35 @@ const HSR_PATH = {
 export function hsrLabel (value) {
   if (!value) return ''
   return HSR_DAMAGE_TYPE[value] || HSR_PATH[value] || value
+}
+
+/**
+ * 替换星铁文本中的参数占位符（角色技能 / 忆灵技能 / 行迹 / 星魂 / 光锥叠影共用）
+ * 格式：#N[i] 整数 / #N[f1] 1 位小数；占位符后紧跟 % 时值 ×100（0.3 → 30%，2 → 200%）
+ * <unbreak> 仅作显示包裹，剥除标签后统一处理占位符
+ * @param {string} text
+ * @param {Array} paramList - 对应档位的 param_list
+ * @param {object} [opts] - 档位标注选项
+ * @param {number} [opts.level] - 取值档位（标注在数值后，miao 图鉴同款提示）
+ * @param {Set<number>} [opts.varying] - 随等级变化的参数索引；常量参数与等级无关，不标注
+ * @returns {string}
+ */
+export function resolveHsrParams (text, paramList, opts = {}) {
+  if (!text) return ''
+  return String(text)
+    .replace(/<\/?unbreak>/g, '')
+    .replace(/#(\d+)\[([^\]]+)\](%?)/g, (m, n, fmt, pct) => {
+      const idx = Number(n) - 1
+      const val = paramList?.[idx]
+      if (val == null) return m
+      let out = Number(val)
+      if (Number.isNaN(out)) return m
+      if (pct === '%') out = out * 100
+      if (fmt === 'i') out = Math.round(out)
+      else if (/^f\d+$/.test(fmt)) out = Number(out).toFixed(Number(fmt.slice(1)))
+      const tag = opts.level != null && opts.varying?.has(idx)
+        ? `<span class="lv-tag">（Lv.${opts.level}）</span>`
+        : ''
+      return out + pct + tag
+    })
 }

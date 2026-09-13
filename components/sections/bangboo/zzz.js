@@ -2,7 +2,7 @@
  * 绝区零邦布构建（ZZZ）
  * 基础属性 + 技能 A/B/C + 影画 + 养成素材
  */
-import { cleanText, propLabel } from '../util.js'
+import { cleanMarkup, propLabel } from '../util.js'
 import { aggregateMats } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
@@ -40,7 +40,7 @@ export function buildZZZBangboo (record) {
         const levels = Object.keys(sk.level).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
         if (levels.length > 0) {
           const first = sk.level[levels[0]]
-          desc = cleanText(first?.desc || '')
+          desc = cleanMarkup(first?.desc || '')
           if (first?.property && Array.isArray(first.property)) {
             const headers = ['等级', ...(first.property.map(p => p.name || ''))]
             const rows = levels.map(lv => {
@@ -70,7 +70,7 @@ export function buildZZZBangboo (record) {
       .map(([k, t]) => ({
         order: Number(k),
         name: t.name || '',
-        desc: cleanText(t.desc || '')
+        desc: cleanMarkup(t.desc || '')
       }))
     if (items.length > 0) {
       sections.push({ title: '影画', type: 'constellation-grid', items })

@@ -171,6 +171,25 @@ const GI_LEVEL_TARGETS = [9, 10, 11, 12, 13, 14]
 const HSR_LEVEL_SPAN = 7
 
 /**
+ * 取「随等级变化」的参数索引集合（各级同值的常量参数无展示意义）
+ * HSR 参数表过滤与描述档位标注共用该判定，避免两处口径漂移
+ * @param {object} levelData - s.level / s.promote
+ * @returns {Set<number>}
+ */
+export function varyingIndexes (levelData) {
+  const set = new Set()
+  if (!levelData || typeof levelData !== 'object') return set
+  const levels = Object.keys(levelData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
+  if (!levels.length) return set
+  const width = Math.max(...levels.map(lv => (levelData[lv]?.param_list || []).length))
+  for (let i = 0; i < width; i++) {
+    const values = levels.map(lv => Number(levelData[lv]?.param_list?.[i]))
+    if (!(values.length > 0 && values.every(v => v === values[0]))) set.add(i)
+  }
+  return set
+}
+
+/**
  * 从技能 promote/level 数据构建参数表
  * @param {object} levelData — s.promote (GI) 或 s.level (HSR)
  * @param {string} game — 'gi' | 'hsr'
@@ -228,10 +247,8 @@ export function buildSkillParams (levelData, game, opts = {}) {
         .sort((a, b) => a - b)
       let idxList = used.length > 0 ? used : paramList.map((_, i) => i)
       if (opts.onlyVarying !== false) {
-        idxList = idxList.filter(i => {
-          const values = levels.map(lv => Number(levelData[lv]?.param_list?.[i]))
-          return !(values.length > 0 && values.every(v => v === values[0]))
-        })
+        const varying = varyingIndexes(levelData)
+        idxList = idxList.filter(i => varying.has(i))
       }
       paramHeaders = idxList.map(i => paramNames[i] || `属性 ${i + 1}`)
       getValues = (entry) => {

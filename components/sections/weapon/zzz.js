@@ -2,7 +2,7 @@
  * 绝区零音擎构建（ZZZ）
  * 基础属性 + 音擎天赋 + 升级素材
  */
-import { cleanText } from '../util.js'
+import { cleanMarkup } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
@@ -56,7 +56,7 @@ export function buildZZZWeapon (list, detail, meta) {
       .map(([k, t]) => ({
         level: `等级 ${k}`,
         name: t.name || '',
-        desc: cleanText(t.desc || '')
+        desc: cleanMarkup(t.desc || '')
       }))
     if (refs.length > 0) {
       sections.push({ title: '音擎天赋', type: 'refinements', items: refs })

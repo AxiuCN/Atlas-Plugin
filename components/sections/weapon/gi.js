@@ -2,7 +2,7 @@
  * 原神武器构建（GI）
  * 满级基础属性 + 精炼效果 + 升级素材
  */
-import { cleanText, propLabel, giPropInfo, formatGiProp } from '../util.js'
+import { cleanMarkup, propLabel, giPropInfo, formatGiProp } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 
 /**
@@ -65,7 +65,7 @@ export function buildGIWeapon (list, detail, meta) {
       .map(([k, r]) => ({
         level: `精炼 ${k}`,
         name: r.name || '',
-        desc: cleanText(r.desc || '')
+        desc: cleanMarkup(r.desc || '')
       }))
     if (refs.length > 0) {
       sections.push({ title: '精炼', type: 'refinements', items: refs })

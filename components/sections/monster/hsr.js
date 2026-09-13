@@ -2,7 +2,7 @@
  * 星铁怪物构建（HSR）
  * 基础属性 + 弱点/抗性 + 技能
  */
-import { cleanText, propLabel } from '../util.js'
+import { cleanMarkup, propLabel } from '../util.js'
 
 /**
  * 构建星铁怪物数据
@@ -39,7 +39,7 @@ export function buildHSRMonster (list, detail, meta) {
       if (child.skill_list && Array.isArray(child.skill_list)) {
         const skills = child.skill_list.map(s => ({
           name: s.skill_name || '',
-          desc: cleanText(s.skill_desc || ''),
+          desc: cleanMarkup(s.skill_desc || ''),
           type: s.damage_type || ''
         }))
         if (skills.length > 0) {

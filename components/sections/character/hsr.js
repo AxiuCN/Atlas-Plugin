@@ -17,11 +17,14 @@
  *   行迹节点按 treeKey/nodeKey 取加强档案数据直接替换加强前内容（加强前的技能/行迹/星魂不再展示）
  * - 参数表列名：HSR param_list 无标签，取自 miao-plugin 星铁数据（model/MiaoParams.js）按各级数值
  *   序列比对匹配；miao 未收录或与 nanoka 数值不一致时降级为「属性 N」
+ * - 描述内联数值取「无星魂常规上限」档（行迹树节点数：普攻/忆灵技/忆灵天赋 6、战技/终结技/天赋/
+ *   欢愉技 10、秘技 1），随等级变化的数值后标注 （Lv.N）（miao 图鉴同款）；常量参数不标注；
+ *   官方 <color>/<u> 高亮由 cleanMarkup() 保留，色相映射见 components.css
  * - 开拓者条目名为占位符 {NICKNAME}（5 命途 × 2 性别），展示名按命途记为「开拓者·<命途>」
  */
-import { buildSkillParams } from './skillParams.js'
+import { buildSkillParams, varyingIndexes } from './skillParams.js'
 import { matchParamNames } from '../../../model/MiaoParams.js'
-import { imgUrl, skillTag, cleanText, hsrLabel } from '../util.js'
+import { imgUrl, skillTag, cleanMarkup, resolveHsrParams, hsrLabel } from '../util.js'
 
 /** 属性加成为固定数值（非比例）的星铁属性类型 */
 const HSR_STAT_FLAT = new Set(['SpeedDelta'])
@@ -58,30 +61,6 @@ function hsrParamFormats (desc) {
 }
 
 /**
- * 替换星铁描述中的参数占位符
- * 格式：#N[i] 整数 / #N[f1] 1 位小数；占位符后紧跟 % 时值 ×100（0.3 → 30%，2 → 200%）
- * <unbreak> 仅作显示包裹，剥除标签后统一处理占位符
- * @param {string} text
- * @param {Array} paramList
- * @returns {string}
- */
-function resolveHsrParams (text, paramList) {
-  if (!text) return ''
-  return String(text)
-    .replace(/<\/?unbreak>/g, '')
-    .replace(/#(\d+)\[([^\]]+)\](%?)/g, (m, n, fmt, pct) => {
-      const val = paramList?.[Number(n) - 1]
-      if (val == null) return m
-      let out = Number(val)
-      if (Number.isNaN(out)) return m
-      if (pct === '%') out = out * 100
-      if (fmt === 'i') out = Math.round(out)
-      else if (/^f\d+$/.test(fmt)) out = Number(out).toFixed(Number(fmt.slice(1)))
-      return out + pct
-    })
-}
-
-/**
  * 合并两份参数格式表：仅补充 base 缺失的索引（percent 可覆盖 num）
  * @param {object} base
  * @param {object} extra
@@ -95,10 +74,20 @@ function mergeFormats (base, extra) {
   return out
 }
 
-/** 等级数据 → 首级 param_list（描述内联数值按首级展示） */function firstLevelParams (levelData) {
+/**
+ * 等级数据 → 描述取值档位与参数
+ * 描述内联数值取「无星魂加持的常规上限」档（行迹树节点数：普攻/忆灵技/忆灵天赋 6、
+ * 战技/终结技/天赋/欢愉技/助战技 10、秘技 1），该档不存在时取不超过上限的最大档
+ * @param {object} levelData - s.level
+ * @param {number} cap - 无星魂常规上限
+ * @returns {{level: number, params: Array}|null} null 表示无法定位档位
+ */
+function descLevelParams (levelData, cap) {
   if (!levelData || typeof levelData !== 'object') return null
-  const key = Object.keys(levelData).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))[0]
-  return key == null ? null : levelData[key]?.param_list || null
+  const levels = Object.keys(levelData).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b)
+  if (!levels.length) return null
+  const pick = levels.filter(lv => lv <= cap).pop() ?? levels[0]
+  return { level: pick, params: levelData[String(pick)]?.param_list || null }
 }
 
 /**
@@ -139,6 +128,25 @@ function hsrLevelCap (s) {
   if (s?.type_name === SPRITE_SKILL || s?.type_name === SPRITE_TALENT) return 7
   if (s?.type == null) return HSR_LEVEL_CAP_DEFAULT
   return HSR_LEVEL_CAP[s.type] ?? HSR_LEVEL_CAP_DEFAULT
+}
+
+/**
+ * HSR 技能「无星魂加持」的常规等级上限：行迹树节点数即该技能可升级到的档位
+ * （普攻 6、战技/终结技/天赋 10、忆灵技/忆灵天赋 6、欢愉技 10、秘技 1；星魂另加普攻/忆灵 +1、战技类 +2）。
+ * 描述内联数值以此档渲染并在数值后标注档位（miao 图鉴同款 `（Lv.N）` 提示）
+ */
+const HSR_BASE_CAP = { Normal: 6, BPSkill: 10, Ultra: 10, Maze: 1, ElationDamage: 10, Assist: 10 }
+const HSR_BASE_CAP_DEFAULT = 10
+
+/**
+ * 取技能的无星魂常规等级上限
+ * @param {object} s - 技能原始数据
+ * @returns {number}
+ */
+function hsrBaseCap (s) {
+  if (s?.type_name === SPRITE_SKILL || s?.type_name === SPRITE_TALENT) return 6
+  if (s?.type == null) return HSR_BASE_CAP_DEFAULT
+  return HSR_BASE_CAP[s.type] ?? HSR_BASE_CAP_DEFAULT
 }
 
 /**
@@ -300,11 +308,13 @@ export function buildHSR (list, detail, meta) {
     const rawDesc = s.desc || s.simple_desc || ''
     const levelData = s.level
     const paramNames = matchParamNames(miaoKey, paramLevels(levelData))
+    // 描述数值取无星魂常规上限档，并在随等级变化的数值后标注该档位
+    const dl = descLevelParams(levelData, hsrBaseCap(s))
     return {
       name: s.name || '',
       tag: plain ? '' : (s.type_name || skillTag(s.type || '', 'hsr')),
       icon: !plain && iconPath ? img(iconPath) : '',
-      desc: cleanText(resolveHsrParams(rawDesc, firstLevelParams(levelData))),
+      desc: cleanMarkup(resolveHsrParams(rawDesc, dl?.params, { level: dl?.level, varying: varyingIndexes(levelData) })),
       // 默认参数表按常规上限收敛（天赋视图）；全等级表供倍率视图使用
       params: buildSkillParams(levelData, 'hsr', { formats, paramNames, levelCap: hsrLevelCap(s) }),
       paramsAll: buildSkillParams(levelData, 'hsr', { formats, paramNames, allLevels: true })
@@ -334,7 +344,7 @@ export function buildHSR (list, detail, meta) {
   // point_type 5：忆灵额外天赋（仅有描述），并入忆灵天赋分类
   for (const { node } of traceNodes) {
     if (node.point_type !== 5) continue
-    const desc = cleanText(resolveHsrParams(node.point_desc, node.param_list))
+    const desc = cleanMarkup(resolveHsrParams(node.point_desc, node.param_list))
     if (!desc) continue
     const type = SPRITE_TALENT
     if (!spriteByType.has(type)) spriteByType.set(type, [])
@@ -382,11 +392,13 @@ export function buildHSR (list, detail, meta) {
         const levelData = enh?.level || s.level
         const rawDesc = enh?.desc || enh?.simple_desc || s.desc || s.simple_desc || ''
         const paramNames = matchParamNames(miaoKey, paramLevels(levelData))
+        // 描述数值取无星魂常规上限档，并在随等级变化的数值后标注该档位
+        const dl = descLevelParams(levelData, hsrBaseCap(s))
         return {
           name: s.name || '',
           tag: s.type_name || skillTag(s.type || '', 'hsr'),
           icon: skillIconMap.get(String(s.id)) || img(`detail.skills.${key}.level.0.icon`),
-          desc: cleanText(resolveHsrParams(rawDesc, firstLevelParams(levelData))),
+          desc: cleanMarkup(resolveHsrParams(rawDesc, dl?.params, { level: dl?.level, varying: varyingIndexes(levelData) })),
           // 默认参数表按常规上限收敛（天赋视图）；全等级表供倍率视图使用
           params: buildSkillParams(levelData, 'hsr', { formats: skillFormats(s, rawDesc), paramNames, levelCap: hsrLevelCap(s) }),
           paramsAll: buildSkillParams(levelData, 'hsr', { formats: skillFormats(s, rawDesc), paramNames, allLevels: true })
@@ -407,7 +419,7 @@ export function buildHSR (list, detail, meta) {
       const enhNode = enhNodeOf(treeKey, nodeKey)
       return {
         name: enhNode?.point_name || node.point_name || '',
-        desc: cleanText(resolveHsrParams(enhNode?.point_desc || node.point_desc, enhNode?.param_list || node.param_list)),
+        desc: cleanMarkup(resolveHsrParams(enhNode?.point_desc || node.point_desc, enhNode?.param_list || node.param_list)),
         icon: img(`detail.skill_trees.${treeKey}.${nodeKey}.icon`)
       }
     })
@@ -432,7 +444,7 @@ export function buildHSR (list, detail, meta) {
           order: i + 1,
           name: enhRank?.name || r.name || '',
           icon: img(`detail.ranks.${k}.icon`),
-          desc: cleanText(resolveHsrParams(enhRank?.desc || r.desc || '', enhRank?.param_list || r.param_list))
+          desc: cleanMarkup(resolveHsrParams(enhRank?.desc || r.desc || '', enhRank?.param_list || r.param_list))
         }
       })
     if (conList.length > 0) {
