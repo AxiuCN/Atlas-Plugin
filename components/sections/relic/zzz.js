@@ -1,6 +1,6 @@
 /**
  * 绝区零驱动盘构建（ZZZ）
- * 套装效果
+ * 套装效果 + 驱动盘描述
  */
 import { cleanMarkup } from '../util.js'
 
@@ -22,6 +22,11 @@ export function buildZZZEquipment (list, detail, meta) {
     sections.push({ title: '套装效果', type: 'list', items: bonuses.map(b => ({
       name: `${b.require}件套`, desc: b.desc
     })) })
+  }
+
+  // 驱动盘描述（数据源 detail.story）
+  if (detail.story) {
+    sections.push({ title: '驱动盘描述', type: 'text', text: cleanMarkup(detail.story) })
   }
 
   return { metaFields: [], sections }

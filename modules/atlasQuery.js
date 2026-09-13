@@ -6,30 +6,41 @@
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
-import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW } from '../components/constants.js'
+import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES } from '../components/constants.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
-/** 子视图后缀列表（长→短，图鉴除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
+/** 子视图后缀列表（长→短，图鉴与页面类型后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
 const SUB_VIEW_SUFFIXES = SHORTCUT_SUFFIXES
-  .filter(s => s !== '图鉴')
+  .filter(s => s !== '图鉴' && !PAGE_TYPE_SUFFIXES[s])
   .sort((a, b) => b.length - a.length)
   .map(s => ({ suffix: s, subView: SUFFIX_TO_SUBVIEW[s] || 'materials' }))
 
+/** 页面类型后缀列表（长→短，只剥离并限定结果页面类型） */
+const PAGE_TYPE_ENTRIES = Object.entries(PAGE_TYPE_SUFFIXES)
+  .sort(([a], [b]) => b.length - a.length)
+
 /**
- * 解析子视图后缀
+ * 解析子视图/页面类型后缀
+ * 页面类型后缀（圣遗物/遗器/驱动盘）优先：仅剥离关键词并把结果限定到对应页面类型
  * @param {string} keyword
- * @returns {{ searchKeyword: string, subView: string|null }}
+ * @returns {{ searchKeyword: string, subView: string|null, pageType: string|null }}
  */
 function parseSubView (keyword) {
+  for (const [suffix, pageType] of PAGE_TYPE_ENTRIES) {
+    if (keyword.endsWith(suffix)) {
+      const searchKeyword = keyword.slice(0, -suffix.length).trim()
+      if (searchKeyword) return { searchKeyword, subView: null, pageType }
+    }
+  }
   for (const { suffix, subView } of SUB_VIEW_SUFFIXES) {
     if (keyword.endsWith(suffix)) {
       const searchKeyword = keyword.slice(0, -suffix.length).trim()
       if (searchKeyword) {
-        return { searchKeyword, subView }
+        return { searchKeyword, subView, pageType: null }
       }
     }
   }
-  return { searchKeyword: keyword, subView: null }
+  return { searchKeyword: keyword, subView: null, pageType: null }
 }
 
 /**
@@ -100,8 +111,8 @@ export async function handleQuery (e, gameId, keyword) {
   if (!keyword) return false
 
   try {
-    // ── 阶段 0：子视图后缀检测 ──
-    const { searchKeyword, subView } = parseSubView(keyword)
+    // ── 阶段 0：子视图 / 页面类型后缀检测 ──
+    const { searchKeyword, subView, pageType } = parseSubView(keyword)
 
     let result
     if (subView) {
@@ -116,8 +127,17 @@ export async function handleQuery (e, gameId, keyword) {
           ? search(gameId, searchKeyword)
           : search(gameId, keyword)
       }
+    } else if (pageType) {
+      // 页面类型后缀（圣遗物/遗器/驱动盘）：按剥离后的关键词搜索，结果限定到该类型
+      result = search(gameId, searchKeyword)
     } else {
       result = search(gameId, keyword)
+    }
+
+    // 结果按页面类型收敛（无同类命中时保留原结果，避免「查不到」）
+    if (pageType && result.results?.length) {
+      const hit = result.results.filter(r => r.pageKey === pageType)
+      if (hit.length) result = { ...result, results: hit, total: hit.length }
     }
 
     switch (result.type) {

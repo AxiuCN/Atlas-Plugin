@@ -35,9 +35,19 @@ export const SHORTCUT_SUFFIXES = [
   '天赋', '技能', '行迹', '忆灵技', '忆灵',
   // 命座类（星铁 星魂，绝区零 影画）
   '命座', '星魂', '影画',
+  // 页面类型类（非子视图：剥离后缀并把搜索结果限定到对应页面类型）
+  '圣遗物', '遗器', '驱动盘',
   '资料', '故事', '语音',
   '养成', '素材', '材料', '升级'
 ]
+
+// 页面类型后缀 → pageKey（atlasQuery.parseSubView 使用）
+// 这类后缀不改变子视图，只把搜索结果限定到对应页面类型（如 #绝缘之旗印圣遗物 → 圣遗物页）
+export const PAGE_TYPE_SUFFIXES = {
+  圣遗物: 'artifact',
+  遗器: 'relicset',
+  驱动盘: 'equipment'
+}
 
 // 子视图后缀 → subView 规范名（atlasQuery.parseSubView 使用）
 // 同一 subView 收录三游戏各自叫法：星铁「星魂」、绝区零「影画」等同命座，星铁「行迹」「忆灵技」等同天赋/技能，

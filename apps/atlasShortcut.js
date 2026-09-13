@@ -25,7 +25,7 @@ export class atlasShortcut extends plugin {
   constructor () {
     super({
       name: 'Atlas图鉴快捷入口',
-      dsc: '#角色图鉴 / 天赋 / 技能 / 行迹 / 命座 / 星魂 / 影画 / 资料 / 故事 / 语音 / 养成 / 素材 / 材料 / 升级',
+      dsc: '#角色图鉴 / 天赋 / 技能 / 行迹 / 命座 / 星魂 / 影画 / 资料 / 故事 / 语音 / 养成 / 素材 / 材料 / 升级 / 圣遗物 / 遗器 / 驱动盘',
       event: 'message',
       priority: -99999,
       rule: [

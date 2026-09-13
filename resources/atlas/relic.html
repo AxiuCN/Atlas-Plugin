@@ -30,10 +30,12 @@
   {{each sections section}}
   <div class="detail-section">
     <h3>{{section.title}}</h3>
-    {{if section.type === 'list'}}
+    {{if section.type === 'text'}}
+      <div class="desc-block">{{@section.text}}</div>
+    {{else if section.type === 'list'}}
       {{each section.items item}}
       <div class="bonus-item">
-        {{if item.icon}}<img class="bonus-icon" src="{{item.icon}}"/>{{/if}}
+        {{if item.icon}}<span class="bonus-icon"><img src="{{item.icon}}"/></span>{{/if}}
         {{if item.name}}<div class="bonus-label">{{item.name}}</div>{{/if}}
         {{if item.desc}}<div class="bonus-desc">{{@item.desc}}</div>{{/if}}
       </div>
