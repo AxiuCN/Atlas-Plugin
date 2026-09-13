@@ -167,12 +167,16 @@ export function transposeTable (params) {
 /** GI 转置前保留的代表等级（实战常用区间，收敛列数） */
 const GI_LEVEL_TARGETS = [9, 10, 11, 12, 13, 14]
 
+/** HSR 天赋视图保留的档数（以常规等级上限为终点往前取，如战技上限 12 → 保留 Lv6-12） */
+const HSR_LEVEL_SPAN = 7
+
 /**
  * 从技能 promote/level 数据构建参数表
  * @param {object} levelData — s.promote (GI) 或 s.level (HSR)
  * @param {string} game — 'gi' | 'hsr'
  * @param {object} [opts] - 选项
  * @param {boolean} [opts.allLevels] - 全等级输出（倍率视图用；默认 GI 抽样到 Lv9-14）
+ * @param {number} [opts.levelCap] - HSR 技能常规等级上限（含星魂加成）：保留末尾 HSR_LEVEL_SPAN 档
  * @param {Object<number, {kind: 'percent'|'num', decimals: number}>} [opts.formats]
  *   - 无标签 param_list（HSR）的按索引展示格式，由描述中的 `#N[fmt]%` 推断
  * @returns {object|null} { headers: string[], rows: string[][], fixed: [] } | null
@@ -212,15 +216,24 @@ export function buildSkillParams (levelData, game, opts = {}) {
 
   if (!paramHeaders.length && paramList != null) {
     if (Array.isArray(paramList) && paramList.length > 0) {
-      // HSR：param_list 为无标签数组，只展示描述中引用过的参数（未引用项为占位 0 值），
-      // 列名按参数序号给出（属性 N，与描述 #N 对应），数值格式由描述推断
+      // HSR：param_list 为无标签数组。列名优先取 miao 参数名（opts.paramNames），无则退回「属性 N」；
+      // opts.onlyVarying（默认开启）只保留随等级变化的参数——常量参数（回合数/次数/概率/属性增减益等）
+      // 各等级同值，技能描述里已给出该数值，留表内只是重复
       const formats = opts.formats || {}
+      const paramNames = opts.paramNames || {}
+      // 只保留描述引用过的参数（未引用项为占位），再按 opts.onlyVarying 裁掉常量参数
       const used = Object.keys(formats)
         .map(Number)
         .filter(i => i >= 0 && i < paramList.length)
         .sort((a, b) => a - b)
-      const idxList = used.length > 0 ? used : paramList.map((_, i) => i)
-      paramHeaders = idxList.map(i => `属性 ${i + 1}`)
+      let idxList = used.length > 0 ? used : paramList.map((_, i) => i)
+      if (opts.onlyVarying !== false) {
+        idxList = idxList.filter(i => {
+          const values = levels.map(lv => Number(levelData[lv]?.param_list?.[i]))
+          return !(values.length > 0 && values.every(v => v === values[0]))
+        })
+      }
+      paramHeaders = idxList.map(i => paramNames[i] || `属性 ${i + 1}`)
       getValues = (entry) => {
         const arr = entry?.param_list || []
         return idxList.map(i => fmtParamListValue(arr[i], formats[i]))
@@ -279,6 +292,21 @@ export function buildSkillParams (levelData, game, opts = {}) {
     const sampled = rows.filter(row => targets.has(Number(row[0])))
     // 理论必中（promote 均含 0-14）；异常缺失时退化为全等级
     if (sampled.length > 0) finalRows = sampled
+  }
+
+  // HSR 天赋视图：以技能常规等级上限（含星魂加成）为终点保留 HSR_LEVEL_SPAN 档，
+  // 裁掉高于上限的预留档（战技/终结技/天赋数据到 15，实际上限 12）；
+  // 倍率视图（allLevels）与未提供上限时保留全等级
+  if (game === 'hsr' && !opts.allLevels && opts.levelCap) {
+    const cap = Number(opts.levelCap)
+    if (Number.isFinite(cap) && cap > 0) {
+      const lo = cap - HSR_LEVEL_SPAN + 1
+      const picked = rows.filter(row => {
+        const lv = Number(row[0])
+        return lv >= lo && lv <= cap
+      })
+      if (picked.length > 0) finalRows = picked
+    }
   }
 
   return transposeTable({ headers, rows: finalRows, fixed })

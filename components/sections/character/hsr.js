@@ -15,8 +15,12 @@
  * - 栏目顺序：技能 → 忆灵技能 → 附加能力 → 总属性加成 → 星魂 → 升级素材
  * - 角色加强（detail.enhanced['1']，10 个加强角色）：技能按 id 末 6 位、星魂按键、
  *   行迹节点按 treeKey/nodeKey 取加强档案数据直接替换加强前内容（加强前的技能/行迹/星魂不再展示）
+ * - 参数表列名：HSR param_list 无标签，取自 miao-plugin 星铁数据（model/MiaoParams.js）按各级数值
+ *   序列比对匹配；miao 未收录或与 nanoka 数值不一致时降级为「属性 N」
+ * - 开拓者条目名为占位符 {NICKNAME}（5 命途 × 2 性别），展示名按命途记为「开拓者·<命途>」
  */
 import { buildSkillParams } from './skillParams.js'
+import { matchParamNames } from '../../../model/MiaoParams.js'
 import { imgUrl, skillTag, cleanText, hsrLabel } from '../util.js'
 
 /** 属性加成为固定数值（非比例）的星铁属性类型 */
@@ -97,10 +101,44 @@ function mergeFormats (base, extra) {
   return key == null ? null : levelData[key]?.param_list || null
 }
 
+/**
+ * 等级数据 → 各等级 param_list（按等级升序）
+ * miao 参数名按「各级数值序列」比对匹配，需要完整的等级序列而非单级
+ * @param {object} levelData - s.level
+ * @returns {Array<Array>}
+ */
+function paramLevels (levelData) {
+  if (!levelData || typeof levelData !== 'object') return []
+  return Object.keys(levelData)
+    .filter(k => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b))
+    .map(k => levelData[k]?.param_list || [])
+}
+
 /** 技能类型排序值（天赋无 type 字段，排在终结技与秘技之间） */
 function hsrSkillOrder (s) {
   if (s?.type == null) return 2.5
   return HSR_SKILL_ORDER[s.type] ?? 9
+}
+
+/**
+ * HSR 技能常规等级上限（含星魂加成）：天赋视图以该上限为终点保留末尾 HSR_LEVEL_SPAN 档。
+ * 数据等级表普遍预留到 15 级（战技/终结技/天赋）或 10 级（普攻/忆灵），高于上限的档位实战不会出现。
+ * 普攻 7（基础 6 + 星魂 1）、战技/终结技/天赋 12（基础 10 + 星魂 2）、秘技 1（不升级）、
+ * 忆灵技与忆灵天赋 7（忆灵体系）、欢愉技/助战技同战技口径 12
+ */
+const HSR_LEVEL_CAP = { Normal: 7, BPSkill: 12, Ultra: 12, Maze: 1, ElationDamage: 12, Assist: 12 }
+const HSR_LEVEL_CAP_DEFAULT = 12
+
+/**
+ * 取技能的常规等级上限
+ * @param {object} s - 技能原始数据
+ * @returns {number}
+ */
+function hsrLevelCap (s) {
+  if (s?.type_name === SPRITE_SKILL || s?.type_name === SPRITE_TALENT) return 7
+  if (s?.type == null) return HSR_LEVEL_CAP_DEFAULT
+  return HSR_LEVEL_CAP[s.type] ?? HSR_LEVEL_CAP_DEFAULT
 }
 
 /**
@@ -135,7 +173,7 @@ function buildBaseStats (detail) {
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
  * @param {object} meta - record.meta
- * @returns {object|null} { hero, metaFields, sections, _images }
+ * @returns {object|null} { hero, metaFields, sections, _images, recordName }
  */
 export function buildHSR (list, detail, meta) {
   const images = meta?.images || []
@@ -146,6 +184,14 @@ export function buildHSR (list, detail, meta) {
   const enhanced = (detail.enhanced && typeof detail.enhanced === 'object' && !Array.isArray(detail.enhanced))
     ? detail.enhanced[Object.keys(detail.enhanced)[0]]
     : null
+
+  // 开拓者条目名为游戏占位符 {NICKNAME}（5 个命途 × 2 性别共 10 条）：展示名按命途区分，
+  // 参数名查询键取 miao 的「穹·<命途>」目录（同命途男女形态数据一致，取其一即可）
+  const rawName = list.zh || meta?.name || ''
+  const isTrailblazer = rawName === '{NICKNAME}'
+  const pathCn = isTrailblazer ? hsrLabel(detail.base_type || '') : ''
+  const charName = isTrailblazer && pathCn ? `开拓者·${pathCn}` : rawName
+  const miaoKey = isTrailblazer && pathCn ? `穹·${pathCn}` : rawName
 
   // Hero
   // 头像用商店头像（avatarshopicon）；立绘用 avatarDrawCard 覆盖 hero 右半（landscape）
@@ -252,12 +298,16 @@ export function buildHSR (list, detail, meta) {
    */
   const toSkillField = (s, formats, iconPath, plain = false) => {
     const rawDesc = s.desc || s.simple_desc || ''
+    const levelData = s.level
+    const paramNames = matchParamNames(miaoKey, paramLevels(levelData))
     return {
       name: s.name || '',
       tag: plain ? '' : (s.type_name || skillTag(s.type || '', 'hsr')),
       icon: !plain && iconPath ? img(iconPath) : '',
-      desc: cleanText(resolveHsrParams(rawDesc, firstLevelParams(s.level))),
-      params: buildSkillParams(s.level, 'hsr', { formats })
+      desc: cleanText(resolveHsrParams(rawDesc, firstLevelParams(levelData))),
+      // 默认参数表按常规上限收敛（天赋视图）；全等级表供倍率视图使用
+      params: buildSkillParams(levelData, 'hsr', { formats, paramNames, levelCap: hsrLevelCap(s) }),
+      paramsAll: buildSkillParams(levelData, 'hsr', { formats, paramNames, allLevels: true })
     }
   }
 
@@ -331,12 +381,15 @@ export function buildHSR (list, detail, meta) {
       .map(({ key, s, enh }) => {
         const levelData = enh?.level || s.level
         const rawDesc = enh?.desc || enh?.simple_desc || s.desc || s.simple_desc || ''
+        const paramNames = matchParamNames(miaoKey, paramLevels(levelData))
         return {
           name: s.name || '',
           tag: s.type_name || skillTag(s.type || '', 'hsr'),
           icon: skillIconMap.get(String(s.id)) || img(`detail.skills.${key}.level.0.icon`),
           desc: cleanText(resolveHsrParams(rawDesc, firstLevelParams(levelData))),
-          params: buildSkillParams(levelData, 'hsr', { formats: skillFormats(s, rawDesc) })
+          // 默认参数表按常规上限收敛（天赋视图）；全等级表供倍率视图使用
+          params: buildSkillParams(levelData, 'hsr', { formats: skillFormats(s, rawDesc), paramNames, levelCap: hsrLevelCap(s) }),
+          paramsAll: buildSkillParams(levelData, 'hsr', { formats: skillFormats(s, rawDesc), paramNames, allLevels: true })
         }
       })
     if (skillFields.length > 0) {
@@ -387,6 +440,6 @@ export function buildHSR (list, detail, meta) {
     }
   }
 
-  return { hero, metaFields, sections, _images: images }
+  return { hero, metaFields, sections, _images: images, recordName: charName !== rawName ? charName : '' }
 }
 
