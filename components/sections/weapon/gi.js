@@ -2,7 +2,7 @@
  * 原神武器构建（GI）
  * 满级基础属性 + 精炼效果 + 升级素材
  */
-import { cleanMarkup, propLabel, giPropInfo, formatGiProp } from '../util.js'
+import { cleanMarkup, propLabel, giPropInfo, formatGiProp, weaponLabel } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 
 /**
@@ -10,12 +10,13 @@ import { aggregateMats, buildMatItems } from '../materials.js'
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
  * @param {object} meta - record.meta
- * @returns {object} { metaFields, sections }
+ * @returns {object} { hero, metaFields, sections }
  */
 export function buildGIWeapon (list, detail, meta) {
+  // 武器类型码在 list.type / detail.weapon_type（无 list.weapontype 字段），与角色页「武器」同用 weaponLabel 映射
+  const weaponType = list.type || detail.weapon_type || ''
   const metaFields = [
-    { label: '类型', value: list.weapontype || '' },
-    { label: '稀有度', value: meta?.rarity || list.rarity || '' },
+    { label: '稀有度', value: meta?.rarity || list.rarity || '' }
   ].filter(f => f.value)
 
   // list.atk 为满级 ATK（Lv.90），副属性从 stats_modifier 取满级值
@@ -28,8 +29,11 @@ export function buildGIWeapon (list, detail, meta) {
     const sm = detail.stats_modifier
     for (const [key, val] of Object.entries(sm)) {
       if (key === 'atk' || val?.base == null) continue
+      // 无副属性的武器该键为 fight_prop_none（值恒 0），跳过不显示
+      if (key === 'fight_prop_none') continue
       const lv90Mult = val?.levels?.['90']
       const curve = lv90Mult != null ? val.base * lv90Mult : val.base
+      if (!curve) continue
 
       // 共用映射（fight_prop_* 与角色突破属性同源），副属性统一加「副属性 · 」前缀
       const { label, kind } = giPropInfo(key, '副属性 · ')
@@ -57,6 +61,18 @@ export function buildGIWeapon (list, detail, meta) {
   }
   const sections = []
 
+  // hero：类型进主标题下方小方框（与角色页「武器」标签同款），武器描述置 hero 底部
+  // 描述取数据源 detail.desc（中文，list.desc 是未翻译英文不可用）；源站没有该字段则整行不显示
+  // 数据源个别条目用双转义换行（字面 \n），归一为空白；<i> 官方注记交给 cleanMarkup 转 .note
+  const desc = cleanMarkup(String(detail.desc || ''))
+    .replace(/\\[nr]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const hero = {
+    weapon: weaponLabel(weaponType),
+    desc
+  }
+
   // 精炼
   if (detail.refinement && typeof detail.refinement === 'object') {
     const refs = Object.entries(detail.refinement)
@@ -83,5 +99,5 @@ export function buildGIWeapon (list, detail, meta) {
     }
   }
 
-  return { metaFields, sections }
+  return { hero, metaFields, sections }
 }

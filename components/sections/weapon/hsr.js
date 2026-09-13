@@ -1,31 +1,37 @@
 /**
  * 星铁光锥构建（HSR）
- * 满级基础属性 + 叠影效果
+ * 满级基础属性 + 叠影效果 + 晋阶材料
  */
-import { cleanMarkup, propLabel, resolveHsrParams } from '../util.js'
+import { cleanMarkup, hsrLabel, resolveHsrParams } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
+import { HSR_MAX_LEVEL } from '../../constants.js'
 
 /**
  * 构建星铁光锥数据
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
  * @param {object} meta - record.meta
- * @returns {object} { metaFields, sections }
+ * @returns {object} { hero, metaFields, sections }
  */
 export function buildHSRLightcone (list, detail, meta) {
+  // 命途在 list.baseType / detail.base_type（数据源职业码，如 Rogue），与角色页「命途」同用 hsrLabel 映射
+  const pathCn = hsrLabel(list.baseType || detail.base_type || '')
   const metaFields = [
-    { label: '命途', value: list.baseType || '' },
-    { label: '稀有度', value: meta?.rarity || list.rarity || '' },
+    { label: '稀有度', value: meta?.rarity || list.rarity || '' }
   ].filter(f => f.value)
 
-  // 满级基础属性（Lv.80）= stats 最后一条
+  // 满级基础属性（Lv.80）：stats 末档 = 基准值 + (80-1) × 成长值（与角色基础属性同款算法，已与 miao baseAttr 对齐）
   if (detail.stats && Array.isArray(detail.stats) && detail.stats.length > 0) {
-    const base = detail.stats[detail.stats.length - 1]
-    const statKeys = ['base_hp', 'base_atk', 'base_def', 'base_speed']
-    for (const key of statKeys) {
-      if (base[key] != null) metaFields.push({ label: propLabel(key), value: String(Math.round(base[key])) })
+    const top = detail.stats[detail.stats.length - 1]
+    const growth = HSR_MAX_LEVEL - 1
+    const pushSum = (label, base, add) => {
+      if (base == null) return
+      metaFields.push({ label, value: String(Math.round(Number(base) + growth * Number(add || 0))) })
     }
+    pushSum('基础生命值', top.base_hp, top.base_hp_add)
+    pushSum('基础攻击力', top.base_attack, top.base_attack_add)
+    pushSum('基础防御力', top.base_defence, top.base_defence_add)
   }
 
   const sections = []
@@ -84,7 +90,11 @@ export function buildHSRLightcone (list, detail, meta) {
     }
   }
 
-  return { metaFields, sections }
+  // hero：命途进主标题下方小方框（与角色页「命途」标签同款）
+  // 光锥故事：nanoka 光锥详情无 desc/story 字段，数据源没有就不显示（不引入外部文本源）
+  const hero = { weapon: pathCn }
+
+  return { hero, metaFields, sections }
 }
 
 /** HSR rarity 字符串 → 排序 rank（NotNormal < Rare < VeryRare） */

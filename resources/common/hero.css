@@ -175,6 +175,19 @@
   font-weight: 600;
 }
 
+/* ===== Hero 描述行 .hero-desc（武器类页面：类型/命途方框下方的武器描述/故事首段） ===== */
+.hero-desc {
+  margin-top: 8px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: #555555;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ===== 技能图标 .skill-icon（无底无框，白线稿经 filter 反相为深色线稿） ===== */
 .skill-icon {
   width: 58px;

@@ -28,6 +28,7 @@
 import { buildSkillParams, varyingIndexes } from './skillParams.js'
 import { matchParamNames } from '../../../model/MiaoParams.js'
 import { imgUrl, skillTag, cleanMarkup, resolveHsrParams, hsrLabel } from '../util.js'
+import { HSR_MAX_LEVEL } from '../../constants.js'
 
 /** 属性加成为固定数值（非比例）的星铁属性类型 */
 const HSR_STAT_FLAT = new Set(['SpeedDelta'])
@@ -39,8 +40,6 @@ const HSR_SKILL_ORDER = { Normal: 0, BPSkill: 1, Ultra: 2, Maze: 3, ElationDamag
 const SPRITE_SKILL = '忆灵技'
 const SPRITE_TALENT = '忆灵天赋'
 
-/** 满级等级（基础属性按 80 级计算，成长级数 = 80 - 1） */
-const HSR_MAX_LEVEL = 80
 
 /**
  * 从技能描述提取各参数索引的展示格式

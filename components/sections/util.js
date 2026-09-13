@@ -146,7 +146,8 @@ export function weaponLabel (weapon) {
     WEAPON_POLE: '长柄武器',
     WEAPON_CATALYST: '法器',
     WEAPON_BOW: '弓',
-    WEAPON_CROSSBOW: '枪' // 第三人称射击旅行者（枪主）条目残留的武器码
+    WEAPON_CROSSBOW: '枪', // 第三人称射击旅行者（枪主）条目残留的武器码
+    ITEM_TPS_WEAPON: '枪' // 第三人称射击模式的武器条目（榴晶·各元素等 8 件，与枪主同族）
   }
   return map[weapon] || weapon
 }

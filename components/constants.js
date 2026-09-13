@@ -22,14 +22,37 @@ export const GAME_FOLDERS = {
 }
 
 // 快捷入口/子视图后缀集合（atlasShortcut 正则与 atlasQuery 子视图解析共用）
-// 注意顺序：长后缀在前（"养成素材"需在"养成"/"素材"前匹配）
+// 三游戏子视图命名以原神为基准，此处额外收录各游戏独有叫法（星魂/影画/行迹/晋阶材料…），
+// 玩家混着叫也能命中（如 #下的星魂 等同命座）——后缀不按游戏过滤
+// 注意顺序：长后缀在前（"养成素材"需在"养成"/"素材"前匹配，"忆灵技"在"忆灵"前）
 export const SHORTCUT_SUFFIXES = [
   // 倍率视图（技能/天赋倍率 — 全等级宽表，长后缀优先）
   '天赋倍率', '技能倍率', '倍率表', '倍率',
-  '图鉴', '养成素材', '升级素材', '升级材料',
-  '天赋', '技能', '命座', '资料', '故事', '语音',
+  '图鉴',
+  // 素材类（原神 升级材料/养成素材，星铁 晋阶材料，绝区零 突破素材）
+  '养成素材', '升级素材', '升级材料', '晋阶材料', '晋阶素材', '突破材料', '突破素材',
+  // 技能类（星铁把天赋叫行迹，忆灵体系另有忆灵技/忆灵天赋）
+  '天赋', '技能', '行迹', '忆灵技', '忆灵',
+  // 命座类（星铁 星魂，绝区零 影画）
+  '命座', '星魂', '影画',
+  '资料', '故事', '语音',
   '养成', '素材', '材料', '升级'
 ]
+
+// 子视图后缀 → subView 规范名（atlasQuery.parseSubView 使用）
+// 同一 subView 收录三游戏各自叫法：星铁「星魂」、绝区零「影画」等同命座，星铁「行迹」「忆灵技」等同天赋/技能，
+// 素材类另收「晋阶材料」「突破素材」等——玩家混着叫都能落到同一子视图
+// 新增后缀必须在此登记，否则会落到 materials 兜底
+export const SUFFIX_TO_SUBVIEW = {
+  天赋: 'skills', 技能: 'skills', 行迹: 'skills', 忆灵技: 'skills', 忆灵: 'skills',
+  天赋倍率: 'rates', 技能倍率: 'rates', 倍率表: 'rates', 倍率: 'rates',
+  命座: 'constellations', 星魂: 'constellations', 影画: 'constellations',
+  资料: 'profile',
+  故事: 'stories', 语音: 'stories',
+  养成: 'materials', 素材: 'materials', 材料: 'materials',
+  升级素材: 'materials', 养成素材: 'materials', 升级材料: 'materials', 升级: 'materials',
+  晋阶材料: 'materials', 晋阶素材: 'materials', 突破材料: 'materials', 突破素材: 'materials'
+}
 
 // 页面 pageKey → 中文标签（三游戏通用回退）
 export const PAGE_LABELS = {
@@ -170,6 +193,9 @@ export const HSR_PATH_CN = {
   Rogue: '巡猎', Warrior: '毁灭', Mage: '智识', Knight: '存护',
   Priest: '丰饶', Warlock: '虚无', Shaman: '同谐', Memory: '记忆'
 }
+
+/** 星铁满级等级（角色/光锥 80 级；满级属性 = 基础值 + (80-1) × 成长值） */
+export const HSR_MAX_LEVEL = 80
 
 /** 原神元素英文 → 中文（未知值原样返回） */
 export function elementLabel (value) {
