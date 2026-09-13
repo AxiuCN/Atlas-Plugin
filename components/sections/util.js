@@ -23,7 +23,7 @@ export function imgUrl (images, fieldPath) {
   if (!images || !Array.isArray(images)) return ''
   const img = images.find(i => i.fieldPath === fieldPath)
   if (!img) return ''
-  const patch = patchImageUrl(imageGameFolder(img), img.originalValue)
+  const patch = patchImageUrl(imageGameFolder(img, images), img.originalValue)
   if (patch) return patch
   if (img.localPath) {
     const fullPath = path.join(backendRoot, img.localPath)

@@ -8,22 +8,30 @@ import { imgUrl, galleryUrl, weaponLabel, formatBirthday, cleanMarkup, skillTag,
 import { ELEMENT_CN } from '../../constants.js'
 import { familyName } from '../../protagonist.js'
 
-/** 奇偶（千星奇域人偶主角）各元素形态的 hero 背景：人偶名片 */
-const GI_MANEKIN_NAMECARD = 'UI_NameCardIcon_MarionetteNew'
-
 /**
- * 旅行者各元素形态的 hero 背景：取对应地区的名片纹饰（数据里名片条目自带该资产，但旅行者条目未引用）
- * 无属性形态即枪主（第三人称射击旅行者），用 TPS 名片
+ * 旅行者各元素形态的 hero 背景：取对应地区的**名片大图** `UI_NameCardPic_<X>_P`（840×400 完整插画）
+ * 注意款式：角色页 hero 一直用的是大图（如神里绫华的 chara_info.namecard.icon = `UI_NameCardPic_Ayaka_P`），
+ * `UI_NameCardIcon_*` 是 256×256 的缩略图标，放大后发糊且露出白边框，不能当 hero 背景
+ * 旅行者条目的 chara_info.namecard 是空对象（16 个形态都没名片），故由 galleryUrl() 按资源名直查
  */
 const GI_TRAVELER_NAMECARD = {
-  Anemo: 'UI_NameCardIcon_Md', // 蒙德·风吟
-  Geo: 'UI_NameCardIcon_Ly', // 璃月·岩寂
-  Electro: 'UI_NameCardIcon_Daoqi1', // 稻妻·九条之纹
-  Dendro: 'UI_NameCardIcon_Xumi1', // 须弥·照览
-  Hydro: 'UI_NameCardIcon_Fontaine1', // 枫丹·奇械
-  Pyro: 'UI_NameCardIcon_Natlan1', // 纳塔·归火（远端缺图，本地无文件时留空）
-  Cryo: 'UI_NameCardIcon_Snezhnaya1', // 至冬·长夜
-  None: 'UI_NameCardIcon_Tps1' // 至冬·梭影（枪主）
+  Anemo: 'UI_NameCardPic_Md_P', // 蒙德·风吟
+  Geo: 'UI_NameCardPic_Ly_P', // 璃月·岩寂
+  Electro: 'UI_NameCardPic_Daoqi1_P', // 稻妻·九条之纹（稻妻第一个成就「雷与永恒的群岛·其之一」奖励）
+  Dendro: 'UI_NameCardPic_Xumi1_P', // 须弥·瑶林（游戏内成就「须弥·玄识深藏的雨林」奖励的名片即此款；nanoka 侧无此大图，见退路表）
+  Hydro: 'UI_NameCardPic_FD1_P', // 枫丹·审判
+  Pyro: 'UI_NameCardPic_Natlan1_P', // 纳塔·归火（nanoka 侧缺图，由图片补丁提供）
+  Cryo: 'UI_NameCardPic_Snezhnaya1_P', // 至冬·长夜
+  None: 'UI_NameCardPic_Tps1_P' // 至冬·梭影（枪主）
+}
+
+/**
+ * 大图缺失时的退路（按顺序取第一个存在的资源）
+ * 须弥·瑶林的大图 CDN 上不存在 → 用图片补丁 `UI_NameCardPic_Xm1_P.webp` 代用（840×400 同款式，已核对为正确图），
+ * 最后才退到 256×256 缩略图；日后拿到 `UI_NameCardPic_Xumi1_P` 真图，放进补丁目录即可自动生效
+ */
+const GI_TRAVELER_NAMECARD_FALLBACK = {
+  Dendro: ['UI_NameCardPic_Xm1_P', 'UI_NameCardIcon_Xumi1']
 }
 
 /**
@@ -48,13 +56,16 @@ export function buildGI (list, detail, meta, opts = {}) {
   // ── Hero 区块 ──
   // 主角 chara_info.vision 为「无」，元素改取 list.element（数据源元素码）
   const vision = detail.chara_info?.vision || ''
-  // 旅行者（含无属性的枪主）自身无名片字段，hero 背景按元素取对应地区名片；奇偶取人偶名片
+  // 旅行者（含无属性的枪主）chara_info.namecard 为空对象，hero 背景按元素取对应地区名片大图（缺失时走退路表）
   const family = familyName('gi', meta?.name || list.zh || '')
+  const element = list.element || detail.element
   const familyCard = family === '旅行者'
-    ? GI_TRAVELER_NAMECARD[list.element || detail.element]
-    : (family === '奇偶' ? GI_MANEKIN_NAMECARD : '')
+    ? [GI_TRAVELER_NAMECARD[element], ...(GI_TRAVELER_NAMECARD_FALLBACK[element] || [])]
+      .map(name => galleryUrl('gi', name))
+      .find(Boolean) || ''
+    : ''
   const hero = {
-    namecard: img('detail.chara_info.namecard.icon') || galleryUrl('gi', familyCard),
+    namecard: img('detail.chara_info.namecard.icon') || familyCard,
     portrait,
     portrait2,
     title: detail.chara_info?.title || '',

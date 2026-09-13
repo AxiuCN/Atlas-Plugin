@@ -579,8 +579,8 @@ export function resolveRecordImage (record) {
   const picked = images.find(item => item?.localPath && item.status === 'downloaded' && !item.placeholder)
     || images.find(item => item?.localPath)
   if (!picked) return ''
-  // 插件图片补丁优先（补缺图 / 覆盖错图）
-  const patch = patchImageUrl(imageGameFolder(picked), picked.originalValue)
+  // 插件图片补丁优先（补缺图 / 覆盖错图）；游戏目录优先取记录自身的 meta.gameId
+  const patch = patchImageUrl(record?.meta?.gameId || imageGameFolder(picked, images), picked.originalValue)
   if (patch) return patch
   if (!picked.localPath) return ''
   const fullPath = path.join(backendRoot, picked.localPath)

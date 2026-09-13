@@ -40,7 +40,7 @@ function readJson (file) {
 /**
  * 查询图片补丁（按资源名，扩展名固定 webp）
  * @param {string} gameId - gallery 下的游戏目录名（gi/hsr/zzz）
- * @param {string} fileName - 资源名，如 UI_NameCardIcon_Natlan1
+ * @param {string} fileName - 资源名，如 UI_NameCardPic_Natlan1_P
  * @returns {string} file:// URL，无补丁返回空串
  */
 export function patchImageUrl (gameId, fileName) {
@@ -50,16 +50,23 @@ export function patchImageUrl (gameId, fileName) {
 }
 
 /**
- * 从 meta.images 条目推断 gallery 游戏目录
- * （localPath 形如 gallery/gi/xxx.webp；缺图条目没有 localPath 时退回 remoteUrl 的 /assets/<game>/ 段）
+ * 推断图片所属 gallery 游戏目录，按序尝试：
+ * ① 自身 localPath（`gallery/<game>/xxx.webp`）② 自身 remoteUrl（`/assets/<game>/`）
+ * ③ 同记录其它图片的 localPath；占位图（`gallery/_placeholder/unknown.svg`）与 remoteUrl 为空的条目靠 ③ 兜底
  * @param {object} img - record.meta.images 条目
+ * @param {Array} [images] - 同记录的完整 meta.images（可选）
  * @returns {string} 游戏目录名，推断不出返回空串
  */
-export function imageGameFolder (img) {
+export function imageGameFolder (img, images) {
   const segs = String(img?.localPath || '').split('/')
-  if (segs.length > 1 && segs[0] === 'gallery') return segs[1]
+  if (segs.length > 1 && segs[0] === 'gallery' && segs[1] !== '_placeholder') return segs[1]
   const match = /\/assets\/([a-z]+)\//.exec(String(img?.remoteUrl || ''))
-  return match ? match[1] : ''
+  if (match) return match[1]
+  for (const other of images || []) {
+    const otherSegs = String(other?.localPath || '').split('/')
+    if (otherSegs.length > 1 && otherSegs[0] === 'gallery' && otherSegs[1] !== '_placeholder') return otherSegs[1]
+  }
+  return ''
 }
 
 /**
