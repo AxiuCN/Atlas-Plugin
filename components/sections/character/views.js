@@ -38,10 +38,10 @@ export function applyDefaultView (data) {
   return { ...data, sections }
 }
 
-/** 天赋视图：仅技能（含忆灵技能组）+ 被动 + 相关效果/规则术语（完整参数） */
+/** 天赋视图：仅技能（含忆灵技能组）+ 被动 + 相关效果/规则术语（完整参数）；inSkills 标记的段落一并纳入 */
 export function applySkillsView (data) {
   const sections = data.sections.filter(s =>
-    s.type === 'skill-cards' || s.type === 'skill-groups' || s.type === 'list'
+    s.type === 'skill-cards' || s.type === 'skill-groups' || s.type === 'list' || s.inSkills
   )
   return { ...data, sections }
 }

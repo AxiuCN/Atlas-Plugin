@@ -248,6 +248,23 @@ function _calValue (expr, scale, decimals, level) {
 }
 
 /**
+ * 设备相关按键提示占位符清洗
+ * `{LAYOUT_CONSOLECONTROLLER#操作杆}{LAYOUT_FALLBACK#摇杆}` 是同义的按键提示（主机手柄布局 / 其它布局各一份），
+ * 取 FALLBACK 那份（非主机手柄布局下的通用叫法），避免原文两个词并排出现；落单的 `{LAYOUT_XXX#文案}` 取文案
+ * @param {string} text
+ * @returns {string}
+ */
+function _cleanDeviceText (text) {
+  return String(text || '')
+    .replace(/\{LAYOUT_([A-Z_]+)#([^}]*)\}\{LAYOUT_([A-Z_]+)#([^}]*)\}/g, (m, tag1, text1, tag2, text2) => {
+      if (tag2 === 'FALLBACK') return text2
+      if (tag1 === 'FALLBACK') return text1
+      return text2
+    })
+    .replace(/\{LAYOUT_[A-Z_]+#([^}]*)\}/g, '$1')
+}
+
+/**
  * CAL 公式文本求值（描述与倍率行通用）
  * 表达式可嵌在文字中间（如「露西攻击力{CAL:…}%+{CAL:…}」）；
  * 数值在数据里常被 <color> 单独包裹且单位在标签外（`<color>{CAL:…}</color>%`），
@@ -333,7 +350,7 @@ function _moveParams (rows) {
  * @returns {string}
  */
 function _skillDesc (desc, iconPrefix, img) {
-  const withCal = _substituteCal(desc, ZZZ_MAX_SKILL_LEVEL, true) ?? String(desc)
+  const withCal = _substituteCal(_cleanDeviceText(desc), ZZZ_MAX_SKILL_LEVEL, true) ?? String(desc)
   const tokenized = withCal.replace(/<IconMap:([A-Za-z0-9_]+)>/g, (m, name) => `@@ATLAS_ICON:${name}@@`)
   return cleanMarkup(tokenized).replace(/@@ATLAS_ICON:([A-Za-z0-9_]+)@@/g, (m, name) => {
     const url = img(`${iconPrefix}.${name}`) || galleryUrl('zzz', name)
@@ -411,7 +428,7 @@ function _corePassiveItems (detail) {
   const descs = top.desc || []
   return names
     .map((name, i) => {
-      const raw = descs[i] || ''
+      const raw = _cleanDeviceText(descs[i] || '')
       return { name, desc: cleanMarkup(_substituteCal(raw, ZZZ_MAX_SKILL_LEVEL, true) ?? raw) }
     })
     .filter(it => it.name)
@@ -517,7 +534,8 @@ export function buildZZZ (list, detail, meta) {
   }
   const coreLevelItems = _coreLevelItems(detail)
   if (coreLevelItems.length) {
-    sections.push({ title: '核心技强化', type: 'stat-grid', items: coreLevelItems })
+    // inSkills：核心技强化与核心被动同属核心技，纳入天赋/技能子视图
+    sections.push({ title: '核心技强化', type: 'stat-grid', items: coreLevelItems, inSkills: true })
   }
 
   // 潜能（技能与影画之间）
