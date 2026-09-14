@@ -2,7 +2,7 @@
  * 绝区零角色构建（ZZZ）
  * 将 nanoka 绝区零条目 JSON 归一化为统一角色模板数据
  */
-import { imgUrl, propLabel, cleanMarkup } from '../util.js'
+import { imgUrl, cleanMarkup } from '../util.js'
 import { transposeTable } from './skillParams.js'
 import { zzzRank } from '../../constants.js'
 
@@ -12,6 +12,104 @@ function _formatZzzBirthday (birth) {
   const m = birth.trim().match(/^(\d{1,2})\/(\d{1,2})$/)
   if (!m) return ''
   return `${Number(m[1])}月${Number(m[2])}日`
+}
+
+/** 绝区零角色满级等级（属性成长表以 Lv60 为上限） */
+const ZZZ_MAX_LEVEL = 60
+
+/** 属性表格展示项与标签（顺序同游戏内面板；propLabel 缺冲击力/异常项） */
+const ZZZ_STAT_LABEL = {
+  hp_max: '生命值',
+  attack: '攻击力',
+  defence: '防御力',
+  break_stun: '冲击力',
+  element_abnormal_power: '异常掌控',
+  element_mystery: '异常精通'
+}
+
+/** 随等级成长的属性 → 成长值字段（生命值的字段名是 hp_growth，不随其他键加 _growth） */
+const ZZZ_GROWTH_KEY = {
+  hp_max: 'hp_growth',
+  attack: 'attack_growth',
+  defence: 'defence_growth'
+}
+
+/**
+ * 核心技强化属性 id → stats 键
+ * 只收「基础值」类（format 无 %）：data 内出现的有 生命值/基础攻击力/冲击力/异常精通/异常掌控/基础能量自动回复
+ */
+const ZZZ_EXTRA_PROP = {
+  11101: 'hp_max',
+  12101: 'attack',
+  12201: 'break_stun',
+  31201: 'element_mystery',
+  31401: 'element_abnormal_power',
+  30501: 'sp_recover'
+}
+
+/** 数据里元素标签不统一（火属性/冰属性/电属性/风属性 带后缀），统一为游戏内元素名 */
+const ZZZ_ELEMENT = {
+  物理: '物理', 火属性: '火', 冰属性: '冰', 电属性: '电', 以太: '以太', 风属性: '风', 流明: '流明'
+}
+
+/** detail.gender：1=男、2=女（partner_info.gender 缺失时回退） */
+const ZZZ_GENDER = { 1: '男', 2: '女' }
+
+/** 满级基础值 = 基础 + (满级-1) × 成长/10000 + 最高突破档累计（与游戏内一致，取整截断） */
+function _zzzMaxStat (base, growth, breakthrough) {
+  return Math.trunc((Number(base) || 0) + (ZZZ_MAX_LEVEL - 1) * (Number(growth) || 0) / 10000 + (Number(breakthrough) || 0))
+}
+
+/**
+ * 核心技满档（extra_level 最高档，值为累计加成）的「基础属性」加成
+ * 百分比类项（如 攻击力+21%、生命值+18%）属游戏内「加成」而非基础值，不计入属性表格
+ * @param {object} detail
+ * @returns {object} { <propId>: value }
+ */
+function _zzzCoreBonus (detail) {
+  const levels = detail.extra_level || {}
+  const maxKey = Object.keys(levels).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b)).pop()
+  const extra = levels[maxKey]?.extra || {}
+  const out = {}
+  for (const [prop, item] of Object.entries(extra)) {
+    if (String(item?.format || '').includes('%')) continue
+    out[prop] = Number(item?.value) || 0
+  }
+  return out
+}
+
+/**
+ * 属性表格：满级（Lv60，含最高突破）基础值 + 满核心技的固定加成
+ * 生命/攻击/防御随等级成长；冲击力/异常掌控/异常精通不随等级变化，只有核心技加成
+ * @param {object} detail
+ * @returns {Array<{label:string,value:string}>}
+ */
+function _zzzStatFields (detail) {
+  const stats = detail.stats || {}
+  const level = detail.level || {}
+  const maxKey = Object.keys(level).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b)).pop()
+  const breakthrough = level[maxKey] || {}
+  const bonus = _zzzCoreBonus(detail)
+  const addOf = (statKey) => Object.entries(ZZZ_EXTRA_PROP)
+    .filter(([, k]) => k === statKey)
+    .reduce((sum, [prop]) => sum + (bonus[prop] || 0), 0)
+
+  const fields = []
+  for (const key of ['hp_max', 'attack', 'defence']) {
+    if (stats[key] == null) continue
+    const growth = stats[ZZZ_GROWTH_KEY[key]]
+    fields.push({ label: ZZZ_STAT_LABEL[key], value: String(_zzzMaxStat(stats[key], growth, breakthrough[key]) + addOf(key)) })
+  }
+  for (const key of ['break_stun', 'element_abnormal_power', 'element_mystery']) {
+    if (stats[key] == null) continue
+    fields.push({ label: ZZZ_STAT_LABEL[key], value: String(Math.trunc(Number(stats[key]) + addOf(key))) })
+  }
+  // 能量自动回复数据侧为 ×100 值（120 → 1.2/秒）
+  if (stats.sp_recover != null) {
+    const rate = (Number(stats.sp_recover) + addOf('sp_recover')) / 100
+    fields.push({ label: '能量自动回复', value: String(Number(rate.toFixed(2))) })
+  }
+  return fields
 }
 
 /**
@@ -28,37 +126,45 @@ export function buildZZZ (list, detail, meta) {
 
   const elementType = detail.element_type ? Object.values(detail.element_type)[0] : ''
   const weaponType = detail.weapon_type ? Object.values(detail.weapon_type)[0] : ''
+  const hitType = detail.hit_type ? Object.values(detail.hit_type)[0] : ''
+  const camp = detail.camp ? Object.values(detail.camp)[0] : ''
+  const info = detail.partner_info || {}
+  const element = ZZZ_ELEMENT[elementType] || elementType || list.element || ''
+  const birthday = _formatZzzBirthday(info.birthday)
+  const gender = info.gender || ZZZ_GENDER[detail.gender] || ''
 
-  // 立绘后景：优先角色皮肤图（meta.images 中 skin.* 的 fieldPath，通常竖版立绘），退角色图标
-  const skinField = Array.isArray(images)
-    ? images.filter(i => i.fieldPath?.startsWith('skin.') && i.status === 'downloaded').pop()?.fieldPath
-    : ''
+  // hero 背景同原神：取角色自带的横版完整插画 Mindscape_<id>_3（影画第三阶段 2580×1080，退第二/第一），
+  // 由模板写成 .hero 的内联 background-image，填充沿用 .hero 的 cover + center 30%（与原神名片大图完全同一套）
+  // 上游未抓到的图在 meta.images 里是占位（gallery/_placeholder/unknown.svg），必须跳过，否则占位会顶掉后面的退路
+  const realImg = (fp) => {
+    const url = img(fp)
+    return url && !url.includes('/_placeholder/') ? url : ''
+  }
   const hero = {
-    // 立绘后景用第 3 张命座横版图（2580×1080），退皮肤图，再退角色图标
-    namecard: img('derived.mindscape.3') || img('derived.mindscape.2') || img('derived.mindscape.1')
-      || (skinField ? img(skinField) : '') || img('icon') || img('detail.icon'),
+    // 三张影画都缺（当前仅新角色佩洛伊斯/克拉蕾/洛克茜）时退角色立绘大图（1516×2128 完整插画），不再往下退小图标
+    namecard: realImg('derived.mindscape.3') || realImg('derived.mindscape.2') || realImg('derived.mindscape.1')
+      || realImg('icon') || '',
     portrait: img('detail.partner_info.icon_path') || img('icon') || img('detail.icon'),
     title: '',
-    element: elementType || list.element || '',
+    element,
     weapon: weaponType || list.specialty || '',
-    birthday: _formatZzzBirthday(detail.partner_info?.birthday),
+    birthday,
     constellation: '',
-    rarity: zzzRank(list.rank ?? detail.rarity ?? meta?.rarity, 'character')
+    rarity: zzzRank(list.rank ?? detail.rarity ?? meta?.rarity, 'character'),
+    // hero 小方框：属性 特性 攻击类型 阵营 性别 生日 身高（生日/身高带标签，其余为裸值）
+    chips: [
+      element,
+      weaponType || list.specialty || '',
+      hitType,
+      camp,
+      gender,
+      birthday ? `生日 ${birthday}` : '',
+      info.stature ? `身高 ${info.stature}` : ''
+    ].filter(Boolean)
   }
 
-  // 去重：仅保留阵营、性别 + stats
-  const metaFields = []
-  if (detail.camp) metaFields.push({ label: '阵营', value: detail.camp })
-  if (detail.gender) metaFields.push({ label: '性别', value: detail.gender })
-
-  if (detail.stats) {
-    const statKeys = ['hp_max', 'attack', 'defence', 'crit', 'crit_damage', 'pen_rate', 'stun']
-    for (const key of statKeys) {
-      if (detail.stats[key] != null) {
-        metaFields.push({ label: propLabel(key), value: String(detail.stats[key]) })
-      }
-    }
-  }
+  // 属性表格：满级基础值 + 满核心技固定加成（阵营/性别/生日/身高等身份项已进 hero 小方框）
+  const metaFields = _zzzStatFields(detail)
 
   // 技能
   if (detail.skill && typeof detail.skill === 'object') {
@@ -127,14 +233,11 @@ export function buildZZZ (list, detail, meta) {
     sections.push({ title: '影画', type: 'constellation-grid', items: conList })
   }
 
-  // 资料
+  // 资料（生日/全名/身高已归入 hero 小方框或不再展示，详见 buildZZZ 头部注释）
   if (detail.partner_info) {
     const pi = detail.partner_info
     const stories = []
     if (pi.profile_desc) stories.push({ title: '简介', content: cleanMarkup(pi.profile_desc) })
-    if (pi.birthday) metaFields.push({ label: '生日', value: _formatZzzBirthday(pi.birthday) })
-    if (pi.full_name) metaFields.push({ label: '全名', value: pi.full_name })
-    if (pi.stature) metaFields.push({ label: '身高', value: pi.stature })
     if (stories.length > 0) {
       sections.push({ title: '资料', type: 'stories', items: stories })
     }

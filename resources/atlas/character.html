@@ -41,9 +41,13 @@
       <div class="hero-title">{{name}}</div>
       {{if hero.title}}<div class="hero-subtitle">{{hero.title}}</div>{{/if}}
       <div class="hero-info">
+        {{if hero.chips && hero.chips.length > 0}}
+        {{each hero.chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
+        {{else}}
         {{if hero.element}}<span class="hero-info-item">{{hero.element}}</span>{{/if}}
         {{if hero.weapon}}<span class="hero-info-item">{{hero.weapon}}</span>{{/if}}
         {{if hero.birthday}}<span class="hero-info-item">生日 {{hero.birthday}}</span>{{/if}}
+        {{/if}}
       </div>
     </div>
   </div>
