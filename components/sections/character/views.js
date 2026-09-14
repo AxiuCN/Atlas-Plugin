@@ -3,6 +3,7 @@
  * 默认视图 / 天赋视图 / 命座视图 / 资料视图 / 故事视图 / 养成视图
  */
 import { getSkillNames, getConstellationNames, getOutfits } from './names.js'
+import { splitTableColumns } from './skillParams.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { imgUrl, formatFoodDesc, cleanMarkup } from '../util.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
@@ -10,10 +11,10 @@ import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
 /** 默认视图：隐藏技能参数等级表（保留固定属性小格），素材仅养成子视图展示 */
 export function applyDefaultView (data) {
-  // 隐藏技能参数等级表；有固定属性（冷却/能量/体力等）时保留小格展示
+  // 隐藏技能参数等级表（单表 rows 与续表 tables 都清空）；有固定属性（冷却/能量/体力等）时保留小格展示
   const stripParams = (sk) =>
     sk.params?.fixed?.length
-      ? { ...sk, params: { ...sk.params, rows: [] } }
+      ? { ...sk, params: { ...sk.params, rows: [], tables: [] } }
       : { ...sk, params: null }
 
   const sections = data.sections
@@ -55,7 +56,7 @@ export function applyRatesView (data, perTable = 5) {
   const toRates = (sk) => {
     const params = sk.paramsAll && sk.paramsAll.rows?.length ? sk.paramsAll : sk.params
     if (!params || !params.rows?.length) return { ...sk, params }
-    return { ...sk, params: { ...params, tables: splitRateTables(params, perTable) } }
+    return { ...sk, params: { ...params, tables: splitTableColumns(params, perTable) } }
   }
 
   const sections = data.sections
@@ -72,25 +73,6 @@ export function applyRatesView (data, perTable = 5) {
       return { ...s, skills: (s.skills || []).map(toRates) }
     })
   return { ...data, sections }
-}
-
-/**
- * 全等级转置表 → 多张续表：按等级列数分块（每块保留「属性」首列）
- * @param {object} params - 全等级转置表 { headers: ['属性','Lv1',...], rows: [{name, values:[]}] }
- * @param {number} perTable - 每张表的等级列数上限
- * @returns {Array<{headers: string[], rows: Array<{name:string, values:Array}>}>}
- */
-function splitRateTables (params, perTable) {
-  const lvHeaders = params.headers.slice(1)
-  const tables = []
-  for (let i = 0; i < lvHeaders.length; i += perTable) {
-    const chunk = lvHeaders.slice(i, i + perTable)
-    tables.push({
-      headers: ['属性', ...chunk],
-      rows: params.rows.map(r => ({ name: r.name, values: r.values.slice(i, i + chunk.length) }))
-    })
-  }
-  return tables
 }
 
 /** 命座视图：仅命座 + 相关效果/规则术语 */

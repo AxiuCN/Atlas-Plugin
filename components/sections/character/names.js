@@ -2,7 +2,7 @@
  * 角色名称提取（资料子视图用）
  * 技能名 / 命座名 / 服装列表，均无描述、含图标
  */
-import { imgUrl, skillTag } from '../util.js'
+import { imgUrl, galleryUrl, skillTag } from '../util.js'
 
 /** 获取技能名称列表（无描述，含图标） */
 export function getSkillNames (detail, gameId, images) {
@@ -18,13 +18,19 @@ export function getSkillNames (detail, gameId, images) {
         names.push({ name: s.name, tag: s.type_name || skillTag(s.type || '', 'hsr'), icon: imgUrl(images, `detail.skills.${key}.level.0.icon`) })
       })
   } else if (gameId === 'zzz' && detail.skill && typeof detail.skill === 'object') {
-    const skillOrder = ['basic', 'dodge', 'special', 'chain', 'core']
-    const skillLabels = { basic: '普通攻击', dodge: '闪避', special: '特殊技', chain: '连携技', core: '核心技' }
-    for (const key of skillOrder) {
+    // 类别顺序与标签同技能段落；招式图标取自 desc 内嵌的 <IconMap>（fieldPath 定位），无则用类别默认图标
+    const skillOrder = [['basic', '普通攻击'], ['dodge', '闪避'], ['special', '特殊技'], ['chain', '连携技'], ['assist', '支援技']]
+    const fallbackIcon = { basic: 'Icon_Normal', dodge: 'Icon_Evade', special: 'IconRoleSkillKeySpecial', chain: 'Icon_QTE', assist: 'Icon_Switch' }
+    for (const [key, label] of skillOrder) {
       const sk = detail.skill[key]
       if (!sk) continue
       const main = sk.description?.[0]
-      names.push({ name: main?.name || sk.name || skillLabels[key] || key, tag: skillLabels[key] || key, icon: imgUrl(images, `detail.skill.${key}.icon`) })
+      const iconName = String(main?.desc || '').match(/<IconMap:([A-Za-z0-9_]+)>/)?.[1]
+      names.push({
+        name: main?.name || sk.name || label,
+        tag: label,
+        icon: imgUrl(images, `detail.skill.${key}.description.0.desc.IconMap.${iconName}`) || galleryUrl('zzz', fallbackIcon[key])
+      })
     }
   }
   return names

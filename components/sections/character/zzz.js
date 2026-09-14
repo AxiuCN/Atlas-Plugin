@@ -2,8 +2,8 @@
  * 绝区零角色构建（ZZZ）
  * 将 nanoka 绝区零条目 JSON 归一化为统一角色模板数据
  */
-import { imgUrl, cleanMarkup } from '../util.js'
-import { transposeTable } from './skillParams.js'
+import { imgUrl, galleryUrl, cleanMarkup } from '../util.js'
+import { transposeTable, splitTableColumns } from './skillParams.js'
 import { zzzRank } from '../../constants.js'
 
 /** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
@@ -112,6 +112,265 @@ function _zzzStatFields (detail) {
   return fields
 }
 
+/* ===== 技能（绝区零） =====
+ * 数据形态：detail.skill.<类别>.description[] 里，带 desc 的条目是招式说明、带 param 的是倍率组，
+ * 两者按 name 配对（同一招式一条 desc + 一条 param 组）；类别顺序 普攻/闪避/特殊技/连携技/支援技
+ * （数据侧没有 core 键，核心被动在 detail.passive）。
+ * 倍率取值（等级 1~12，5 个类别的 material 表都是 1~12 档）：
+ *   行 desc 形如 `{Skill:<id>, Prop:<n>}`（单段）或 `{Skill:A}+{{Skill:B}/3}*3`（复合），
+ *   每个引用取该技能 param 项在 Lv 下的 main + growth×(Lv-1)（main/growth 即该行 Prop 对应的数值）；
+ *   `{CAL:表达式,倍数,小数位}` 是游戏公式行，AvatarSkillLevel(k) 恒等于本类别当前等级，按列等级求值；
+ *   两者都不含的行（「能量消耗 20点」等）不随等级变化 → 走固定小格。
+ */
+
+/** 技能等级上限（数据 material 表 1~12） */
+const ZZZ_MAX_SKILL_LEVEL = 12
+
+/** 倍率续表每张的等级列数（与倍率视图一致） */
+const ZZZ_RATE_PER_TABLE = 5
+
+/** 技能类别顺序与标签 */
+const ZZZ_SKILL_CATEGORIES = [
+  ['basic', '普通攻击'],
+  ['dodge', '闪避'],
+  ['special', '特殊技'],
+  ['chain', '连携技'],
+  ['assist', '支援技']
+]
+
+/** 招式 desc 无 <IconMap> 时的类别默认图标（资源名，IconMap 键与资源名不同名） */
+const ZZZ_SKILL_ICON = {
+  basic: 'Icon_Normal',
+  dodge: 'Icon_Evade',
+  special: 'IconRoleSkillKeySpecial',
+  chain: 'Icon_QTE',
+  assist: 'Icon_Switch'
+}
+
+/**
+ * 算术表达式求值（只含数字、+ - * / ( ) 与空白；由倍率公式替换引用后得到）
+ * 手写递归下降，避免 eval / new Function
+ * @param {string} expr
+ * @returns {number|null} 非法表达式返回 null
+ */
+function _evalArith (expr) {
+  const s = String(expr).replace(/\s+/g, '')
+  if (!s || !/^[\d+\-*/().]+$/.test(s)) return null
+  let i = 0
+  const peek = () => s[i]
+  const parseFactor = () => {
+    if (peek() === '-') {
+      i++
+      const v = parseFactor()
+      return v == null ? null : -v
+    }
+    if (peek() === '(') {
+      i++
+      const v = parseExpr()
+      if (v == null || peek() !== ')') return null
+      i++
+      return v
+    }
+    const m = /^\d+(?:\.\d+)?/.exec(s.slice(i))
+    if (!m) return null
+    i += m[0].length
+    return Number(m[0])
+  }
+  const parseTerm = () => {
+    let v = parseFactor()
+    if (v == null) return null
+    while (peek() === '*' || peek() === '/') {
+      const op = s[i++]
+      const r = parseFactor()
+      if (r == null) return null
+      v = op === '*' ? v * r : v / r
+    }
+    return v
+  }
+  const parseExpr = () => {
+    let v = parseTerm()
+    if (v == null) return null
+    while (peek() === '+' || peek() === '-') {
+      const op = s[i++]
+      const r = parseTerm()
+      if (r == null) return null
+      v = op === '+' ? v + r : v - r
+    }
+    return v
+  }
+  const out = parseExpr()
+  return out != null && i === s.length && Number.isFinite(out) ? out : null
+}
+
+/** 倍率数值输出：数据域为 ×100（2690 → 26.9%），去掉多余小数位 */
+function _fmtRate (v) {
+  return `${Number((Number(v) / 100).toFixed(2))}%`
+}
+
+/**
+ * 倍率行在指定等级的数值（整数域求值，与游戏一致）
+ * @param {object} row - { desc, param }
+ * @param {number} level
+ * @returns {number|null} 行内没有技能引用或公式非法时返回 null
+ */
+function _rateValueAt (row, level) {
+  const desc = String(row?.desc || '')
+  const refs = [...desc.matchAll(/\{+Skill:(\d+),\s*Prop:(\d+)\}+/g)]
+  if (!refs.length) return null
+  let expr = desc
+  // 从后往前替换引用，避免索引位移
+  for (let i = refs.length - 1; i >= 0; i--) {
+    const m = refs[i]
+    const item = row?.param?.[m[1]]
+    const v = (Number(item?.main) || 0) + (Number(item?.growth) || 0) * (level - 1)
+    expr = expr.slice(0, m.index) + String(v) + expr.slice(m.index + m[0].length)
+  }
+  return _evalArith(expr.replace(/[{}]/g, ''))
+}
+
+/**
+ * 单个 `{CAL:表达式,倍数,小数位}` 求值 → 展示字符串
+ * 倍数 100 表示表达式是小数比例（×100 后即为百分数）；AvatarSkillLevel(k) 代入 level
+ * @param {string} expr
+ * @param {string|number} scale
+ * @param {string|number} decimals
+ * @param {number} level
+ * @returns {string|null} 无法求值返回 null
+ */
+function _calValue (expr, scale, decimals, level) {
+  const substituted = String(expr).replace(/AvatarSkillLevel\(\d+\)/g, String(level))
+  if (/[A-Za-z]/.test(substituted)) return null
+  const v = _evalArith(substituted)
+  if (v == null) return null
+  const scaled = v * (Number(scale) === 100 ? 100 : 1)
+  const digits = Math.min(Math.max(Number(decimals) || 0, 0), 4)
+  return String(Number(scaled.toFixed(digits)))
+}
+
+/**
+ * CAL 公式行在指定等级的展示文本（表达式可嵌在文字中间，如「露西攻击力{CAL:…}%+{CAL:…}」）
+ * @param {object} row
+ * @param {number} level
+ * @returns {string|null}
+ */
+function _calTextAt (row, level) {
+  const desc = String(row?.desc || '')
+  if (!desc.includes('{CAL:')) return null
+  let ok = true
+  const out = desc.replace(/\{CAL:([^,}]+),(\d+),(\d+)\}/g, (raw, expr, scale, decimals) => {
+    const v = _calValue(expr, scale, decimals, level)
+    if (v == null) {
+      ok = false
+      return raw
+    }
+    return v
+  })
+  return ok ? out : null
+}
+
+/**
+ * 招式倍率组 → 技能卡参数（随等级变化的行出续表，其余出固定小格）
+ * @param {Array} rows - description[i].param 数组
+ * @returns {object|null} { fixed, tables }
+ */
+function _moveParams (rows) {
+  if (!Array.isArray(rows) || !rows.length) return null
+  const fixed = []
+  const varying = []
+  for (const row of rows) {
+    if (!row) continue
+    const desc = String(row.desc || '')
+    if (/Skill:\d+/.test(desc) && _rateValueAt(row, 1) != null) {
+      varying.push({ name: row.name || '', value: (lv) => _fmtRate(_rateValueAt(row, lv)) })
+    } else if (desc.includes('{CAL:')) {
+      varying.push({ name: row.name || '', value: (lv) => _calTextAt(row, lv) || '' })
+    } else {
+      // 不随等级变化（「能量消耗 20点」等）或公式无法解析 → 固定小格
+      fixed.push({ label: row.name || '', value: desc })
+    }
+  }
+  if (!varying.length) return fixed.length ? { fixed, tables: [] } : null
+  const headers = ['等级', ...varying.map(r => r.name)]
+  const body = []
+  for (let lv = 1; lv <= ZZZ_MAX_SKILL_LEVEL; lv++) {
+    body.push([String(lv), ...varying.map(r => r.value(lv))])
+  }
+  const transposed = transposeTable({ headers, rows: body })
+  return { fixed, tables: splitTableColumns(transposed, ZZZ_RATE_PER_TABLE) }
+}
+
+/**
+ * 招式说明：`{CAL:…}` 按满技能等级代入数值并标注档位、`<IconMap:Icon_X>` 换成 <img>，其余交 cleanMarkup 清洗官方标注
+ * 图标先替换成不含尖括号的占位符，避免被 cleanMarkup 的通用剥标签规则删除
+ * @param {string} desc
+ * @param {string} iconPrefix - 该条目的 fieldPath 前缀（detail.skill.<类>.description.<i>.desc.IconMap）
+ * @param {function} img - fieldPath → URL
+ * @returns {string}
+ */
+function _skillDesc (desc, iconPrefix, img) {
+  // 数值在数据里常被 <color> 单独包裹且单位在标签外（`<color>{CAL:…}</color>%`），
+  // 故把紧随其后的闭合标签与单位一起捕获，再原样吐出，让单位与数值相邻、档位标注落在单位之后
+  const calRe = /\{CAL:([^,}]+),(\d+),(\d+)\}((?:<\/span>|<\/color>)*)(\s*(?:点|%|％|秒|次|层|格|倍))?/g
+  const withCal = String(desc).replace(calRe, (raw, expr, scale, decimals, closers, unit) => {
+    const v = _calValue(expr, scale, decimals, ZZZ_MAX_SKILL_LEVEL)
+    if (v == null) return raw
+    return `${v}${closers || ''}${unit || ''}<span class="lv-tag">（Lv.${ZZZ_MAX_SKILL_LEVEL}）</span>`
+  })
+  const tokenized = withCal.replace(/<IconMap:([A-Za-z0-9_]+)>/g, (m, name) => `@@ATLAS_ICON:${name}@@`)
+  return cleanMarkup(tokenized).replace(/@@ATLAS_ICON:([A-Za-z0-9_]+)@@/g, (m, name) => {
+    const url = img(`${iconPrefix}.${name}`) || galleryUrl('zzz', name)
+    return url ? `<img class="inline-icon" src="${url}"/>` : ''
+  })
+}
+
+/**
+ * 技能段落 → 招式卡数组（按类别顺序，每招式一张卡，tag 为技能类别）
+ * @param {object} detail
+ * @param {function} img - fieldPath → URL
+ * @returns {Array<{name,tag,icon,desc,params}>}
+ */
+function _zzzSkillCards (detail, img) {
+  const cards = []
+  for (const [key, label] of ZZZ_SKILL_CATEGORIES) {
+    const sk = detail?.skill?.[key]
+    if (!sk || !Array.isArray(sk.description)) continue
+    const moves = []
+    const byName = new Map()
+    const ensure = (name) => {
+      const k = name || label
+      if (!byName.has(k)) {
+        const mv = { name: k, desc: '', icon: '', rows: [] }
+        byName.set(k, mv)
+        moves.push(mv)
+      }
+      return byName.get(k)
+    }
+    sk.description.forEach((entry, i) => {
+      if (!entry) return
+      if (entry.desc) {
+        const mv = ensure(entry.name)
+        const prefix = `detail.skill.${key}.description.${i}.desc.IconMap`
+        const iconName = String(entry.desc).match(/<IconMap:([A-Za-z0-9_]+)>/)?.[1]
+        if (!mv.icon && iconName) mv.icon = img(`${prefix}.${iconName}`)
+        mv.desc = _skillDesc(entry.desc, prefix, img)
+      }
+      if (Array.isArray(entry.param)) ensure(entry.name).rows.push(...entry.param)
+    })
+    const fallbackIcon = galleryUrl('zzz', ZZZ_SKILL_ICON[key]) || ''
+    for (const mv of moves) {
+      if (!mv.desc && !mv.rows.length) continue
+      cards.push({
+        name: mv.name,
+        tag: label,
+        icon: mv.icon || fallbackIcon,
+        desc: mv.desc,
+        params: _moveParams(mv.rows)
+      })
+    }
+  }
+  return cards
+}
+
 /**
  * 构建绝区零角色数据
  * @param {object} list - record.content.list
@@ -166,45 +425,10 @@ export function buildZZZ (list, detail, meta) {
   // 属性表格：满级基础值 + 满核心技固定加成（阵营/性别/生日/身高等身份项已进 hero 小方框）
   const metaFields = _zzzStatFields(detail)
 
-  // 技能
-  if (detail.skill && typeof detail.skill === 'object') {
-    const skillOrder = ['basic', 'dodge', 'special', 'chain', 'core']
-    const skillLabels = { basic: '普通攻击', dodge: '闪避', special: '特殊技', chain: '连携技', core: '核心技' }
-    const skillFields = []
-    for (const key of skillOrder) {
-      const sk = detail.skill[key]
-      if (!sk) continue
-      let desc = ''
-      let params = null
-      let main
-      if (sk.description && Array.isArray(sk.description)) {
-        main = sk.description[0]
-        if (main) {
-          desc = cleanMarkup(main.desc || '')
-          if (main.param && Array.isArray(main.param)) {
-            const headers = ['等级', ...(main.param.map(p => p.name || ''))]
-            const maxLevel = Math.max(...main.param.map(p => (p.level || []).length), 0)
-            const rows = []
-            for (let lv = 0; lv < maxLevel; lv++) {
-              const row = [String(lv + 1)]
-              for (const p of main.param) {
-                row.push(p.level?.[lv] || '')
-              }
-              rows.push(row)
-            }
-            params = transposeTable({ headers, rows })
-          }
-        }
-      }
-      skillFields.push({
-        name: main?.name || sk.name || skillLabels[key],
-        tag: skillLabels[key],
-        icon: img(`detail.skill.${key}.icon`),
-        desc,
-        params
-      })
-    }
-    sections.push({ title: '技能', type: 'skill-cards', skills: skillFields })
+  // 技能（每招式一张卡，倍率表 Lv1~12 每 5 列一续表；不随等级变化的行进固定小格）
+  const skillCards = _zzzSkillCards(detail, img)
+  if (skillCards.length) {
+    sections.push({ title: '技能', type: 'skill-cards', skills: skillCards })
   }
 
   // 潜能（技能与影画之间）

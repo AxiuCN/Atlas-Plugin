@@ -282,6 +282,15 @@
   white-space: pre-wrap;
 }
 
+/* ===== 技能描述内联图标 .inline-icon（绝区零 <IconMap:Icon_X>：按键/操作提示，随行高对齐） ===== */
+.skill-desc .inline-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  vertical-align: -4px;
+  margin: 0 2px;
+}
+
 /* ===== 技能参数容器 .skill-params ===== */
 .skill-params {
   margin-top: 8px;
@@ -374,6 +383,7 @@
 /* ===== 参数表 首列（属性名） ===== */
 .mini-table thead th:first-child,
 .mini-table tbody td:first-child {
+  width: 30%; /* 属性名列加宽：6~8 字标签（一段伤害倍率等）在固定布局下不再折行 */
   text-align: left; /* td 为 table-cell，用 text-align 使属性名靠左 */
   white-space: normal;
   word-break: normal;

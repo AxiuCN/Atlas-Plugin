@@ -164,6 +164,27 @@ export function transposeTable (params) {
   return { ...params, headers: newHeaders, rows: newRows }
 }
 
+/**
+ * 转置表 → 多张按等级列拆分的续表（每块保留「属性」首列），列数受限于容器宽度
+ * 倍率视图（views.js）与绝区零技能表（技能等级 12 档）共用
+ * @param {object} params - 转置表 { headers: ['属性','Lv1',...], rows: [{name, values:Array}] }
+ * @param {number} [perTable] - 每张表的等级列数上限
+ * @returns {Array<{headers: string[], rows: Array<{name:string, values:Array}>}>}
+ */
+export function splitTableColumns (params, perTable = 5) {
+  if (!params || !Array.isArray(params.headers) || !Array.isArray(params.rows) || !params.rows.length) return []
+  const lvHeaders = params.headers.slice(1)
+  const tables = []
+  for (let i = 0; i < lvHeaders.length; i += perTable) {
+    const chunk = lvHeaders.slice(i, i + perTable)
+    tables.push({
+      headers: ['属性', ...chunk],
+      rows: params.rows.map(r => ({ name: r.name, values: r.values.slice(i, i + chunk.length) }))
+    })
+  }
+  return tables
+}
+
 /** GI 转置前保留的代表等级（实战常用区间，收敛列数） */
 const GI_LEVEL_TARGETS = [9, 10, 11, 12, 13, 14]
 
