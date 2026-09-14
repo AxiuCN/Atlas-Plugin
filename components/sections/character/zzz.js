@@ -248,7 +248,37 @@ function _calValue (expr, scale, decimals, level) {
 }
 
 /**
- * CAL 公式行在指定等级的展示文本（表达式可嵌在文字中间，如「露西攻击力{CAL:…}%+{CAL:…}」）
+ * CAL 公式文本求值（描述与倍率行通用）
+ * 表达式可嵌在文字中间（如「露西攻击力{CAL:…}%+{CAL:…}」）；
+ * 数值在数据里常被 <color> 单独包裹且单位在标签外（`<color>{CAL:…}</color>%`），
+ * 故把紧随其后的闭合标签与单位一起捕获再原样吐出，让单位与数值相邻；
+ * annotate 且表达式引用了技能等级（AvatarSkillLevel）时，在单位之后补档位标注
+ * @param {string} text
+ * @param {number} level
+ * @param {boolean} [annotate]
+ * @returns {string|null} 任一公式无法求值时返回 null
+ */
+function _substituteCal (text, level, annotate = false) {
+  const src = String(text || '')
+  if (!src.includes('{CAL:')) return src
+  const calRe = /\{CAL:([^,}]+),(\d+),(\d+)\}((?:<\/span>|<\/color>)*)(\s*(?:点|%|％|秒|次|层|格|倍))?/g
+  let ok = true
+  const out = src.replace(calRe, (raw, expr, scale, decimals, closers, unit) => {
+    const v = _calValue(expr, scale, decimals, level)
+    if (v == null) {
+      ok = false
+      return raw
+    }
+    const tag = annotate && /AvatarSkillLevel\(/.test(expr)
+      ? `<span class="lv-tag">（Lv.${level}）</span>`
+      : ''
+    return `${v}${closers || ''}${unit || ''}${tag}`
+  })
+  return ok ? out : null
+}
+
+/**
+ * CAL 公式行在指定等级的展示文本（倍率表格内，不带档位标注——列头已标等级）
  * @param {object} row
  * @param {number} level
  * @returns {string|null}
@@ -256,16 +286,7 @@ function _calValue (expr, scale, decimals, level) {
 function _calTextAt (row, level) {
   const desc = String(row?.desc || '')
   if (!desc.includes('{CAL:')) return null
-  let ok = true
-  const out = desc.replace(/\{CAL:([^,}]+),(\d+),(\d+)\}/g, (raw, expr, scale, decimals) => {
-    const v = _calValue(expr, scale, decimals, level)
-    if (v == null) {
-      ok = false
-      return raw
-    }
-    return v
-  })
-  return ok ? out : null
+  return _substituteCal(desc, level, false)
 }
 
 /**
@@ -304,22 +325,15 @@ function _moveParams (rows) {
 }
 
 /**
- * 招式说明：`{CAL:…}` 按满技能等级代入数值并标注档位、`<IconMap:Icon_X>` 换成 <img>，其余交 cleanMarkup 清洗官方标注
- * 图标先替换成不含尖括号的占位符，避免被 cleanMarkup 的通用剥标签规则删除
+ * 招式说明：`{CAL:…}` 按满技能等级代入数值（引用等级的补档位标注）、`<IconMap:Icon_X>` 换成 <img>，
+ * 其余交 cleanMarkup 清洗官方标注；图标先替换成不含尖括号的占位符，避免被 cleanMarkup 的剥标签规则删除
  * @param {string} desc
  * @param {string} iconPrefix - 该条目的 fieldPath 前缀（detail.skill.<类>.description.<i>.desc.IconMap）
  * @param {function} img - fieldPath → URL
  * @returns {string}
  */
 function _skillDesc (desc, iconPrefix, img) {
-  // 数值在数据里常被 <color> 单独包裹且单位在标签外（`<color>{CAL:…}</color>%`），
-  // 故把紧随其后的闭合标签与单位一起捕获，再原样吐出，让单位与数值相邻、档位标注落在单位之后
-  const calRe = /\{CAL:([^,}]+),(\d+),(\d+)\}((?:<\/span>|<\/color>)*)(\s*(?:点|%|％|秒|次|层|格|倍))?/g
-  const withCal = String(desc).replace(calRe, (raw, expr, scale, decimals, closers, unit) => {
-    const v = _calValue(expr, scale, decimals, ZZZ_MAX_SKILL_LEVEL)
-    if (v == null) return raw
-    return `${v}${closers || ''}${unit || ''}<span class="lv-tag">（Lv.${ZZZ_MAX_SKILL_LEVEL}）</span>`
-  })
+  const withCal = _substituteCal(desc, ZZZ_MAX_SKILL_LEVEL, true) ?? String(desc)
   const tokenized = withCal.replace(/<IconMap:([A-Za-z0-9_]+)>/g, (m, name) => `@@ATLAS_ICON:${name}@@`)
   return cleanMarkup(tokenized).replace(/@@ATLAS_ICON:([A-Za-z0-9_]+)@@/g, (m, name) => {
     const url = img(`${iconPrefix}.${name}`) || galleryUrl('zzz', name)
@@ -376,6 +390,64 @@ function _zzzSkillCards (detail, img) {
     }
   }
   return cards
+}
+
+/**
+ * 核心被动：`passive.level` 每档含 [核心被动, 额外能力] 两条 name/desc，取最高档
+ * 7 个角色（悠真/格莉丝/猫又/珂蕾妲/艾莲/莱卡恩/零号·安比）有 14 档 = 两套（后一套为加强版），
+ * 按 level 覆盖式读取，与 ZZZ-Plugin 的取法一致
+ * @param {object} detail
+ * @returns {Array<{name:string, desc:string}>}
+ */
+function _corePassiveItems (detail) {
+  const byLevel = new Map()
+  for (const v of Object.values(detail?.passive?.level || {})) {
+    if (v?.level != null) byLevel.set(Number(v.level), v)
+  }
+  const max = Math.max(...byLevel.keys(), 0)
+  const top = byLevel.get(max)
+  if (!top) return []
+  const names = top.name || []
+  const descs = top.desc || []
+  return names
+    .map((name, i) => {
+      const raw = descs[i] || ''
+      return { name, desc: cleanMarkup(_substituteCal(raw, ZZZ_MAX_SKILL_LEVEL, true) ?? raw) }
+    })
+    .filter(it => it.name)
+}
+
+/**
+ * 核心技强化数值：format 含 % 的按 ×100 存储（1800 → 18%）；基础能量自动回复同样 ×100（36 → 0.36）
+ * @param {string} prop - 属性 id
+ * @param {object} item
+ * @returns {string}
+ */
+function _fmtExtraValue (prop, item) {
+  const v = Number(item?.value) || 0
+  if (String(item?.format || '').includes('%')) return `${Number((v / 100).toFixed(2))}%`
+  if (String(prop) === '30501') return String(Number((v / 100).toFixed(2)))
+  return String(v)
+}
+
+/**
+ * 核心技强化：`extra_level` 各档（A~F，值为累计加成）的属性加成
+ * 含百分比类条目（游戏内属「加成」，与属性表格只取基础值的口径不同，故在此完整列出）
+ * @param {object} detail
+ * @returns {Array<{label:string, value:string}>}
+ */
+function _coreLevelItems (detail) {
+  const levels = detail?.extra_level || {}
+  const keys = Object.keys(levels).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
+  const items = []
+  keys.forEach((k, i) => {
+    const extra = levels[k]?.extra || {}
+    const parts = Object.entries(extra)
+      .filter(([, item]) => Number(item?.value) !== 0) // 该档为 0 的属性不列（如 A 档的基础攻击力 +0）
+      .map(([prop, item]) => `${item?.name || prop} +${_fmtExtraValue(prop, item)}`)
+    if (parts.length) items.push({ label: 'ABCDEF'[i] || String(i + 1), value: parts.join('、') })
+  })
+  return items
 }
 
 /**
@@ -436,6 +508,16 @@ export function buildZZZ (list, detail, meta) {
   const skillCards = _zzzSkillCards(detail, img)
   if (skillCards.length) {
     sections.push({ title: '技能', type: 'skill-cards', skills: skillCards })
+  }
+
+  // 核心被动（核心被动 + 额外能力，取最高档）与核心技强化（A~F 累计加成）
+  const passiveItems = _corePassiveItems(detail)
+  if (passiveItems.length) {
+    sections.push({ title: '核心被动', type: 'list', items: passiveItems })
+  }
+  const coreLevelItems = _coreLevelItems(detail)
+  if (coreLevelItems.length) {
+    sections.push({ title: '核心技强化', type: 'stat-grid', items: coreLevelItems })
   }
 
   // 潜能（技能与影画之间）

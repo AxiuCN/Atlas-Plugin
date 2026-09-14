@@ -9,7 +9,7 @@ import { imgUrl, formatFoodDesc, cleanMarkup } from '../util.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 
-/** 默认视图：隐藏技能参数等级表（保留固定属性小格），素材仅养成子视图展示 */
+/** 默认视图：隐藏技能参数等级表（保留固定属性小格），素材与资料段落只在对应子视图展示 */
 export function applyDefaultView (data) {
   // 隐藏技能参数等级表（单表 rows 与续表 tables 都清空）；有固定属性（冷却/能量/体力等）时保留小格展示
   const stripParams = (sk) =>
@@ -17,8 +17,9 @@ export function applyDefaultView (data) {
       ? { ...sk, params: { ...sk.params, rows: [], tables: [] } }
       : { ...sk, params: null }
 
+  // 资料（stories）暂不在默认视图展示，待米三家资料重建后再放出；#角色故事 / #角色资料 子视图不受影响
   const sections = data.sections
-    .filter(s => s.type !== 'materials')
+    .filter(s => s.type !== 'materials' && s.type !== 'stories')
     .map(s => {
       if (s.type === 'skill-cards' && s.skills) {
         return { ...s, skills: s.skills.map(stripParams) }
