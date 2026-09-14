@@ -1,23 +1,68 @@
 /**
  * 绝区零音擎构建（ZZZ）
- * 基础属性 + 音擎天赋 + 升级素材
+ * 满级主/副属性 + 音擎天赋 + 音擎故事 + 突破素材
  */
 import { cleanMarkup } from '../util.js'
-import { aggregateMats, buildMatItems } from '../materials.js'
+import { aggregateMats } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 import { zzzRank } from '../../constants.js'
 
-/** 格式化 ZZZ 数值（format 形如 {0:%.2f} 或 {0:...%}） */
+/** 音擎满级等级与满星级（数据 level 键 0~60、stars 键 0~5） */
+const ZZZ_MAX_WEAPON_LEVEL = 60
+const ZZZ_MAX_WEAPON_STAR = 5
+
+/**
+ * 音擎数值格式化（format 形如 `{0:0.#}` / `{0:0.#%}`）
+ * 百分比类数据域为 ×100（3000 → 30%）；固定值按游戏口径截断取整
+ * @param {number} value
+ * @param {string} [format]
+ * @returns {string}
+ */
 function fmtZZZValue (value, format) {
   if (value == null) return ''
-  if (!format) return String(Math.round(value))
-  const match = format.match(/\{0:(.+)\}/)
-  if (!match) return String(value)
-  const inner = match[1]
-  if (inner.includes('%')) {
-    return (value / 100).toFixed(1).replace(/\.0$/, '') + '%'
-  }
-  return String(Math.round(value))
+  const inner = String(format || '').match(/\{0:(.+)\}/)?.[1] || ''
+  if (inner.includes('%')) return `${Number((Number(value) / 100).toFixed(1))}%`
+  return String(Math.trunc(Number(value)))
+}
+
+/**
+ * 满级（Lv60 + 满星级）主属性
+ * 数据只存 1 级基础值与逐级/逐星成长率：value × (1 + (level[60].rate + stars[5].star_rate) / 10000)
+ * （已与 nanoka list.atk 全 100 件逐一核对）
+ * @param {object} detail
+ * @returns {{label:string,value:string}|null}
+ */
+function _maxBaseProperty (detail) {
+  const p = detail?.base_property
+  if (!p) return null
+  const rate = Number(detail.level?.[ZZZ_MAX_WEAPON_LEVEL]?.rate) || 0
+  const starRate = Number(detail.stars?.[ZZZ_MAX_WEAPON_STAR]?.star_rate) || 0
+  const value = (Number(p.value) || 0) * (1 + (rate + starRate) / 10000)
+  return { label: p.name || '基础属性', value: fmtZZZValue(value, p.format) }
+}
+
+/**
+ * 满星级副属性：value × (1 + stars[5].rand_rate / 10000)（即 ×2.5，S 级音擎暴击率 24%、暴伤 48% 等可自洽）
+ * @param {object} detail
+ * @returns {{label:string,value:string}|null}
+ */
+function _maxRandProperty (detail) {
+  const p = detail?.rand_property
+  if (!p) return null
+  const randRate = Number(detail.stars?.[ZZZ_MAX_WEAPON_STAR]?.rand_rate) || 0
+  const value = (Number(p.value) || 0) * (1 + randRate / 10000)
+  // 标签同原神武器页口径加「副属性 · 」前缀，与主属性（基础攻击力/基础防御力）区分
+  return { label: `副属性 · ${p.name || '副属性'}`, value: fmtZZZValue(value, p.format) }
+}
+
+/**
+ * 清洗后的文案；源站对未录入的文案用纯标点占位（如 "..."），按空处理不显示
+ * @param {string} text
+ * @returns {string}
+ */
+function realText (text) {
+  const s = cleanMarkup(text || '')
+  return /[\u4e00-\u9fa5A-Za-z0-9]/.test(s.replace(/<[^>]*>/g, '')) ? s : ''
 }
 
 /**
@@ -25,27 +70,20 @@ function fmtZZZValue (value, format) {
  * @param {object} list - record.content.list
  * @param {object} detail - record.content.detail
  * @param {object} meta - record.meta
- * @returns {object} { metaFields, sections }
+ * @returns {object} { hero, metaFields, sections }
  */
 export function buildZZZWeapon (list, detail, meta) {
-  const metaFields = [
-    { label: '类型', value: detail.weapon_type ? Object.values(detail.weapon_type)[0] : '' },
-    { label: '稀有度', value: zzzRank(list.rank ?? detail.rarity ?? meta?.rarity, 'weapon') },
-  ].filter(f => f.value)
+  // hero 小方框：特性（强攻/击破/异常/支援/防护/命破/锋御）；描述补充取一句话版 desc3
+  const hero = {
+    weapon: detail.weapon_type ? Object.values(detail.weapon_type)[0] : '',
+    desc: realText(detail.desc3)
+  }
 
-  // 基础属性
-  if (detail.base_property) {
-    metaFields.push({
-      label: detail.base_property.name || '基础属性',
-      value: fmtZZZValue(detail.base_property.value, detail.base_property.format)
-    })
-  }
-  if (detail.rand_property) {
-    metaFields.push({
-      label: detail.rand_property.name || '副属性',
-      value: fmtZZZValue(detail.rand_property.value, detail.rand_property.format)
-    })
-  }
+  const metaFields = [
+    { label: '稀有度', value: zzzRank(list.rank ?? detail.rarity ?? meta?.rarity, 'weapon') },
+    _maxBaseProperty(detail),
+    _maxRandProperty(detail)
+  ].filter(f => f?.value)
 
   const sections = []
 
@@ -95,5 +133,11 @@ export function buildZZZWeapon (list, detail, meta) {
     }
   }
 
-  return { metaFields, sections }
+  // 音擎故事（desc 为完整故事正文，含灰色引用；与 hero 底部的一句话 desc3 互补），置于素材之后
+  const story = realText(detail.desc)
+  if (story) {
+    sections.push({ title: '音擎故事', type: 'text', text: story })
+  }
+
+  return { hero, metaFields, sections }
 }

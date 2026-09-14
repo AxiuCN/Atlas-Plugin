@@ -49,6 +49,9 @@
       </div>
       {{/each}}
 
+    {{else if section.type === 'text'}}
+      <div class="desc-block">{{@section.text}}</div>
+
     {{else if section.type === 'materials'}}
       <div class="material-grid">
         {{each section.items m}}
