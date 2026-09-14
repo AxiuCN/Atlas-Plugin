@@ -126,7 +126,10 @@ function _zzzStatFields (detail) {
 /** 技能等级上限（数据 material 表 1~12） */
 const ZZZ_MAX_SKILL_LEVEL = 12
 
-/** 倍率续表每张的等级列数（与倍率视图一致） */
+/** 技能/天赋视图保留的末尾档数（与星铁天赋视图同口径） */
+const ZZZ_TALENT_LEVEL_SPAN = 7
+
+/** 倍率视图每张续表的等级列数 */
 const ZZZ_RATE_PER_TABLE = 5
 
 /** 技能类别顺序与标签 */
@@ -269,9 +272,11 @@ function _calTextAt (row, level) {
 }
 
 /**
- * 招式倍率组 → 技能卡参数（随等级变化的行出续表，其余出固定小格）
+ * 招式倍率组 → 技能卡参数
+ * 技能/天赋视图取末尾 ZZZ_TALENT_LEVEL_SPAN 档（与星铁天赋视图同口径，实战常用区间），
+ * 全等级交给倍率视图（paramsAll，每 5 列一续表）；不随等级变化的行进固定小格
  * @param {Array} rows - description[i].param 数组
- * @returns {object|null} { fixed, tables }
+ * @returns {object|null} { fixed, tables, tablesAll }
  */
 function _moveParams (rows) {
   if (!Array.isArray(rows) || !rows.length) return null
@@ -289,14 +294,19 @@ function _moveParams (rows) {
       fixed.push({ label: row.name || '', value: desc })
     }
   }
-  if (!varying.length) return fixed.length ? { fixed, tables: [] } : null
-  const headers = ['等级', ...varying.map(r => r.name)]
-  const body = []
-  for (let lv = 1; lv <= ZZZ_MAX_SKILL_LEVEL; lv++) {
-    body.push([String(lv), ...varying.map(r => r.value(lv))])
+  if (!varying.length) return fixed.length ? { fixed, tables: [], tablesAll: [] } : null
+  const transposeLevels = (from, to) => {
+    const headers = ['等级', ...varying.map(r => r.name)]
+    const body = []
+    for (let lv = from; lv <= to; lv++) body.push([String(lv), ...varying.map(r => r.value(lv))])
+    return transposeTable({ headers, rows: body })
   }
-  const transposed = transposeTable({ headers, rows: body })
-  return { fixed, tables: splitTableColumns(transposed, ZZZ_RATE_PER_TABLE) }
+  const tailFrom = Math.max(1, ZZZ_MAX_SKILL_LEVEL - ZZZ_TALENT_LEVEL_SPAN + 1)
+  return {
+    fixed,
+    tables: [transposeLevels(tailFrom, ZZZ_MAX_SKILL_LEVEL)],
+    tablesAll: splitTableColumns(transposeLevels(1, ZZZ_MAX_SKILL_LEVEL), ZZZ_RATE_PER_TABLE)
+  }
 }
 
 /**
@@ -359,12 +369,15 @@ function _zzzSkillCards (detail, img) {
     const fallbackIcon = galleryUrl('zzz', ZZZ_SKILL_ICON[key]) || ''
     for (const mv of moves) {
       if (!mv.desc && !mv.rows.length) continue
+      const params = _moveParams(mv.rows)
       cards.push({
         name: mv.name,
         tag: label,
         icon: mv.icon || fallbackIcon,
         desc: mv.desc,
-        params: _moveParams(mv.rows)
+        // 技能视图取末尾 7 档；倍率视图用 paramsAll 出全 12 档
+        params: params ? { fixed: params.fixed, tables: params.tables } : null,
+        paramsAll: params ? { fixed: params.fixed, tables: params.tablesAll } : null
       })
     }
   }

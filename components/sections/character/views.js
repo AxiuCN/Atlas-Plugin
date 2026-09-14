@@ -54,6 +54,8 @@ export function applySkillsView (data) {
  */
 export function applyRatesView (data, perTable = 5) {
   const toRates = (sk) => {
+    // 构建期已给出分列表的（绝区零全等级倍率表）直接采用
+    if (sk.paramsAll?.tables?.length) return { ...sk, params: { ...sk.paramsAll } }
     const params = sk.paramsAll && sk.paramsAll.rows?.length ? sk.paramsAll : sk.params
     if (!params || !params.rows?.length) return { ...sk, params }
     return { ...sk, params: { ...params, tables: splitTableColumns(params, perTable) } }
