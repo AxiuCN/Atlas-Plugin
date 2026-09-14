@@ -383,7 +383,6 @@
 /* ===== 参数表 首列（属性名） ===== */
 .mini-table thead th:first-child,
 .mini-table tbody td:first-child {
-  width: 30%; /* 属性名列加宽：6~8 字标签（一段伤害倍率等）在固定布局下不再折行 */
   text-align: left; /* td 为 table-cell，用 text-align 使属性名靠左 */
   white-space: normal;
   word-break: normal;

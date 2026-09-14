@@ -3,7 +3,7 @@
  * 将 nanoka 绝区零条目 JSON 归一化为统一角色模板数据
  */
 import { imgUrl, galleryUrl, cleanMarkup } from '../util.js'
-import { transposeTable, splitTableColumns } from './skillParams.js'
+import { transposeTable } from './skillParams.js'
 import { zzzRank } from '../../constants.js'
 
 /** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
@@ -128,9 +128,6 @@ const ZZZ_MAX_SKILL_LEVEL = 12
 
 /** 技能/天赋视图保留的末尾档数（与星铁天赋视图同口径） */
 const ZZZ_TALENT_LEVEL_SPAN = 7
-
-/** 倍率视图每张续表的等级列数 */
-const ZZZ_RATE_PER_TABLE = 5
 
 /** 技能类别顺序与标签 */
 const ZZZ_SKILL_CATEGORIES = [
@@ -272,11 +269,12 @@ function _calTextAt (row, level) {
 }
 
 /**
- * 招式倍率组 → 技能卡参数
- * 技能/天赋视图取末尾 ZZZ_TALENT_LEVEL_SPAN 档（与星铁天赋视图同口径，实战常用区间），
- * 全等级交给倍率视图（paramsAll，每 5 列一续表）；不随等级变化的行进固定小格
+ * 招式倍率组 → 技能卡参数（形态与原神/星铁一致）
+ * params：单表（末尾 ZZZ_TALENT_LEVEL_SPAN 档，与星铁天赋视图同口径），模板标题为「属性」
+ * paramsAll：全等级单表，由倍率视图按每 5 列拆续表
+ * 不随等级变化的行进固定小格
  * @param {Array} rows - description[i].param 数组
- * @returns {object|null} { fixed, tables, tablesAll }
+ * @returns {object|null} { fixed, rows, rowsAll, headers, headersAll }
  */
 function _moveParams (rows) {
   if (!Array.isArray(rows) || !rows.length) return null
@@ -294,7 +292,7 @@ function _moveParams (rows) {
       fixed.push({ label: row.name || '', value: desc })
     }
   }
-  if (!varying.length) return fixed.length ? { fixed, tables: [], tablesAll: [] } : null
+  if (!varying.length) return fixed.length ? { fixed } : null
   const transposeLevels = (from, to) => {
     const headers = ['等级', ...varying.map(r => r.name)]
     const body = []
@@ -302,11 +300,7 @@ function _moveParams (rows) {
     return transposeTable({ headers, rows: body })
   }
   const tailFrom = Math.max(1, ZZZ_MAX_SKILL_LEVEL - ZZZ_TALENT_LEVEL_SPAN + 1)
-  return {
-    fixed,
-    tables: [transposeLevels(tailFrom, ZZZ_MAX_SKILL_LEVEL)],
-    tablesAll: splitTableColumns(transposeLevels(1, ZZZ_MAX_SKILL_LEVEL), ZZZ_RATE_PER_TABLE)
-  }
+  return { fixed, ...transposeLevels(tailFrom, ZZZ_MAX_SKILL_LEVEL), all: transposeLevels(1, ZZZ_MAX_SKILL_LEVEL) }
 }
 
 /**
@@ -375,9 +369,9 @@ function _zzzSkillCards (detail, img) {
         tag: label,
         icon: mv.icon || fallbackIcon,
         desc: mv.desc,
-        // 技能视图取末尾 7 档；倍率视图用 paramsAll 出全 12 档
-        params: params ? { fixed: params.fixed, tables: params.tables } : null,
-        paramsAll: params ? { fixed: params.fixed, tables: params.tablesAll } : null
+        // 技能视图单表（末尾 7 档）；倍率视图由 paramsAll 的全等级单表拆续表
+        params: params ? { headers: params.headers, rows: params.rows, fixed: params.fixed } : null,
+        paramsAll: params?.all ? { headers: params.all.headers, rows: params.all.rows, fixed: params.fixed } : null
       })
     }
   }
