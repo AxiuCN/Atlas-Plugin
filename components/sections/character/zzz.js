@@ -4,6 +4,7 @@
  */
 import { imgUrl, propLabel, cleanMarkup } from '../util.js'
 import { transposeTable } from './skillParams.js'
+import { zzzRank } from '../../constants.js'
 
 /** 生日字符串 → "X月X日"（原神格式对齐）："6/19" / "05/02" → "6月19日" / "5月2日" */
 function _formatZzzBirthday (birth) {
@@ -42,7 +43,7 @@ export function buildZZZ (list, detail, meta) {
     weapon: weaponType || list.specialty || '',
     birthday: _formatZzzBirthday(detail.partner_info?.birthday),
     constellation: '',
-    rarity: meta?.rarity || list.rarity || ''
+    rarity: zzzRank(list.rank ?? detail.rarity ?? meta?.rarity, 'character')
   }
 
   // 去重：仅保留阵营、性别 + stats

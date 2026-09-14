@@ -7,7 +7,8 @@ import { stripLinks } from '../model/LinkResolver.js'
 import {
   GAME_NAMES,
   PAGE_LABELS,
-  CHALLENGE_PAGE_KEYS
+  CHALLENGE_PAGE_KEYS,
+  zzzRankOf
 } from './constants.js'
 import { getSectionBuilder } from './sections/index.js'
 
@@ -166,7 +167,7 @@ export function buildDetailData (gameId, result) {
         gameName: GAME_NAMES[gameId],
         pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
         name: typeData.recordName || meta.name || result.name,
-        rarity: meta.rarity || result.rarity || '',
+        rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
         image: resolveRecordImage(record),
         hero: typeData.hero || null,
         metaFields: typeData.metaFields || [],
@@ -217,7 +218,7 @@ export function buildDetailData (gameId, result) {
     gameName: GAME_NAMES[gameId],
     pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
     recordName: meta.name || result.name,
-    rarity: meta.rarity || result.rarity || '',
+    rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
     desc: desc.length > 200 ? '' : desc,
     image: resolveRecordImage(record),
     metaFields: [],

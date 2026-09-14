@@ -207,6 +207,63 @@ export const HSR_PATH_CN = {
 /** 星铁满级等级（角色/光锥 80 级；满级属性 = 基础值 + (80-1) × 成长值） */
 export const HSR_MAX_LEVEL = 80
 
+/* ===== 绝区零评级（S/A/B/C，而非星级） =====
+ * 数据内部的稀有度只有数值（list.rank / list.rarity / detail.rarity），meta.rarity（"三星"）
+ * 只是抓取时由该数值派生的目录名（见后端 src/scrape.mjs 的 rarityFolderName）。
+ * 各页面的档位上限不同，故按「每页各自满档为 S」顺移：max=5 → S/A/B/C/D，max=4 → S/A/B/C。
+ * 佐证（数据内部命名）：物品 max=5 = 进阶(2)/特化(3)/高阶(4)/传奇(5) 武备与 1~4 级回复药；
+ * 音擎 max=4 的三档与 icon 名的 Weapon_S_ / Weapon_A_ / Weapon_B_ 前缀一一对应（46/34/16 件）。
+ */
+export const ZZZ_RANK_MAX = Object.freeze({
+  character: 4,
+  weapon: 4,
+  bangboo: 4,
+  monster: 4,
+  'hollow/resonium': 4,
+  item: 5,
+  item_all: 5
+})
+
+/** 无档位定义的页面按最常见的四档处理（与角色/音擎一致） */
+const ZZZ_RANK_MAX_DEFAULT = 4
+
+/** 评级字母序列：满档起顺移 */
+const ZZZ_RANK_LETTERS = 'SABCD'
+
+/** 中文数字 → 数字（稀有度标签形如「四星」） */
+const ZZZ_RANK_CN = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5 }
+
+/**
+ * 绝区零稀有度归一：数值 / 「N星」标签 → S/A/B/C(/D)
+ * 非评级标签（如索引层的「未分类」）返回空串，避免把占位标签当评级显示
+ * @param {number|string} value - 4 / "四星"
+ * @param {string} [pageKey] - 页面标识（决定档位上限），如 'item' / 'character'
+ * @returns {string} 'S' | 'A' | 'B' | 'C' | 'D' | ''
+ */
+export function zzzRank (value, pageKey) {
+  if (value == null || value === '') return ''
+  const s = String(value).trim()
+  const m = s.match(/^([一二三四五]|\d)星$/)
+  const num = m ? (ZZZ_RANK_CN[m[1]] ?? Number(m[1])) : Number(s)
+  if (!Number.isFinite(num) || num < 1) return ''
+  const max = ZZZ_RANK_MAX[pageKey] ?? ZZZ_RANK_MAX_DEFAULT
+  const offset = Math.min(Math.max(max - num, 0), ZZZ_RANK_LETTERS.length - 1)
+  return ZZZ_RANK_LETTERS[offset]
+}
+
+/**
+ * 从条目记录读取绝区零评级：优先记录内部字段，meta.rarity 仅作兜底（它是派生的目录名）
+ * @param {object} record - 完整条目 JSON（含 meta / content.list / content.detail）
+ * @param {string} [pageKey] - 页面标识，缺省取 record.meta.pageId
+ * @returns {string}
+ */
+export function zzzRankOf (record, pageKey) {
+  const list = record?.content?.list || {}
+  const detail = record?.content?.detail || {}
+  const raw = list.rank ?? list.rarity ?? detail.rarity ?? record?.meta?.rarity
+  return zzzRank(raw, pageKey || record?.meta?.pageId)
+}
+
 /** 原神元素英文 → 中文（未知值原样返回） */
 export function elementLabel (value) {
   return ELEMENT_CN[value] || value

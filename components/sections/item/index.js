@@ -3,6 +3,7 @@
  * 类型/描述/来源
  */
 import { cleanMarkup, propLabel } from '../util.js'
+import { zzzRankOf } from '../../constants.js'
 
 /**
  * 构建物品页面数据（三游戏通用同一路径）
@@ -16,11 +17,21 @@ export function buildItemData (gameId, record) {
 
   const metaFields = []
   const itemKeys = ['item_type', 'material_type', 'rank', 'rarity', 'type']
+  // 绝区零稀有度用 S/A/B/C 评级（物品页满档 5 档 → S/A/B/C/D），record 内部字段优先；
+  // rank 与 rarity 同源，只出一格
+  const zzzRarity = gameId === 'zzz' ? zzzRankOf(record) : ''
+  let zzzRankAdded = false
   for (const key of itemKeys) {
     const val = detail[key] || list[key]
-    if (val != null && typeof val !== 'object') {
-      metaFields.push({ label: propLabel(key), value: String(val) })
+    if (val == null || typeof val === 'object') continue
+    if (gameId === 'zzz' && (key === 'rank' || key === 'rarity')) {
+      if (!zzzRankAdded && zzzRarity) {
+        metaFields.push({ label: '稀有度', value: zzzRarity })
+        zzzRankAdded = true
+      }
+      continue
     }
+    metaFields.push({ label: propLabel(key), value: String(val) })
   }
 
   // 描述

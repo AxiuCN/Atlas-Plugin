@@ -5,6 +5,7 @@
 import { cleanMarkup } from '../util.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
+import { zzzRank } from '../../constants.js'
 
 /** 格式化 ZZZ 数值（format 形如 {0:%.2f} 或 {0:...%}） */
 function fmtZZZValue (value, format) {
@@ -29,7 +30,7 @@ function fmtZZZValue (value, format) {
 export function buildZZZWeapon (list, detail, meta) {
   const metaFields = [
     { label: '类型', value: detail.weapon_type ? Object.values(detail.weapon_type)[0] : '' },
-    { label: '稀有度', value: meta?.rarity || list.rarity || '' },
+    { label: '稀有度', value: zzzRank(list.rank ?? detail.rarity ?? meta?.rarity, 'weapon') },
   ].filter(f => f.value)
 
   // 基础属性

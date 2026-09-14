@@ -5,6 +5,7 @@
 import { cleanMarkup, propLabel } from '../util.js'
 import { aggregateMats } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
+import { zzzRankOf } from '../../constants.js'
 
 /**
  * 构建绝区零邦布数据
@@ -15,7 +16,7 @@ export function buildZZZBangboo (record) {
   const detail = record?.content?.detail || {}
 
   const metaFields = [
-    { label: '稀有度', value: record?.meta?.rarity || '' }
+    { label: '稀有度', value: zzzRankOf(record, 'bangboo') }
   ].filter(f => f.value)
 
   // 基础属性

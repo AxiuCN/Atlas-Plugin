@@ -6,7 +6,8 @@ import {
   PAGE_LABELS,
   SPECIAL_TRIGGERS,
   MAX_RESULTS,
-  PAGE_PRIORITY
+  PAGE_PRIORITY,
+  zzzRank
 } from '../components/constants.js'
 import {
   normalizeForMatch,
@@ -163,7 +164,8 @@ function ensureIndex () {
           nameMatch: normalizeForMatch(indexName),
           pageKey,
           pageTitle,
-          rarity: record.rarity || '',
+          // 索引层只有 map.json 的 rarity 标签（数值派生的目录名），按页面档位归一到 S/A/B/C
+          rarity: gameId === 'zzz' ? zzzRank(record.rarity, pageKey) : (record.rarity || ''),
           recordId,
           filePath: record.path,
           imageCount: Number(record.imageCount || 0),
