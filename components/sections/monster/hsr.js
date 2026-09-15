@@ -8,6 +8,7 @@
  */
 import { collectMonsterVariants, hsrCampLabel } from '../../../model/monsterIndex/index.js'
 import { getItemName, getItemIcon } from '../../../model/itemIndex/index.js'
+import { sortMatItems } from '../materials.js'
 import { cleanMarkup } from '../util.js'
 import { SECTION, pickSections, descSection, variantSection, primaryVariant } from './common.js'
 
@@ -55,7 +56,7 @@ export function buildHSRMonster (ctx) {
     })
   }
 
-  // 掉落：drop 按世界等级分档，取最高档的物品去重
+  // 掉落：drop 按世界等级分档，取最高档的物品去重（与养成素材同一排序口径）
   const drops = []
   const seen = new Set()
   const dropList = Array.isArray(detail.drop) ? detail.drop : []
@@ -64,9 +65,11 @@ export function buildHSRMonster (ctx) {
     const id = d?.item_id != null ? String(d.item_id) : ''
     if (!id || seen.has(id)) continue
     seen.add(id)
-    drops.push({ name: getItemName('hsr', id) || id, icon: getItemIcon('hsr', id) })
+    drops.push({ name: getItemName('hsr', id) || id, icon: getItemIcon('hsr', id), id })
   }
-  if (drops.length) sections.push({ title: SECTION.DROP, type: 'materials', items: drops })
+  if (drops.length) {
+    sections.push({ title: SECTION.DROP, type: 'materials', items: sortMatItems(drops, 'hsr') })
+  }
 
   const variant = variantSection('hsr', filePath, variantPaths)
   if (variant) sections.push(variant)

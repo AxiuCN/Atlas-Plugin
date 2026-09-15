@@ -16,6 +16,9 @@ const mapPath = path.resolve(__dirname, '..', '..', 'tool/nanoka-atlas-backend/n
 /** @type {Map<string, object>} gameId → item 页 records（id → {name, path, ...}） */
 let recordsCache = null
 
+/** @type {Map<string, object>} gameId → item_all（物品详情）页 records */
+let allRecordsCache = null
+
 /** @type {Map<string, string>} gameId → 全量 mapCache（备用，含所有页面） */
 let mapCache = null
 
@@ -52,4 +55,22 @@ export function getItemRecords (gameId) {
     }
   }
   return recordsCache.get(gameId) || {}
+}
+
+/**
+ * 按游戏取「物品详情」页 records（item_all，比 item 页多收录经验/好感度这类无详情条目）
+ * 供 item 页查不到时的名称兜底
+ * @param {string} gameId - 'gi' | 'hsr' | 'zzz'
+ * @returns {object} id → {id, name, path, ...}；不存在返回 {}
+ */
+export function getItemAllRecords (gameId) {
+  if (!allRecordsCache) {
+    allRecordsCache = new Map()
+    const map = loadMap()
+    for (const g of Object.keys(map.games || {})) {
+      const records = map?.games?.[g]?.locales?.zh?.pages?.item_all?.records
+      allRecordsCache.set(g, records && typeof records === 'object' ? records : {})
+    }
+  }
+  return allRecordsCache.get(gameId) || {}
 }

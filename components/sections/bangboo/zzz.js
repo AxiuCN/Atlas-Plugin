@@ -17,7 +17,7 @@
  * - 特例伊埃斯：无 `level` 表、三招均 0 档、`desc` 即条目名，属占位条目
  */
 import { cleanMarkup, evalArith } from '../util.js'
-import { aggregateMats } from '../materials.js'
+import { aggregateMats, sortMatItems } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 import { zzzRankOf } from '../../constants.js'
 import { transposeTable } from '../character/skillParams.js'
@@ -236,6 +236,7 @@ export function buildZZZBangboo (record) {
       for (const m of agg.mats) {
         items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
       }
+      sortMatItems(items, 'zzz')
       if (items.length > 0) {
         sections.push({ title: '突破素材', type: 'materials', items })
       }

@@ -9,8 +9,13 @@
 import { GI_MONSTER_CODEX_LABEL } from '../../constants.js'
 import { collectMonsterVariants } from '../../../model/monsterIndex/index.js'
 import { getItemName, getItemIcon } from '../../../model/itemIndex/index.js'
+import { getGIIconByName, getGIRelicByIcon } from '../../../model/itemIndex/gi.js'
+import { sortMatItems } from '../materials.js'
 import { cleanMarkup } from '../util.js'
 import { SECTION, pickSections, descSection, variantSection, primaryVariant } from './common.js'
+
+/** 掉落物星级标注（仅圣遗物标：同为「战狂的蔷薇」的 400022/400023 靠星级区分） */
+const DROP_RANK_LABEL = { 1: '一星', 2: '二星', 3: '三星', 4: '四星', 5: '五星' }
 
 /**
  * 构建原神怪物数据
@@ -50,15 +55,25 @@ export function buildGIMonster (ctx) {
   }
 
   // 掉落：图鉴标明的掉落物（reward），名称与图标走物品索引
+  // 图标优先按 reward 自带的 icon 资源名直查（400xxx 圣遗物按套装资源命名，按 id 直拼取不到）
+  // 400xxx 是「套装 × 部位 × 星级」的抽象 id，数据源无物品条目，按图标反查部件名并标星级
   const drops = []
   const seen = new Set()
   for (const r of Array.isArray(detail.reward) ? detail.reward : []) {
     const id = r?.id != null ? String(r.id) : ''
     if (!id || seen.has(id)) continue
     seen.add(id)
-    drops.push({ name: getItemName('gi', id) || id, icon: getItemIcon('gi', id) })
+    const iconName = String(r?.icon || '')
+    const relic = iconName.startsWith('UI_RelicIcon_') ? getGIRelicByIcon(iconName) : null
+    const star = DROP_RANK_LABEL[Number(r?.rank)] || ''
+    const name = relic
+      ? (star ? `${relic.partName}（${star}）` : relic.partName)
+      : (getItemName('gi', id) || id)
+    drops.push({ name, icon: getGIIconByName(iconName) || getItemIcon('gi', id), id })
   }
-  if (drops.length) sections.push({ title: SECTION.DROP, type: 'materials', items: drops })
+  if (drops.length) {
+    sections.push({ title: SECTION.DROP, type: 'materials', items: sortMatItems(drops, 'gi') })
+  }
 
   const variant = variantSection('gi', filePath, variantPaths)
   if (variant) sections.push(variant)

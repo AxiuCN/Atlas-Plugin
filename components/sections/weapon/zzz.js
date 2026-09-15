@@ -3,7 +3,7 @@
  * 满级主/副属性 + 音擎天赋 + 音擎故事 + 突破素材
  */
 import { cleanMarkup } from '../util.js'
-import { aggregateMats } from '../materials.js'
+import { aggregateMats, sortMatItems } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 import { zzzRank } from '../../constants.js'
 
@@ -127,6 +127,7 @@ export function buildZZZWeapon (list, detail, meta) {
       for (const m of agg.mats) {
         items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
       }
+      sortMatItems(items, 'zzz')
       if (items.length > 0) {
         sections.push({ title: '突破素材', type: 'materials', items })
       }

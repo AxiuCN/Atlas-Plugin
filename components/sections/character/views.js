@@ -4,7 +4,7 @@
  */
 import { getSkillNames, getConstellationNames, getOutfits } from './names.js'
 import { splitTableColumns } from './skillParams.js'
-import { aggregateMats, buildMatItems } from '../materials.js'
+import { aggregateMats, buildMatItems, sortMatItems } from '../materials.js'
 import { imgUrl, formatFoodDesc, cleanMarkup } from '../util.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
@@ -346,5 +346,6 @@ function _zzzMatSections (groups, title) {
   for (const m of agg.mats) {
     items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
   }
+  sortMatItems(items, 'zzz')
   return items.length > 0 ? [{ title, type: 'materials', items }] : []
 }
