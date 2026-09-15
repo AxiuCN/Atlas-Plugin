@@ -18,6 +18,7 @@
         {{each hero.chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
       </div>
       {{/if}}
+      {{if hero && hero.desc}}<div class="hero-desc">{{@hero.desc}}</div>{{/if}}
     </div>
   </div>
 

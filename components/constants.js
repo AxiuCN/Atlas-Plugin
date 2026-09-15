@@ -38,8 +38,8 @@ export const SHORTCUT_SUFFIXES = [
   // 页面类型类（非子视图：剥离后缀并把搜索结果限定到对应页面类型）
   '圣遗物', '遗器', '驱动盘',
   '资料', '描述', '故事', '语音',
-  // 怪物页专有
-  '变体',
+  // 怪物页专有（变种个体的完整叫法与简称）
+  '变种个体', '变种', '变体',
   '养成', '素材', '材料', '升级'
 ]
 
@@ -64,8 +64,8 @@ export const SUFFIX_TO_SUBVIEW = {
   养成: 'materials', 素材: 'materials', 材料: 'materials', 掉落: 'materials',
   升级素材: 'materials', 养成素材: 'materials', 升级材料: 'materials', 升级: 'materials',
   晋阶材料: 'materials', 晋阶素材: 'materials', 突破材料: 'materials', 突破素材: 'materials',
-  // 怪物页专有：同名折叠后的战斗变体列表
-  变体: 'variants'
+  // 怪物页专有：同名折叠后的战斗变种个体列表
+  变种个体: 'variants', 变种: 'variants', 变体: 'variants'
 }
 
 // 页面 pageKey → 中文标签（三游戏通用回退）
@@ -217,32 +217,19 @@ export const HSR_MAX_LEVEL = 80
 export const GI_MONSTER_CODEX_LABEL = {
   ELEMENTAL: '元素生命',
   HILICHURL: '丘丘部族',
-  ABYSS: '深渊教团',
+  ABYSS: '深渊',
   FATUI: '愚人众',
   AUTOMATRON: '自律机关',
-  HUMAN: '人类',
-  BEAST: '野兽',
+  HUMAN: '其他人类势力',
+  BEAST: '异种魔兽',
   ANIMAL: '走兽',
-  AVIARY: '飞禽',
-  FISH: '鱼类',
-  CRITTER: '甲壳爬虫',
-  BOSS: '首领'
+  AVIARY: '禽鸟',
+  FISH: '游鱼',
+  CRITTER: '其他',
+  BOSS: '值得铭记的强敌'
 }
 
-/** 星铁怪物 rank（5 档内部码）→ 中文 */
-export const HSR_MONSTER_RANK_LABEL = {
-  Minion: '小兵',
-  MinionLv2: '普通',
-  Elite: '精英',
-  LittleBoss: '首领',
-  BigBoss: '大首领'
-}
-
-/**
- * 星铁怪物阵营 camp → 中文
- * 数据源只有数字（list.camp / detail.monster_camp_id 取值 1~18），全库无名称映射表，故手写维护；
- * 16 无怪物使用（用户亦未确认其名称），不登记；未登记值由 monsterIndex 告警一次
- */
+/** 星铁怪物阵营 camp → 中文 */
 export const HSR_MONSTER_CAMP_LABEL = {
   1: '雅利洛-VI',
   2: '仙舟「罗浮」',
@@ -262,6 +249,15 @@ export const HSR_MONSTER_CAMP_LABEL = {
   17: '幻造种',
   18: '金血忆灵'
 }
+
+/** 星铁怪物无阵营时的归类（数据源 378/628 条 camp 为空，游戏内并入「其他」） */
+export const HSR_MONSTER_CAMP_OTHER = '其他'
+
+/** 星铁怪物面板基准等级（终局常见档位；数值 = 基础值 × HardLevelGroup(1, 95) 的比率） */
+export const HSR_MONSTER_LEVEL = 95
+
+/** 绝区零怪物面板基准等级（数值 = 基础值 × 该变体 curves.<属性>(70)/100） */
+export const ZZZ_MONSTER_LEVEL = 70
 
 /**
  * 原神怪物面板基准等级：世界等级 9 的怪物等级（大世界 93~103，取满级口径 103）

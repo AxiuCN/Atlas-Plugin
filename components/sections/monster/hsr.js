@@ -1,12 +1,11 @@
 /**
  * 星铁怪物构建（HSR）
  *
- * 栏位：图鉴描述 / 分类小方框（rank + 阵营 camp）/ 面板（基础数值，各变体共用）/
- * 弱点与抗性（变体 `stance_weak_list` + `damage_type_resistance`）/ 技能（变体 `skill_list`）/
- * 掉落（`drop` 按世界等级分档）/ 变体
- * 阵营在数据源里只有数字，名称取自 constants 的手写表（见 HSR_MONSTER_CAMP_LABEL）。
+ * 栏位：hero 小方框（**阵营 → 评级（英文原码）→ 弱点**）+ 面板（基础值 × 硬等级组(95)）/
+ * 图鉴描述 / **弱点与属性抗性**（变体 `stance_weak_list` + `damage_type_resistance`）/
+ * 技能（变体 `skill_list`）/ 掉落（`drop` 按世界等级分档）/ 变种个体
+ * 阵营在数据源里只有数字（空值归「其他」），名称取自 constants 的手写表。
  */
-import { HSR_MONSTER_RANK_LABEL } from '../../constants.js'
 import { collectMonsterVariants, hsrCampLabel } from '../../../model/monsterIndex/index.js'
 import { getItemName, getItemIcon } from '../../../model/itemIndex/index.js'
 import { cleanMarkup } from '../util.js'
@@ -22,22 +21,24 @@ export function buildHSRMonster (ctx) {
   const variants = collectMonsterVariants('hsr', filePath, variantPaths)
   const primary = primaryVariant(variants)
 
-  const hero = {
-    chips: [
-      HSR_MONSTER_RANK_LABEL[detail.rank] || detail.rank || '',
-      hsrCampLabel(list.camp ?? detail.monster_camp_id)
-    ].filter(Boolean)
-  }
+  // 小方框：阵营 → 评级（直接用数据里的英文档位码）→ 弱点
+  const chips = [
+    hsrCampLabel(list.camp ?? detail.monster_camp_id),
+    detail.rank || ''
+  ]
+  if (primary.weak.length) chips.push(`弱点：${primary.weak.join(' ')}`)
+
+  const hero = { chips: chips.filter(Boolean) }
 
   const sections = []
   const desc = descSection(detail.desc)
   if (desc) sections.push(desc)
 
-  // 弱点与抗性：弱点来自变体 stance_weak_list，抗性来自变体 damage_type_resistance
+  // 弱点与属性抗性：弱点取自变体 stance_weak_list，抗性取自 damage_type_resistance
   const resistFields = []
   if (primary.weak.length) resistFields.push({ label: '弱点', value: primary.weak.join(' / ') })
   for (const r of primary.resistances) resistFields.push({ label: r.label, value: r.value })
-  if (resistFields.length) sections.push({ title: SECTION.RESIST, fields: resistFields })
+  if (resistFields.length) sections.push({ title: SECTION.RESIST_HSR, fields: resistFields })
 
   // 技能：按变体取（主变体的技能列表）
   // 少数怪（角色的「幻象」版，如卡芙卡/资深员工·组长）技能描述里带 `#N[fmt]` 参数占位符，
@@ -54,7 +55,7 @@ export function buildHSRMonster (ctx) {
     })
   }
 
-  // 掉落：drop 按世界等级分档，取各档出现过的物品去重（最高档为准）
+  // 掉落：drop 按世界等级分档，取最高档的物品去重
   const drops = []
   const seen = new Set()
   const dropList = Array.isArray(detail.drop) ? detail.drop : []

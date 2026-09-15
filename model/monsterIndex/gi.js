@@ -11,6 +11,7 @@
  * （HpUp_Lv3 → 2.00000、HpUp_Lv4 → 2.50000、Stage12_New2 → 3.75000，6 期 × 全怪物零偏差）。
  */
 import { giCurveValue } from './curve.js'
+import { GI_MONSTER_LEVEL } from '../../components/constants.js'
 
 /** `sub_hurt` 键 → 中文元素名（数据沿用旧键名 grass/elec/rock） */
 const SUB_HURT_LABEL = {
@@ -68,7 +69,10 @@ function panelOf (child) {
     const k = curve ? giCurveValue(curve) : null
     // 曲线未登记（GROW_CURVE_NONE）或该等级无值 → 算不出，不显示
     if (k == null) continue
-    fields.push({ label, value: String(Math.round((Number(raw) || 0) * k)) })
+    fields.push({
+      label: `${label} (Lv.${GI_MONSTER_LEVEL})`,
+      value: String(Math.round((Number(raw) || 0) * k))
+    })
   }
   return fields
 }

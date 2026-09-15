@@ -12,7 +12,7 @@
  */
 import { loadMap } from '../itemIndex/mapLoader.js'
 import { loadRecord } from '../AtlasService.js'
-import { HSR_MONSTER_CAMP_LABEL } from '../../components/constants.js'
+import { HSR_MONSTER_CAMP_LABEL, HSR_MONSTER_CAMP_OTHER } from '../../components/constants.js'
 import { giIndexIds, giVariants } from './gi.js'
 import { hsrIndexIds, hsrVariants } from './hsr.js'
 import { zzzIndexIds, zzzVariants } from './zzz.js'
@@ -162,18 +162,19 @@ export function collectMonsterVariants (gameId, filePath, extraPaths = []) {
 
 /**
  * 星铁阵营名（数据源只有数字，见 constants 的 HSR_MONSTER_CAMP_LABEL）
- * 未登记值告警一次并返回空串——新版本新增阵营时能及时暴露，而不是静默变空
+ * 「其他」也是一类阵营（数据源 378/628 条 camp 为空，游戏内并入该档），故空值与未登记值都归到它；
+ * 未登记的数字 id 另外告警一次，新增阵营时能及时暴露
  * @param {string|number} camp
  * @returns {string}
  */
 export function hsrCampLabel (camp) {
-  if (camp == null || camp === '') return ''
+  if (camp == null || camp === '') return HSR_MONSTER_CAMP_OTHER
   const key = String(camp)
   const label = HSR_MONSTER_CAMP_LABEL[key]
   if (label) return label
   if (!warnedCamps.has(key)) {
     warnedCamps.add(key)
-    logger?.warn?.(`[Atlas] 星铁怪物阵营 ${key} 未登记，请在 components/constants.js 的 HSR_MONSTER_CAMP_LABEL 补充`)
+    logger?.warn?.(`[Atlas] 星铁怪物阵营 ${key} 未登记，请在 components/constants.js 的 HSR_MONSTER_CAMP_LABEL 补充（本次按「其他」显示）`)
   }
-  return ''
+  return HSR_MONSTER_CAMP_OTHER
 }
