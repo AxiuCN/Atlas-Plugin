@@ -14,6 +14,7 @@ import {
   compareAtlasVersions,
   getDataStatus,
   repairMissingGames,
+  syncCodexRepo,
   BACKEND_DIR
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
@@ -139,6 +140,9 @@ export class AtlasAdmin extends plugin {
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
       await runDiffScrape(['gi', 'hsr', 'zzz'])
+
+      // 再最后：同步角色攻略仓库（git clone / pull，非子模块），失败仅告警
+      await syncCodexRepo()
     }).catch((err) => {
       logger?.error('[Atlas][管理] 初始化异常:', err)
       this._notifyResult(`[Atlas] 图鉴初始化异常：${err.message}`)
@@ -250,6 +254,9 @@ export class AtlasAdmin extends plugin {
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
       await runDiffScrape(['gi', 'hsr', 'zzz'])
+
+      // 再最后：同步角色攻略仓库（git clone / pull，非子模块），失败仅告警
+      await syncCodexRepo()
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
       this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
@@ -351,6 +358,9 @@ export class AtlasAdmin extends plugin {
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
       await runDiffScrape(['gi', 'hsr', 'zzz'])
+
+      // 再最后：同步角色攻略仓库（git clone / pull，非子模块），失败仅告警
+      await syncCodexRepo()
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }

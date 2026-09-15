@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/base.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
+</head>
+<body>
+  <div class="hero hero-plain">
+    {{if guide.image}}<img class="hero-portrait" src="{{guide.image}}"/>{{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · 角色攻略</div>
+      <div class="hero-title">{{name}}</div>
+      {{if guide.chips && guide.chips.length > 0}}
+      <div class="hero-info">
+        {{each guide.chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
+      </div>
+      {{/if}}
+      {{if guide.desc}}<div class="hero-desc">{{@guide.desc}}</div>{{/if}}
+    </div>
+  </div>
+
+  {{each guide.sections section}}
+  <div class="detail-section">
+    <h3>{{section.title}}</h3>
+    {{if section.type === 'text'}}
+      <div class="desc-block">{{@section.text}}</div>
+    {{else if section.type === 'list'}}
+      {{each section.items item}}
+      <div class="extra-item">
+        <div class="extra-name">{{item.name}}</div>
+        {{if item.desc}}<div class="extra-desc">{{@item.desc}}</div>{{/if}}
+      </div>
+      {{/each}}
+    {{else}}
+      <table class="detail-table">
+        {{each section.fields f}}
+        <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+        {{/each}}
+      </table>
+    {{/if}}
+  </div>
+  {{/each}}
+
+  <div class="copyright">攻略数据来自 Character-Codex-Data · Created By TRSS-yunzai & Atlas-Plugin</div>
+</body>
+</html>
