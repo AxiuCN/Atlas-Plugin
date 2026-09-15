@@ -79,15 +79,17 @@ function panelOf (child) {
 
 /**
  * 元素抗性：`sub_hurt` 是承伤系数（0.1 → 10% 抗性）；全 0 表示无抗性，此时不列
+ * `percent` 保留数值，供变种个体行过滤掉 10%（默认值）后只留有区分度的项
  * @param {object} child
- * @returns {Array<{label:string,value:string}>}
+ * @returns {Array<{label:string,value:string,percent:number}>}
  */
 function resistancesOf (child) {
   const out = []
   for (const [key, label] of Object.entries(SUB_HURT_LABEL)) {
     const v = Number(child?.sub_hurt?.[key])
     if (!Number.isFinite(v) || v === 0) continue
-    out.push({ label, value: `${Number((v * 100).toFixed(1))}%` })
+    const percent = Number((v * 100).toFixed(1))
+    out.push({ label, value: `${percent}%`, percent })
   }
   return out
 }

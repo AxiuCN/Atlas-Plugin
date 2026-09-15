@@ -1,7 +1,7 @@
 /**
  * 绝区零怪物构建（ZZZ）
  *
- * 栏位：hero 短描述（`card_quote` 卡牌引言）+ 小方框（族群 → 弱点 → 抗性，含具体数值）+
+ * 栏位：hero 短描述（`card_quote` 卡牌引言）+ 小方框（族群 → 弱点 → 抗性，抗性只列属性名）+
  * 面板（生命值 / 攻击力 / 防御力 / 冲击力 / 失衡伤害倍率 / 失衡持续时间，按 Lv.70 曲线换算）/
  * 图鉴描述 / 战斗提示 / **弱点与抗性**（数值保留）/ 变种个体
  * 不展示「获取方式」（`card_obtain` 是游戏内卡牌解锁提示，非怪物资料）。
@@ -20,11 +20,11 @@ export function buildZZZMonster (ctx) {
   const variants = collectMonsterVariants('zzz', filePath, variantPaths)
   const primary = primaryVariant(variants)
 
-  // 小方框：族群 → 弱点 → 抗性（抗性带数值）
+  // 小方框：族群 → 弱点 → 抗性（抗性只列属性，数值在下方「弱点与抗性」栏）
   const chips = [detail.group_desc]
   if (primary.weak.length) chips.push(`弱点：${primary.weak.join(' ')}`)
   if (primary.resistances.length) {
-    chips.push(`抗性：${primary.resistances.map(r => `${r.label.replace(/抗性$/, '')} ${r.value}`).join(' ')}`)
+    chips.push(`抗性：${primary.resistances.map(r => r.label.replace(/抗性$/, '')).join(' ')}`)
   }
 
   const hero = {

@@ -66,17 +66,29 @@ function bareLabel (label) {
   return String(label).replace(/\s*\(Lv\.\d+\)$/, '')
 }
 
-/** 变体面板摘要（仅在与代表变体不同的时候展示，避免星铁那种 100 个变体逐条重复） */
-function statSummary (variant, primary) {
-  if (!variant.stats?.length) return ''
-  if (JSON.stringify(variant.stats) === JSON.stringify(primary?.stats)) return ''
-  return variant.stats.map(s => `${bareLabel(s.label)} ${s.value}`).join(' · ')
+/**
+ * 变种个体行：内部代号/ID + 分类 + 全部属性 + 弱点 + 抗性，用 ` · ` 分隔成一行
+ * 属性值不带等级标注（等级在顶部属性格里已标，各变种一致）
+ * 原神抗性只列非 10%（默认值）的项，避免整行被八个「10%」淹没
+ * @param {object} v - 变种
+ * @param {string} gameId
+ * @param {boolean} hasCode - 条目名是否已是内部代号（否则名就是 ID，行内不再重复）
+ * @returns {string}
+ */
+function variantLine (v, gameId, hasCode) {
+  const parts = []
+  if (hasCode && v.id) parts.push(`ID ${v.id}`)
+  if (v.kind) parts.push(v.kind)
+  for (const s of v.stats || []) parts.push(`${bareLabel(s.label)} ${s.value}`)
+  if (v.weak?.length) parts.push(`弱点 ${v.weak.join(' ')}`)
+  const res = (v.resistances || []).filter(r => gameId !== 'gi' || r.percent !== 10)
+  if (res.length) parts.push(`抗性 ${res.map(r => `${r.label.replace(/抗性$/, '')} ${r.value}`).join(' ')}`)
+  return parts.join(' · ')
 }
 
 /**
- * 变种个体栏：列出全部战斗变体（标题带总数）
- * 同名条目折叠后变体可能来自多条记录（星铁「无尽寒冬之槊」单条最多 8 个变体共 100 个）
- * 条目内容 = 内部代号（或 ID）+ id + 分类 + 弱点；面板与代表变体不同的变体另附一份摘要
+ * 变种个体栏：列出全部战斗变种（标题带总数）
+ * 同名条目折叠后变种可能来自多条记录（星铁「无尽寒冬之槊」单条最多 8 个变种共 100 个）
  * @param {string} gameId
  * @param {string} filePath
  * @param {string[]} variantPaths
@@ -85,20 +97,15 @@ function statSummary (variant, primary) {
 export function variantSection (gameId, filePath, variantPaths) {
   const variants = collectMonsterVariants(gameId, filePath, variantPaths)
   if (variants.length <= 1 && !variantPaths.length) return null
-  const primary = primaryVariant(variants)
   const items = variants.map((v, i) => {
-    // 有内部代号的用它做条目名、id 进摘要；没有的（星铁变体）直接用 id 当条目名
+    // 有内部代号的用它做条目名；没有的（星铁变种）直接用 ID
     const hasCode = Boolean(v.codeName)
-    const name = hasCode ? v.codeName : (v.id ? `ID ${v.id}` : `变种 ${i + 1}`)
-    const parts = []
-    if (hasCode && v.id) parts.push(`ID ${v.id}`)
-    if (v.kind) parts.push(v.kind)
-    if (v.weak?.length) parts.push(`弱点 ${v.weak.join(' ')}`)
-    const summary = statSummary(v, primary)
-    if (summary) parts.push(summary)
-    return { name, desc: parts.join(' · ') }
+    return {
+      name: hasCode ? v.codeName : (v.id ? `ID ${v.id}` : `变种 ${i + 1}`),
+      desc: variantLine(v, gameId, hasCode)
+    }
   })
-  // 折掉的同名记录没有可变体数据时不出现空段（如原神「蕈猪」）
+  // 折掉的同名记录没有可变种数据时不出现空段（如原神「蕈猪」）
   if (!items.length) return null
   return { title: `${SECTION.VARIANT}（${variants.length}）`, type: 'list', items }
 }

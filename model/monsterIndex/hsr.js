@@ -88,7 +88,11 @@ export function hsrVariants (list, detail) {
     weak: (Array.isArray(c?.stance_weak_list) ? c.stance_weak_list : []).map(hsrLabel),
     resistances: (Array.isArray(c?.damage_type_resistance) ? c.damage_type_resistance : [])
       .filter(r => Number(r?.value))
-      .map(r => ({ label: `${hsrLabel(r?.damage_type)}抗性`, value: pct(r?.value) })),
+      .map(r => ({
+        label: `${hsrLabel(r?.damage_type)}抗性`,
+        value: pct(r?.value),
+        percent: Number((Number(r?.value) * 100).toFixed(1))
+      })),
     skills: (Array.isArray(c?.skill_list) ? c.skill_list : []).map(s => ({
       name: s?.skill_name || '',
       tag: hsrLabel(s?.damage_type),

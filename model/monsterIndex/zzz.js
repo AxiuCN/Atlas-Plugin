@@ -92,7 +92,11 @@ function resistancesOf (info) {
   for (const key of RES_KEYS) {
     const raw = Number(stats[`${key}_damage_res`])
     if (!Number.isFinite(raw) || raw === 0) continue
-    out.push({ label: `${ZZZ_ELEMENT_LABEL[key]}抗性`, value: pct(raw) })
+    out.push({
+      label: `${ZZZ_ELEMENT_LABEL[key]}抗性`,
+      value: pct(raw),
+      percent: Number((raw / 100).toFixed(1))
+    })
   }
   return out
 }
