@@ -12,6 +12,8 @@
  *   每段要么是 `{Skill:<id>, Prop:<n>}` 引用（值在 `detail.skill_prop[<id>][<n>]`，`main + growth×(Lv-1)`，`%` 则 ÷100），
  *   要么是数据已按档算好的文本（如 `25秒`、`45%`）
  * - 无 `talent` 字段（旧实现的「影画」段是死代码）；无技能图标与 `<IconMap>`
+ * - 单元格文本按「数值原子 / 文字原子」分段（`8.4%生命值`），避免整串撑破等宽单元格；含 `[表达式]` 的
+ *   未求值公式行（变量是自身等级）改走固定小格
  * - 特例伊埃斯：无 `level` 表、三招均 0 档、`desc` 即条目名，属占位条目
  */
 import { cleanMarkup, evalArith } from '../util.js'
@@ -44,6 +46,9 @@ const BANGBOO_SKILLS = [['a', '主动技'], ['b', '额外能力'], ['c', '连携
 
 /** 技能视图保留的末尾档数（同角色/星铁口径：档位多时只出末尾 7 档，长技能 10 档全出会撑破表宽） */
 const BANGBOO_TALENT_LEVEL_SPAN = 7
+
+/** 数据自带的未求值公式（如 `[4.4+自身等级*0.08]点`）：变量是自身等级，技能等级代入不了 */
+const BANGBOO_FORMULA_RE = /\[[^[\]]+\]/
 
 /** 突破加成的数值格式化：`format` 含 % 的按 ×100 存储（4500 → 45%） */
 function _fmtBreakBonus (item) {
@@ -113,6 +118,20 @@ function _cellText (part, level, prop) {
 }
 
 /**
+ * 单元格文本 → 段数组（数值原子与文字原子分开）
+ * 模板逐段渲染 `.param-seg`（段内 nowrap），段间由 `<wbr>` 提供换行点。
+ * 整条文本作为一个段时，像 `8.4%生命值`（118px）会撑破等宽单元格（7 档表每格内容宽仅 86px）并压住相邻格，
+ * 故在数值与文字的交界处切段；纯数值（如 `1722.6%`）本身没有断点，仍按单段输出
+ * @param {string} text
+ * @returns {string[]}
+ */
+function _splitSegs (text) {
+  const s = String(text ?? '')
+  if (!s) return ['']
+  return s.match(/[\d.]+%?|[^\d.]+/g) || [s]
+}
+
+/**
  * 二招技能 → 技能卡（每招一张卡）
  * 表格取该技能末尾 7 档（与角色/星铁口径一致，a/c 招 10 档只出 Lv4~Lv10）；各级同值的行（如「冷却时间 25秒」）走固定小格
  * @param {object} detail
@@ -133,10 +152,16 @@ function _skillCards (detail) {
     props.forEach((name, i) => {
       // 是否随等级变化按全部档判定（同原神：先判固定属性再抽样），展示只取末尾若干档
       const cells = levels.map((lv, li) => _cellText(rowsOf[li][i], Number(lv), detail.skill_prop))
+      // 未求值公式（如「能量回复 [4.4+自身等级*0.08]点」）：变量是自身等级，页面无从代入，
+      // 且整串（约 230px）远超等宽单元格，故与「冷却时间 25秒」一样进固定小格（取末档，同满级口径），不占表格列
+      if (cells.every(c => c !== '' && BANGBOO_FORMULA_RE.test(c))) {
+        fixed.push({ label: name, value: cells[cells.length - 1] })
+        return
+      }
       if (cells.every(c => c === cells[0])) {
         if (cells[0] !== '') fixed.push({ label: name, value: cells[0] })
       } else {
-        varying.push({ name, cells })
+        varying.push({ name, cells: cells.map(_splitSegs) })
       }
     })
 
@@ -145,7 +170,7 @@ function _skillCards (detail) {
       const offset = Math.max(levels.length - BANGBOO_TALENT_LEVEL_SPAN, 0)
       const shownLevels = levels.slice(offset)
       const headers = ['等级', ...varying.map(r => r.name)]
-      const body = shownLevels.map((lv, si) => [String(lv), ...varying.map(r => [r.cells[offset + si]])])
+      const body = shownLevels.map((lv, si) => [String(lv), ...varying.map(r => r.cells[offset + si])])
       params = { ...transposeTable({ headers, rows: body }), fixed }
     } else if (fixed.length) {
       params = { fixed }
