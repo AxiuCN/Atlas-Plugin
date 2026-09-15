@@ -1,84 +1,192 @@
 /**
  * 绝区零邦布构建（ZZZ）
- * 基础属性 + 技能 A/B/C + 影画 + 养成素材
+ * hero 一句话 + 满级属性（含突破加成）+ 三招技能（A/B/C）倍率表 + 突破素材
+ *
+ * 数据形态（42 只一致）：
+ * - `detail.stats`：基础值与成长值（成长字段名与角色不同：`hpupgrade` / `attack_upgrade` / `def_upgrade`），
+ *   另有全表恒定项 `endurance`(180) / `crit`(500) / `crit_dmg`(5000) / `pen_ratio`(0)，无区分度故不列
+ * - `detail.level`：6 档突破（上限 10/20/…/60），`hp_max/attack/defence` 为累计增量，`extra` 为该档累计的
+ *   突破加成（暴击率 / 暴击伤害），`materials` 为突破素材
+ * - `detail.skill.a/b/c`：主动技 / 额外能力 / 连携技，**档数各不相同**（a 10 档、b 5 档、c 10 档，部分邦布无 c）；
+ *   每档 `{name, desc, property[], param}`，`property` 是行名数组，`param` 是 `|` 分隔的字符串，
+ *   每段要么是 `{Skill:<id>, Prop:<n>}` 引用（值在 `detail.skill_prop[<id>][<n>]`，`main + growth×(Lv-1)`，`%` 则 ÷100），
+ *   要么是数据已按档算好的文本（如 `25秒`、`45%`）
+ * - 无 `talent` 字段（旧实现的「影画」段是死代码）；无技能图标与 `<IconMap>`
+ * - 特例伊埃斯：无 `level` 表、三招均 0 档、`desc` 即条目名，属占位条目
  */
-import { cleanMarkup, propLabel } from '../util.js'
+import { cleanMarkup, evalArith } from '../util.js'
 import { aggregateMats } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 import { zzzRankOf } from '../../constants.js'
+import { transposeTable } from '../character/skillParams.js'
+
+/** 邦布满级等级（level 表 6 档，上限 60） */
+const ZZZ_MAX_BANGBOO_LEVEL = 60
+
+/** 属性表格展示项与标签（propLabel 缺冲击力/异常掌控） */
+const BANGBOO_STAT_LABEL = {
+  hp_max: '生命值',
+  attack: '攻击力',
+  defence: '防御力',
+  break_stun: '冲击力',
+  element_abnormal_power: '异常掌控'
+}
+
+/** 随等级成长的属性 → 成长值字段（邦布用 xxxupgrade / xxx_upgrade，与角色命名不同） */
+const BANGBOO_GROWTH_KEY = {
+  hp_max: 'hpupgrade',
+  attack: 'attack_upgrade',
+  defence: 'def_upgrade'
+}
+
+/** 三招技能的数据键与官方叫法 */
+const BANGBOO_SKILLS = [['a', '主动技'], ['b', '额外能力'], ['c', '连携技']]
+
+/** 技能视图保留的末尾档数（同角色/星铁口径：档位多时只出末尾 7 档，长技能 10 档全出会撑破表宽） */
+const BANGBOO_TALENT_LEVEL_SPAN = 7
+
+/** 突破加成的数值格式化：`format` 含 % 的按 ×100 存储（4500 → 45%） */
+function _fmtBreakBonus (item) {
+  const v = Number(item?.value) || 0
+  if (String(item?.format || '').includes('%')) return `${Number((v / 100).toFixed(2))}%`
+  return String(v)
+}
+
+/**
+ * 属性表格：满级（Lv60，含突破累计）基础值 + 最高突破档的加成
+ * 满级 = 基础 + (60-1) × 成长/10000 + 最高突破档累计（与角色/音擎同一套口径，已用游戏内 8863 攻击力核对）
+ * @param {object} detail
+ * @returns {Array<{label:string,value:string}>}
+ */
+function _statFields (detail) {
+  const stats = detail.stats || {}
+  const level = detail.level || {}
+  const maxKey = Object.keys(level).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b)).pop()
+  const breakthrough = level[maxKey] || {}
+
+  const fields = []
+  for (const [key, label] of Object.entries(BANGBOO_STAT_LABEL)) {
+    if (stats[key] == null) continue
+    const growth = stats[BANGBOO_GROWTH_KEY[key]]
+    const value = growth == null
+      ? Math.trunc(Number(stats[key]))
+      : Math.trunc((Number(stats[key]) || 0) + (ZZZ_MAX_BANGBOO_LEVEL - 1) * (Number(growth) || 0) / 10000 + (Number(breakthrough[key]) || 0))
+    fields.push({ label, value: String(value) })
+  }
+  // 突破加成（最高档累计值；值为 0 的不列）
+  for (const [, item] of Object.entries(breakthrough.extra || {})) {
+    const v = Number(item?.value) || 0
+    if (!v) continue
+    fields.push({ label: `突破 · ${item?.name || ''}`, value: _fmtBreakBonus(item) })
+  }
+  return fields
+}
+
+/**
+ * 单段取值
+ * 含 `{Skill:<id>, Prop:<n>}` 引用时（可为复合公式，如 `{Skill:A}*2+{Skill:B}`、`{{Skill:A}/3}*3`），
+ * 把各引用替换为该档数值后求值，`format` 含 % 则 ÷100；不含引用的段是数据已按档算好的文本（如 `25秒`），原样返回
+ * @param {string} part - `param` 按 `|` 拆出的一段
+ * @param {number} level - 该档等级
+ * @param {object} prop - detail.skill_prop
+ * @returns {string}
+ */
+function _cellText (part, level, prop) {
+  const src = String(part || '').trim()
+  if (!src) return ''
+  const refs = [...src.matchAll(/\{+Skill:(\d+),\s*Prop:(\d+)\}+/g)]
+  if (!refs.length) return src
+  let expr = src
+  let isPercent = true
+  // 从后往前替换引用，避免索引位移
+  for (let i = refs.length - 1; i >= 0; i--) {
+    const m = refs[i]
+    const item = prop?.[m[1]]?.[m[2]]
+    if (!item) return src
+    if (!String(item.format || '').includes('%')) isPercent = false
+    const value = (Number(item.main) || 0) + (Number(item.growth) || 0) * (level - 1)
+    expr = expr.slice(0, m.index) + String(value) + expr.slice(m.index + m[0].length)
+  }
+  const out = evalArith(expr.replace(/[{}]/g, ''))
+  if (out == null) return src
+  return isPercent ? `${Number((out / 100).toFixed(2))}%` : String(Math.trunc(out))
+}
+
+/**
+ * 二招技能 → 技能卡（每招一张卡）
+ * 表格取该技能末尾 7 档（与角色/星铁口径一致，a/c 招 10 档只出 Lv4~Lv10）；各级同值的行（如「冷却时间 25秒」）走固定小格
+ * @param {object} detail
+ * @returns {Array<{name,tag,desc,params}>}
+ */
+function _skillCards (detail) {
+  const cards = []
+  for (const [key, label] of BANGBOO_SKILLS) {
+    const sk = detail?.skill?.[key]
+    const levels = Object.keys(sk?.level || {}).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
+    if (!levels.length) continue
+    const first = sk.level[levels[0]] || {}
+    const props = Array.isArray(first.property) ? first.property : []
+    const rowsOf = levels.map(lv => String(sk.level[lv]?.param || '').split('|'))
+
+    const fixed = []
+    const varying = []
+    props.forEach((name, i) => {
+      // 是否随等级变化按全部档判定（同原神：先判固定属性再抽样），展示只取末尾若干档
+      const cells = levels.map((lv, li) => _cellText(rowsOf[li][i], Number(lv), detail.skill_prop))
+      if (cells.every(c => c === cells[0])) {
+        if (cells[0] !== '') fixed.push({ label: name, value: cells[0] })
+      } else {
+        varying.push({ name, cells })
+      }
+    })
+
+    let params = null
+    if (varying.length) {
+      const offset = Math.max(levels.length - BANGBOO_TALENT_LEVEL_SPAN, 0)
+      const shownLevels = levels.slice(offset)
+      const headers = ['等级', ...varying.map(r => r.name)]
+      const body = shownLevels.map((lv, si) => [String(lv), ...varying.map(r => [r.cells[offset + si]])])
+      params = { ...transposeTable({ headers, rows: body }), fixed }
+    } else if (fixed.length) {
+      params = { fixed }
+    }
+
+    cards.push({
+      name: first.name || label,
+      tag: label,
+      desc: cleanMarkup(first.desc || ''),
+      params
+    })
+  }
+  return cards
+}
 
 /**
  * 构建绝区零邦布数据
  * @param {object} record - 完整 JSON（含 meta, content.list, content.detail）
- * @returns {object} { metaFields, sections }
+ * @returns {object} { hero, metaFields, sections }
  */
 export function buildZZZBangboo (record) {
   const detail = record?.content?.detail || {}
+  const name = detail.name || record?.meta?.name || ''
+
+  // hero 一句话（伊埃斯等占位条目的 desc 就是条目名，此时不出）
+  const desc = cleanMarkup(detail.desc || '')
+  const hero = desc && desc.replace(/\s+/g, '') !== String(name).replace(/\s+/g, '') ? { desc } : null
 
   const metaFields = [
-    { label: '稀有度', value: zzzRankOf(record, 'bangboo') }
+    { label: '稀有度', value: zzzRankOf(record, 'bangboo') },
+    ..._statFields(detail)
   ].filter(f => f.value)
-
-  // 基础属性
-  if (detail.stats) {
-    const statKeys = ['endurance', 'hp_max', 'attack', 'defence', 'break_stun', 'crit', 'crit_dmg', 'pen_ratio']
-    for (const key of statKeys) {
-      if (detail.stats[key] != null) metaFields.push({ label: propLabel(key), value: String(detail.stats[key]) })
-    }
-  }
 
   const sections = []
 
-  // 技能 A/B/C
-  if (detail.skill && typeof detail.skill === 'object') {
-    const slotLabels = { a: '主动技 (A)', b: '额外能力 (B)', c: '连携技 (C)' }
-    const skills = []
-    for (const [slot, sk] of Object.entries(detail.skill)) {
-      if (!sk) continue
-      let desc = ''
-      let params = null
-      if (sk.level && typeof sk.level === 'object') {
-        const levels = Object.keys(sk.level).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b))
-        if (levels.length > 0) {
-          const first = sk.level[levels[0]]
-          desc = cleanMarkup(first?.desc || '')
-          if (first?.property && Array.isArray(first.property)) {
-            const headers = ['等级', ...(first.property.map(p => p.name || ''))]
-            const rows = levels.map(lv => {
-              const l = sk.level[lv]
-              const vals = (l?.property || []).map(p => p.param || '')
-              return [lv, ...vals]
-            })
-            params = { headers, rows }
-          }
-        }
-      }
-      skills.push({
-        name: `${slotLabels[slot] || slot}`,
-        tag: '',
-        desc,
-        params
-      })
-    }
+  const skills = _skillCards(detail)
+  if (skills.length) {
     sections.push({ title: '技能', type: 'skill-cards', skills })
   }
 
-  // 影画 (talent, 类似角色命座)
-  if (detail.talent && typeof detail.talent === 'object') {
-    const items = Object.entries(detail.talent)
-      .filter(([k]) => /^\d+$/.test(k))
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([k, t]) => ({
-        order: Number(k),
-        name: t.name || '',
-        desc: cleanMarkup(t.desc || '')
-      }))
-    if (items.length > 0) {
-      sections.push({ title: '影画', type: 'constellation-grid', items })
-    }
-  }
-
-  // 养成素材（detail.level[1~6].materials 对象：{ "10": 15000, "102010": 4 }，id=10 为丁尼）
+  // 突破素材（detail.level[1~6].materials 对象：{ "10": 15000, "102010": 4 }，id=10 为丁尼）
   if (detail.level && typeof detail.level === 'object') {
     const levels = Object.values(detail.level).map(lv => {
       const mats = lv?.materials && typeof lv.materials === 'object'
@@ -104,10 +212,10 @@ export function buildZZZBangboo (record) {
         items.push({ name: m.name, count: m.count, icon: getZZZItemIcon(m.id), id: m.id, rank: m.rank })
       }
       if (items.length > 0) {
-        sections.push({ title: '养成素材', type: 'materials', items })
+        sections.push({ title: '突破素材', type: 'materials', items })
       }
     }
   }
 
-  return { metaFields, sections }
+  return { hero, metaFields, sections }
 }

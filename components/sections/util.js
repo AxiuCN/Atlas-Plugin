@@ -49,6 +49,62 @@ export function galleryUrl (gameId, fileName) {
   return fs.existsSync(fullPath) ? pathToFileURL(fullPath).href : ''
 }
 
+/**
+ * 算术表达式求值（只含数字、+ - * / ( ) 与空白）
+ * 绝区零技能/邦布倍率的复合公式（把 `{Skill:…}` 引用替换成数值后）用它求值，
+ * 手写递归下降以避免 eval / new Function
+ * @param {string} expr
+ * @returns {number|null} 含其它字符或语法非法时返回 null
+ */
+export function evalArith (expr) {
+  const s = String(expr).replace(/\s+/g, '')
+  if (!s || !/^[\d+\-*/().]+$/.test(s)) return null
+  let i = 0
+  const peek = () => s[i]
+  const parseFactor = () => {
+    if (peek() === '-') {
+      i++
+      const v = parseFactor()
+      return v == null ? null : -v
+    }
+    if (peek() === '(') {
+      i++
+      const v = parseExpr()
+      if (v == null || peek() !== ')') return null
+      i++
+      return v
+    }
+    const m = /^\d+(?:\.\d+)?/.exec(s.slice(i))
+    if (!m) return null
+    i += m[0].length
+    return Number(m[0])
+  }
+  const parseTerm = () => {
+    let v = parseFactor()
+    if (v == null) return null
+    while (peek() === '*' || peek() === '/') {
+      const op = s[i++]
+      const r = parseFactor()
+      if (r == null) return null
+      v = op === '*' ? v * r : v / r
+    }
+    return v
+  }
+  const parseExpr = () => {
+    let v = parseTerm()
+    if (v == null) return null
+    while (peek() === '+' || peek() === '-') {
+      const op = s[i++]
+      const r = parseTerm()
+      if (r == null) return null
+      v = op === '+' ? v + r : v - r
+    }
+    return v
+  }
+  const out = parseExpr()
+  return out != null && i === s.length && Number.isFinite(out) ? out : null
+}
+
 /** 数值格式化：保留合理小数位 */
 export function fmtNum (v) {
   if (v == null || v === '') return ''

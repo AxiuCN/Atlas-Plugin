@@ -2,7 +2,7 @@
  * 绝区零角色构建（ZZZ）
  * 将 nanoka 绝区零条目 JSON 归一化为统一角色模板数据
  */
-import { imgUrl, galleryUrl, cleanMarkup } from '../util.js'
+import { imgUrl, galleryUrl, cleanMarkup, evalArith } from '../util.js'
 import { transposeTable } from './skillParams.js'
 import { zzzRank } from '../../constants.js'
 
@@ -147,61 +147,6 @@ const ZZZ_SKILL_ICON = {
   assist: 'Icon_Switch'
 }
 
-/**
- * 算术表达式求值（只含数字、+ - * / ( ) 与空白；由倍率公式替换引用后得到）
- * 手写递归下降，避免 eval / new Function
- * @param {string} expr
- * @returns {number|null} 非法表达式返回 null
- */
-function _evalArith (expr) {
-  const s = String(expr).replace(/\s+/g, '')
-  if (!s || !/^[\d+\-*/().]+$/.test(s)) return null
-  let i = 0
-  const peek = () => s[i]
-  const parseFactor = () => {
-    if (peek() === '-') {
-      i++
-      const v = parseFactor()
-      return v == null ? null : -v
-    }
-    if (peek() === '(') {
-      i++
-      const v = parseExpr()
-      if (v == null || peek() !== ')') return null
-      i++
-      return v
-    }
-    const m = /^\d+(?:\.\d+)?/.exec(s.slice(i))
-    if (!m) return null
-    i += m[0].length
-    return Number(m[0])
-  }
-  const parseTerm = () => {
-    let v = parseFactor()
-    if (v == null) return null
-    while (peek() === '*' || peek() === '/') {
-      const op = s[i++]
-      const r = parseFactor()
-      if (r == null) return null
-      v = op === '*' ? v * r : v / r
-    }
-    return v
-  }
-  const parseExpr = () => {
-    let v = parseTerm()
-    if (v == null) return null
-    while (peek() === '+' || peek() === '-') {
-      const op = s[i++]
-      const r = parseTerm()
-      if (r == null) return null
-      v = op === '+' ? v + r : v - r
-    }
-    return v
-  }
-  const out = parseExpr()
-  return out != null && i === s.length && Number.isFinite(out) ? out : null
-}
-
 /** 倍率数值输出：数据域为 ×100（2690 → 26.9%），去掉多余小数位 */
 function _fmtRate (v) {
   return `${Number((Number(v) / 100).toFixed(2))}%`
@@ -225,7 +170,7 @@ function _rateValueAt (row, level) {
     const v = (Number(item?.main) || 0) + (Number(item?.growth) || 0) * (level - 1)
     expr = expr.slice(0, m.index) + String(v) + expr.slice(m.index + m[0].length)
   }
-  return _evalArith(expr.replace(/[{}]/g, ''))
+  return evalArith(expr.replace(/[{}]/g, ''))
 }
 
 /**
@@ -240,7 +185,7 @@ function _rateValueAt (row, level) {
 function _calValue (expr, scale, decimals, level) {
   const substituted = String(expr).replace(/AvatarSkillLevel\(\d+\)/g, String(level))
   if (/[A-Za-z]/.test(substituted)) return null
-  const v = _evalArith(substituted)
+  const v = evalArith(substituted)
   if (v == null) return null
   const scaled = v * (Number(scale) === 100 ? 100 : 1)
   const digits = Math.min(Math.max(Number(decimals) || 0, 0), 4)
