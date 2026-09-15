@@ -161,7 +161,12 @@ export function buildDetailData (gameId, result) {
   if (builder) {
     // 多形态角色折叠后：另一形态（男女）的条目用于 hero 合体图，索引变体名用于展示名
     const siblingRecord = result.variantPair ? loadRecord(result.variantPair) : null
-    const typeData = builder(gameId, record, result.subView || null, { siblingRecord, indexName: result.name })
+    const typeData = builder(gameId, record, result.subView || null, {
+      siblingRecord,
+      indexName: result.name,
+      filePath: result.filePath,
+      variantPaths: result.variantPaths
+    })
     if (typeData) {
       return {
         gameName: GAME_NAMES[gameId],

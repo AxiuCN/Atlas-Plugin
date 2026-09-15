@@ -1,57 +1,79 @@
 /**
  * 星铁怪物构建（HSR）
- * 基础属性 + 弱点/抗性 + 技能
+ *
+ * 栏位：图鉴描述 / 分类小方框（rank + 阵营 camp）/ 面板（基础数值，各变体共用）/
+ * 弱点与抗性（变体 `stance_weak_list` + `damage_type_resistance`）/ 技能（变体 `skill_list`）/
+ * 掉落（`drop` 按世界等级分档）/ 变体
+ * 阵营在数据源里只有数字，名称取自 constants 的手写表（见 HSR_MONSTER_CAMP_LABEL）。
  */
-import { cleanMarkup, propLabel } from '../util.js'
+import { HSR_MONSTER_RANK_LABEL } from '../../constants.js'
+import { collectMonsterVariants, hsrCampLabel } from '../../../model/monsterIndex/index.js'
+import { getItemName, getItemIcon } from '../../../model/itemIndex/index.js'
+import { cleanMarkup } from '../util.js'
+import { SECTION, pickSections, descSection, variantSection, primaryVariant } from './common.js'
 
 /**
  * 构建星铁怪物数据
- * @param {object} list - record.content.list
- * @param {object} detail - record.content.detail
- * @param {object} meta - record.meta
- * @returns {object} { metaFields, sections }
+ * @param {object} ctx - { list, detail, filePath, subView, variantPaths, indexName }
+ * @returns {object} { hero, metaFields, sections }
  */
-export function buildHSRMonster (list, detail, meta) {
-  const metaFields = []
-  const keys = ['attack_base', 'defence_base', 'hp_base', 'speed_base', 'stance_base']
-  for (const key of keys) {
-    if (detail[key] != null) metaFields.push({ label: propLabel(key), value: String(detail[key]) })
+export function buildHSRMonster (ctx) {
+  const { list, detail, filePath, subView, variantPaths } = ctx
+  const variants = collectMonsterVariants('hsr', filePath, variantPaths)
+  const primary = primaryVariant(variants)
+
+  const hero = {
+    chips: [
+      HSR_MONSTER_RANK_LABEL[detail.rank] || detail.rank || '',
+      hsrCampLabel(list.camp ?? detail.monster_camp_id)
+    ].filter(Boolean)
   }
 
   const sections = []
+  const desc = descSection(detail.desc)
+  if (desc) sections.push(desc)
 
-  if (detail.child && Array.isArray(detail.child)) {
-    // 弱点
-    for (const child of detail.child) {
-      if (child.stance_weak_list && Array.isArray(child.stance_weak_list)) {
-        metaFields.push({
-          label: '弱点',
-          value: child.stance_weak_list.join(' / ')
-        })
-      }
-      if (child.damage_type_resistance && Array.isArray(child.damage_type_resistance)) {
-        const resist = child.damage_type_resistance.map(r =>
-          `${r.damage_type || ''}: ${r.value != null ? r.value : ''}`
-        ).join(', ')
-        if (resist) metaFields.push({ label: '抗性', value: resist })
-      }
-      // 技能
-      if (child.skill_list && Array.isArray(child.skill_list)) {
-        const skills = child.skill_list.map(s => ({
-          name: s.skill_name || '',
-          desc: cleanMarkup(s.skill_desc || ''),
-          type: s.damage_type || ''
-        }))
-        if (skills.length > 0) {
-          sections.push({ title: '技能', type: 'list', items: skills.map(s => ({
-            name: `${s.name}${s.type ? ' [' + s.type + ']' : ''}`,
-            desc: s.desc
-          })) })
-        }
-      }
-      break // 只取第一个 child
-    }
+  // 弱点与抗性：弱点来自变体 stance_weak_list，抗性来自变体 damage_type_resistance
+  const resistFields = []
+  if (primary.weak.length) resistFields.push({ label: '弱点', value: primary.weak.join(' / ') })
+  for (const r of primary.resistances) resistFields.push({ label: r.label, value: r.value })
+  if (resistFields.length) sections.push({ title: SECTION.RESIST, fields: resistFields })
+
+  // 技能：按变体取（主变体的技能列表）
+  // 少数怪（角色的「幻象」版，如卡芙卡/资深员工·组长）技能描述里带 `#N[fmt]` 参数占位符，
+  // 但怪物侧数据没有对应的 param_list，取值无从谈起 → 只保留技能名，描述不出
+  const skills = primary.skills.filter(s => s.name || s.desc)
+  if (skills.length) {
+    sections.push({
+      title: SECTION.SKILL,
+      type: 'list',
+      items: skills.map(s => ({
+        name: cleanMarkup(s.tag ? `${s.name} [${s.tag}]` : s.name),
+        desc: /#\d+\[/.test(s.desc || '') ? '' : cleanMarkup(s.desc)
+      }))
+    })
   }
 
-  return { metaFields, sections }
+  // 掉落：drop 按世界等级分档，取各档出现过的物品去重（最高档为准）
+  const drops = []
+  const seen = new Set()
+  const dropList = Array.isArray(detail.drop) ? detail.drop : []
+  const top = dropList.length ? dropList[dropList.length - 1] : null
+  for (const d of top?.display_item_list || []) {
+    const id = d?.item_id != null ? String(d.item_id) : ''
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    drops.push({ name: getItemName('hsr', id) || id, icon: getItemIcon('hsr', id) })
+  }
+  if (drops.length) sections.push({ title: SECTION.DROP, type: 'materials', items: drops })
+
+  const variant = variantSection('hsr', filePath, variantPaths)
+  if (variant) sections.push(variant)
+
+  return {
+    hero,
+    metaFields: primary.stats,
+    sections: pickSections(sections, subView),
+    recordName: detail.name || list.zh || ctx.indexName
+  }
 }

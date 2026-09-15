@@ -29,15 +29,17 @@ export const SHORTCUT_SUFFIXES = [
   // 倍率视图（技能/天赋倍率 — 全等级宽表，长后缀优先）
   '天赋倍率', '技能倍率', '倍率表', '倍率',
   '图鉴',
-  // 素材类（原神 升级材料/养成素材，星铁 晋阶材料，绝区零 突破素材）
-  '养成素材', '升级素材', '升级材料', '晋阶材料', '晋阶素材', '突破材料', '突破素材',
+  // 素材类（原神 升级材料/养成素材，星铁 晋阶材料，绝区零 突破素材；怪物页的掉落同此视图）
+  '养成素材', '升级素材', '升级材料', '晋阶材料', '晋阶素材', '突破材料', '突破素材', '掉落',
   // 技能类（星铁把天赋叫行迹，忆灵体系另有忆灵技/忆灵天赋）
   '天赋', '技能', '行迹', '忆灵技', '忆灵',
   // 命座类（星铁 星魂，绝区零 影画）
   '命座', '星魂', '影画',
   // 页面类型类（非子视图：剥离后缀并把搜索结果限定到对应页面类型）
   '圣遗物', '遗器', '驱动盘',
-  '资料', '故事', '语音',
+  '资料', '描述', '故事', '语音',
+  // 怪物页专有
+  '变体',
   '养成', '素材', '材料', '升级'
 ]
 
@@ -57,11 +59,13 @@ export const SUFFIX_TO_SUBVIEW = {
   天赋: 'skills', 技能: 'skills', 行迹: 'skills', 忆灵技: 'skills', 忆灵: 'skills',
   天赋倍率: 'rates', 技能倍率: 'rates', 倍率表: 'rates', 倍率: 'rates',
   命座: 'constellations', 星魂: 'constellations', 影画: 'constellations',
-  资料: 'profile',
+  资料: 'profile', 描述: 'profile',
   故事: 'stories', 语音: 'stories',
-  养成: 'materials', 素材: 'materials', 材料: 'materials',
+  养成: 'materials', 素材: 'materials', 材料: 'materials', 掉落: 'materials',
   升级素材: 'materials', 养成素材: 'materials', 升级材料: 'materials', 升级: 'materials',
-  晋阶材料: 'materials', 晋阶素材: 'materials', 突破材料: 'materials', 突破素材: 'materials'
+  晋阶材料: 'materials', 晋阶素材: 'materials', 突破材料: 'materials', 突破素材: 'materials',
+  // 怪物页专有：同名折叠后的战斗变体列表
+  变体: 'variants'
 }
 
 // 页面 pageKey → 中文标签（三游戏通用回退）
@@ -206,6 +210,68 @@ export const HSR_PATH_CN = {
 
 /** 星铁满级等级（角色/光锥 80 级；满级属性 = 基础值 + (80-1) × 成长值） */
 export const HSR_MAX_LEVEL = 80
+
+/* ===== 怪物图鉴口径（三游戏共用，见「四·5 敌人/怪物」） ===== */
+
+/** 原神怪物 codex（12 类内部码）→ 中文 */
+export const GI_MONSTER_CODEX_LABEL = {
+  ELEMENTAL: '元素生命',
+  HILICHURL: '丘丘部族',
+  ABYSS: '深渊教团',
+  FATUI: '愚人众',
+  AUTOMATRON: '自律机关',
+  HUMAN: '人类',
+  BEAST: '野兽',
+  ANIMAL: '走兽',
+  AVIARY: '飞禽',
+  FISH: '鱼类',
+  CRITTER: '甲壳爬虫',
+  BOSS: '首领'
+}
+
+/** 星铁怪物 rank（5 档内部码）→ 中文 */
+export const HSR_MONSTER_RANK_LABEL = {
+  Minion: '小兵',
+  MinionLv2: '普通',
+  Elite: '精英',
+  LittleBoss: '首领',
+  BigBoss: '大首领'
+}
+
+/**
+ * 星铁怪物阵营 camp → 中文
+ * 数据源只有数字（list.camp / detail.monster_camp_id 取值 1~18），全库无名称映射表，故手写维护；
+ * 16 无怪物使用（用户亦未确认其名称），不登记；未登记值由 monsterIndex 告警一次
+ */
+export const HSR_MONSTER_CAMP_LABEL = {
+  1: '雅利洛-VI',
+  2: '仙舟「罗浮」',
+  3: '裂界造物',
+  4: '模拟宇宙',
+  5: '星核猎手',
+  6: '反物质军团',
+  7: '银河',
+  8: '虫群',
+  9: '星际和平公司',
+  10: '惊梦剧团',
+  11: '忆域迷因',
+  12: '泰坦眷属',
+  13: '晨昏奇兽',
+  14: '黑潮造物',
+  15: '渊下海妖',
+  17: '幻造种',
+  18: '金血忆灵'
+}
+
+/**
+ * 原神怪物面板基准等级：世界等级 9 的怪物等级（大世界 93~103，取满级口径 103）
+ * 面板 = `child.base.<stat>` × 该变体 `child.prop[].grow_curve` 指定的曲线(等级)；
+ * 大世界无环境系数——深渊的 `LevelEntity_Monster_HpUp_*` 是另一套倍率且随版本增长，不参与计算
+ */
+export const GI_MONSTER_LEVEL = 103
+
+/** 原神怪物成长曲线表（相对 resources/，官方 MonsterCurveExcelConfigData 精简版，200 级） */
+export const GI_MONSTER_CURVE_FILE = 'data/gi-monster-curve.json'
 
 /* ===== 绝区零评级（S/A/B/C，而非星级） =====
  * 数据内部的稀有度只有数值（list.rank / list.rarity / detail.rarity），meta.rarity（"三星"）

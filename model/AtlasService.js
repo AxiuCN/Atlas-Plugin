@@ -105,7 +105,8 @@ function ensureIndex () {
       const familyOwner = new Map()
       for (const [recordId, record] of records) {
         const family = familyName(gameId, record.name)
-        if ((familySize.get(family) || 0) <= 1) {
+        // 怪物不参与形态族派生：同名记录是同一图鉴条目的多个战斗变体（见下方 monsterFold）
+        if (pageKey === 'monster' || (familySize.get(family) || 0) <= 1) {
           memberInfo.set(recordId, { family, label: '', name: record.name, multi: false })
           continue
         }
@@ -122,7 +123,42 @@ function ensureIndex () {
         if (preferOwner) familyOwner.set(family, recordId)
       }
 
+      // 怪物页同名折叠（无损）：HSR 628 条记录只有 373 个唯一名字——同名条目本质是同一图鉴条目的
+      // 多个战斗变体被拆成了多条索引。主条目按「有详情 → 图多 → 键小」选取（组内位置不变），
+      // 其余记录不再入索引，其路径与别名并入主条目的 variantPaths / aliases，供详情页「变体」栏拼合。
+      const monsterFold = new Map()
+      const monsterMergedPaths = new Set()
+      if (pageKey === 'monster') {
+        const groups = new Map()
+        for (const [recordId, record] of records) {
+          const key = record.name || recordId
+          if (!groups.has(key)) groups.set(key, [])
+          groups.get(key).push([recordId, record])
+        }
+        for (const list of groups.values()) {
+          if (list.length < 2) continue
+          const [mainId] = list.slice().sort((a, b) => {
+            const da = a[1].hasDetail ? 1 : 0
+            const db = b[1].hasDetail ? 1 : 0
+            if (da !== db) return db - da
+            const ia = Number(a[1].imageCount) || 0
+            const ib = Number(b[1].imageCount) || 0
+            if (ia !== ib) return ib - ia
+            return String(a[0]).localeCompare(String(b[0]), 'en', { numeric: true })
+          })[0]
+          const fold = { paths: [], aliases: new Set() }
+          for (const [recordId, record] of list) {
+            if (recordId === mainId) continue
+            fold.paths.push(record.path)
+            monsterMergedPaths.add(record.path)
+            for (const alias of entryAliases(record)) fold.aliases.add(alias)
+          }
+          monsterFold.set(mainId, fold)
+        }
+      }
+
       for (const [recordId, record] of records) {
+        if (monsterMergedPaths.has(record.path)) continue
         const info = memberInfo.get(recordId)
         const isMultiForm = info.multi
         const isFamilyOwner = !isMultiForm || familyOwner.get(info.family) === recordId
@@ -145,6 +181,8 @@ function ensureIndex () {
         seen.add(dedupeKey)
 
         const aliases = entryAliases(record, isFamilyOwner)
+        const fold = monsterFold.get(recordId)
+        if (fold) for (const alias of fold.aliases) aliases.add(alias)
         for (const alias of variantAliases(gameId, info.family, info.label, indexName)) aliases.add(alias)
         for (const alias of familyGenderAliases(info.family, info.label, isFamilyOwner)) aliases.add(alias)
         // GI 圣遗物名称是纯数字 ID，需从 JSON 内提取套装名作为别名
@@ -169,7 +207,9 @@ function ensureIndex () {
           recordId,
           filePath: record.path,
           imageCount: Number(record.imageCount || 0),
-          aliases
+          aliases,
+          // 同名折叠掉的其余记录路径（仅怪物页会出现），详情页据此拼合「变体」栏
+          variantPaths: fold?.paths?.length ? fold.paths : undefined
         }
         if (isMultiForm) variantFirst.set(dedupeKey, entry)
         flat.push(entry)
