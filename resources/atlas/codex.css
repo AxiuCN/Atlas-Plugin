@@ -1,0 +1,303 @@
+/* Atlas-Plugin 样式 — 角色攻略页专用（resources/atlas/codex.html）
+ *
+ * 单列长图版式：从上到下依次 Hero → 参考 → 各段落 → 页脚，段落宽度一律 100%。
+ * 本文件所有规则都挂在 .codex-page 下，只作用于攻略页；common/ 下的共用样式一律不改。
+ */
+
+/* ============================================================
+ *  Hero：立绘加圆角与浅底（透明 PNG 不发飘），chips 统一高度
+ * ============================================================ */
+
+/* ===== 立绘 .codex-portrait ===== */
+.codex-page .codex-portrait {
+  width: 180px;
+  height: 180px;
+  padding: 6px;
+  border: 1px solid #e3dfda;
+  border-radius: 14px;
+  background: rgba(110, 110, 110, 0.08);
+  object-fit: contain;
+}
+
+/* ===== 标签行 .hero-info（加大间距，避免挤在立绘边上） ===== */
+.codex-page .hero-info {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ===== 标签 .hero-info-item（统一高度与内边距，压过 common/hero.css 的同名规则） ===== */
+.codex-page .hero-info-item {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(96, 96, 96, 0.28);
+  border-radius: 6px;
+  background: rgba(96, 96, 96, 0.10);
+  color: #333333;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ============================================================
+ *  参考提示条（主观数值等，单独成条）
+ * ============================================================ */
+
+.codex-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 18px;
+  background: #fdf6e9;
+  border: 1px solid #ecdfc4;
+  border-radius: 8px;
+  font-size: 20px;
+  color: #6f5a1c;
+}
+
+.codex-note-tag {
+  flex-shrink: 0;
+  padding: 1px 10px;
+  border-radius: 4px;
+  background: #d69e2e;
+  color: #fffdf7;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.codex-note-text {
+  line-height: 1.6;
+}
+
+/* ============================================================
+ *  单列长图：段落容器与卡片
+ * ============================================================ */
+
+/* ===== 段落容器 .codex-sections（单列，从上到下顺序排列） ===== */
+.codex-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ===== 段落卡片 .codex-cell（宽度铺满，不再左右分栏） ===== */
+.codex-cell {
+  width: 100%;
+  background: #fdfcfb;
+  border: 1px solid #d4d1cd;
+  border-radius: 8px;
+  padding: 16px 22px 18px;
+}
+
+/* ===== 段落标题行 ===== */
+.codex-cell-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ebe7e2;
+}
+
+/* ===== 段落序号 ===== */
+.codex-badge {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #4a4a4a;
+  color: #f6f4f1;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 30px;
+  text-align: center;
+}
+
+/* ===== 段落名 ===== */
+.codex-cell-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #333333;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+ *  正文行：标签固定宽 + 内容自适应（grid 两列对齐）
+ * ============================================================ */
+
+.grows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== 单行：左列固定宽度，右列整体换行 ===== */
+.grow {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: start;
+  font-size: 22px;
+  line-height: 1.75;
+  color: #555555;
+}
+
+/* ===== 档位行：内容是一串标签，标签与内容垂直居中对齐 ===== */
+.grow:has(.rank-list) {
+  align-items: center;
+}
+
+/* ===== 行首标签（固定宽度，保证所有行的内容左边缘对齐） ===== */
+.grow-label {
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(110, 110, 110, 0.11);
+  color: #2f2f2f;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: center;
+}
+
+/* ===== 行内容 ===== */
+.grow-value {
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* ===== 数值段（毕业面板）：数值放大、标签弱化，两列对齐 ===== */
+.codex-stats .grow-value {
+  font-size: 25px;
+  font-weight: 700;
+  color: #2f2f2f;
+}
+
+.codex-stats .grow-label {
+  background: rgba(110, 110, 110, 0.07);
+  color: #5a5a5a;
+}
+
+/* ============================================================
+ *  档位序列：武器 / 优先级等「A › B › C」
+ * ============================================================ */
+
+.rank-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ===== 单元素 + 其后的分隔符：整体不拆行，避免「>」被挤到下一行行首 ===== */
+.rank-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* ===== 档位条目（名称不拆行） ===== */
+.rank-item {
+  padding: 2px 10px;
+  border: 1px solid #e3dfda;
+  border-radius: 6px;
+  background: #f6f4f1;
+  color: #3d3d3d;
+  font-size: 21px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* ===== 档位分隔符（数据里的「>」「≥」） ===== */
+.sep {
+  color: #b0aaa1;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* ============================================================
+ *  配队：成员数组 → flex 换行标签
+ * ============================================================ */
+
+.team-row {
+  align-items: center;
+}
+
+.team-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.team-member {
+  padding: 2px 14px;
+  border: 1px solid #ddd8d2;
+  border-radius: 16px;
+  background: #f4f2ef;
+  color: #383838;
+  font-size: 21px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* ============================================================
+ *  列表段 / 表格段 / 兜底
+ * ============================================================ */
+
+.gitem {
+  font-size: 22px;
+  line-height: 1.75;
+  color: #555555;
+}
+
+.gitem-name {
+  font-size: 23px;
+  font-weight: 700;
+  color: #2f2f2f;
+}
+
+/* ============================================================
+ *  行内强调：「必须」等做成红色小标签
+ * ============================================================ */
+
+.must {
+  display: inline-block;
+  margin: 0 1px;
+  padding: 0 8px;
+  border: 1px solid #f0c2c2;
+  border-radius: 4px;
+  background: #fdeaea;
+  color: #c62828;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.highlight {
+  color: #d0392f;
+  font-weight: 700;
+}
+
+/* ============================================================
+ *  段落配图 / 页脚
+ * ============================================================ */
+
+.codex-img {
+  display: block;
+  max-width: 100%;
+  margin-top: 12px;
+  border-radius: 6px;
+}
+
+/* ===== 页脚：单列后宽度充裕，字号回正并保持一行 ===== */
+.codex-copyright {
+  margin-top: 14px;
+  font-size: 19px;
+  line-height: 1.6;
+  white-space: nowrap;
+}

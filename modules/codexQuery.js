@@ -14,6 +14,24 @@ import { buildDetailData } from '../components/queryUtils.js'
 import { loadRecord } from '../model/AtlasService.js'
 import { isCodexReady, getCharacterGuide } from '../model/codexIndex/index.js'
 
+/** 长图段落顺序：武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队（未列出的段落按原顺序排在末尾） */
+const SECTION_ORDER = ['武器', '圣遗物', '天赋', '面板', '命座', '配队']
+
+/**
+ * 按长图顺序排列段落
+ * 数据里的段落顺序不保证（仓库可自由增删），这里按标题关键词归位；同一位置保持原顺序
+ * @param {Array} sections - getCharacterGuide() 返回的段数组
+ * @returns {Array} 排序后的新数组
+ */
+function orderSections (sections) {
+  const rank = (section) => {
+    const title = String(section?.title || '')
+    const i = SECTION_ORDER.findIndex(key => title.includes(key))
+    return i === -1 ? SECTION_ORDER.length : i
+  }
+  return [...(sections || [])].sort((a, b) => rank(a) - rank(b))
+}
+
 /**
  * 用图鉴条目补齐攻略页 hero 字段（立绘 / 稀有度 / 元素等 chips）
  * 读原条目而非重新搜索；条目缺失或构建失败时退回只有攻略侧字段
@@ -58,11 +76,14 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
     return true
   }
 
-  const guide = getCharacterGuide(gameId, entry.name)
-  if (!guide) {
+  const rawGuide = getCharacterGuide(gameId, entry.name)
+  if (!rawGuide) {
     await e.reply(`[Atlas] ${entry.name} 暂无攻略数据`)
     return true
   }
+
+  // 长图单列固定顺序：hero → 参考 → 武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队 → 页脚
+  const guide = { ...rawGuide, sections: orderSections(rawGuide.sections) }
 
   // 图鉴侧字段：攻略仓库只存正文，立绘/稀有度/元素取原条目
   const extra = buildAtlasExtra(gameId, entry)

@@ -388,6 +388,24 @@ export function sanitizeInline (html, fileDir) {
 }
 
 /**
+ * 旧格式 HTML 正文 → 纯文本行（`<br/>` 分行；must/highlight 还原成 **…** / ==…==，实体解码）
+ * 旧克隆也走同一套「结构化数组」管线，不把长文本直接丢给模板
+ * @param {string} html
+ * @param {string} fileDir - 攻略文件所在目录（相对图片按此解析）
+ * @returns {string[]}
+ */
+function htmlToLines (html, fileDir) {
+  return sanitizeInline(html, fileDir)
+    .split(/<br\/>/i)
+    .map(line => line
+      .replace(/<span class="must">([\s\S]*?)<\/span>/g, '**$1**')
+      .replace(/<span class="highlight">([\s\S]*?)<\/span>/g, '==$1==')
+      .replace(/<[^>]*>/g, ''))
+    .map(line => decodeEntities(line).trim())
+    .filter(Boolean)
+}
+
+/**
  * 解析一个攻略 HTML 页面为角色卡片数组（旧格式：每角色一张 .guide-card）
  * @param {string} html - 文件文本
  * @param {string} filePath - 文件绝对路径
@@ -418,16 +436,22 @@ export function parseGuideHtml (html, filePath) {
 
     const highlight = chunk.match(/<div\b[^>]*\bclass\s*=\s*"[^"]*\btext-block\b[^"]*"[^>]*\bstyle\s*=\s*"[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
 
-    // 旧格式不再按展示形态归一：整段作为一行文本交给模板的兜底分支渲染
+    // 旧格式正文同样走结构化管线：先还原成纯文本行，再按标题分行分档
     const sections = []
     const sectionRe = /<div\b[^>]*\bclass\s*=\s*"[^"]*\bsection-title\b[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<div\b[^>]*\bclass\s*=\s*"[^"]*\btext-block\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi
     for (const s of chunk.matchAll(sectionRe)) {
       const title = plainText(s[1])
-      const body = sanitizeInline(s[2], fileDir)
-      if (title && body) sections.push({ title, type: 'html', text: body })
+      const section = toSection({ title: plainText(s[1]), lines: htmlToLines(s[2], fileDir) }, fileDir)
+      if (section) sections.push(section)
     }
 
-    cards.push({ name, tags, desc: highlight ? sanitizeInline(highlight[1], fileDir) : '', sections })
+    const highlightLines = highlight ? htmlToLines(highlight[1], fileDir) : []
+    cards.push({
+      name,
+      tags,
+      desc: highlightLines.length ? inlineHtml(highlightLines.join(' ')) : '',
+      sections
+    })
   }
 
   return { docTitle, cards }
