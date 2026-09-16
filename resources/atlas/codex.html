@@ -19,34 +19,76 @@
         {{each chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
       </div>
       {{/if}}
-      {{if guide.desc}}<div class="hero-desc">{{@guide.desc}}</div>{{/if}}
     </div>
   </div>
 
+  {{if guide.desc}}
+  <div class="codex-note">
+    <span class="codex-note-tag">参考</span>
+    <span class="codex-note-text">{{@guide.desc}}</span>
+  </div>
+  {{/if}}
+
   <div class="codex-grid">
     {{each guide.sections section}}
-    <div class="codex-cell">
-      <div class="codex-cell-title">{{section.title}}</div>
-      {{if section.type === 'text'}}
-      <div class="codex-cell-body">{{@section.text}}</div>
-      {{else if section.type === 'list'}}
-      {{each section.items item}}
-      <div class="extra-item">
-        <div class="extra-name">{{item.name}}</div>
-        {{if item.desc}}<div class="extra-desc">{{@item.desc}}</div>{{/if}}
+    <div class="codex-cell codex-{{section.type}}">
+      <div class="codex-cell-title">
+        {{if section.badge}}<span class="codex-badge">{{section.badge}}</span>{{/if}}
+        <span class="codex-cell-name">{{section.title}}</span>
       </div>
-      {{/each}}
-      {{else}}
-      <table class="detail-table">
-        {{each section.fields f}}
-        <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
+
+      {{if section.type === 'teams'}}
+        {{each section.teams team}}
+        <div class="grow team-row">
+          {{if team.tag}}<span class="grow-label">{{@team.tag}}</span>{{/if}}
+          <span class="team-members">
+            {{each team.members m}}<span class="team-member">{{@m}}</span>{{/each}}
+          </span>
+        </div>
         {{/each}}
-      </table>
+
+      {{else if section.type === 'rows' || section.type === 'stats'}}
+        <div class="grows">
+          {{each section.rows row}}
+          <div class="grow">
+            <span class="grow-label">{{@row.label}}</span>
+            {{if row.items.length > 1}}
+            <span class="rank-list">
+              {{each row.items it}}<span class="rank-item">{{@it.text}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}{{/each}}
+            </span>
+            {{else}}
+            <span class="grow-value">{{@row.items[0].text}}</span>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+
+      {{else if section.type === 'list'}}
+        <div class="grows">
+          {{each section.items item}}
+          <div class="gitem">
+            <div class="gitem-name">{{@item.name}}</div>
+            {{if item.desc}}<div class="gitem-desc">{{@item.desc}}</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+
+      {{else if section.type === 'fields'}}
+        <table class="detail-table">
+          {{each section.fields f}}
+          <tr><td class="label">{{@f.label}}</td><td class="value">{{@f.value}}</td></tr>
+          {{/each}}
+        </table>
+
+      {{else}}
+        <div class="desc-block">{{@section.text || ''}}</div>
       {{/if}}
+
+      {{if section.image}}<img class="codex-img" src="{{section.image}}"/>{{/if}}
     </div>
     {{/each}}
   </div>
 
-  <div class="copyright">{{if guide.docTitle}}攻略来源：{{guide.docTitle}} · {{/if}}攻略数据来自 Character-Codex-Data · Created By TRSS-yunzai & Atlas-Plugin</div>
+  <div class="copyright codex-copyright">{{if guide.docTitle}}攻略来源：{{guide.docTitle}} · {{/if}}数据来自 Character-Codex-Data · Created By Atlas-Plugin</div>
 </body>
 </html>
