@@ -6,11 +6,11 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
-  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/codex.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/atlas/codex.css"/>
 </head>
-<body>
+<body class="codex-page">
   <div class="hero hero-plain">
-    {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
+    {{if image}}<img class="hero-portrait codex-portrait" src="{{image}}"/>{{/if}}
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · 角色攻略{{if rarity}} · {{rarity}}{{/if}}</div>
       <div class="hero-title">{{name}}</div>
@@ -29,7 +29,7 @@
   </div>
   {{/if}}
 
-  <div class="codex-grid">
+  <div class="codex-sections">
     {{each guide.sections section}}
     <div class="codex-cell codex-{{section.type}}">
       <div class="codex-cell-title">
@@ -38,14 +38,16 @@
       </div>
 
       {{if section.type === 'teams'}}
-        {{each section.teams team}}
-        <div class="grow team-row">
-          {{if team.tag}}<span class="grow-label">{{@team.tag}}</span>{{/if}}
-          <span class="team-members">
-            {{each team.members m}}<span class="team-member">{{@m}}</span>{{/each}}
-          </span>
+        <div class="grows">
+          {{each section.teams team}}
+          <div class="grow team-row">
+            <span class="grow-label">{{@team.tag}}</span>
+            <span class="team-members">
+              {{each team.members m}}<span class="team-member">{{@m}}</span>{{/each}}
+            </span>
+          </div>
+          {{/each}}
         </div>
-        {{/each}}
 
       {{else if section.type === 'rows' || section.type === 'stats'}}
         <div class="grows">
@@ -54,7 +56,7 @@
             <span class="grow-label">{{@row.label}}</span>
             {{if row.items.length > 1}}
             <span class="rank-list">
-              {{each row.items it}}<span class="rank-item">{{@it.text}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}{{/each}}
+              {{each row.items it}}<span class="rank-unit"><span class="rank-item">{{@it.text}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}</span>{{/each}}
             </span>
             {{else}}
             <span class="grow-value">{{@row.items[0].text}}</span>
