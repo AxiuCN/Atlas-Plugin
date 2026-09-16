@@ -47,11 +47,11 @@ function buildAtlasExtra (gameId, entry) {
  * @returns {Promise<boolean>} true=消息已处理
  */
 export async function handleCodexQuery (e, gameId, result, keyword) {
+  // 只有「确定命中角色」才由图鉴接管攻略页：命中角色但攻略仓库没有该角色 → 提示并中断。
+  // 判定用搜索结果首条——角色页优先级最高（PAGE_PRIORITY 240），首条不是角色说明关键词命中的
+  // 是圣遗物/物品等其他条目（如 #如雷的盛怒攻略），不是角色攻略查询，放行给其他插件（如 miao 面板）
   const entry = result?.results?.[0]
-  if (!entry) {
-    await e.reply(`[Atlas] 未找到「${keyword}」对应的图鉴条目，无法定位攻略`)
-    return true
-  }
+  if (entry?.pageKey !== 'character') return false
 
   if (!isCodexReady()) {
     await e.reply('[Atlas] 角色攻略数据尚未拉取，请先执行 #图鉴初始化 或 #图鉴更新')
