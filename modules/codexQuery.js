@@ -5,12 +5,38 @@
  * 数据：tool/Character-Codex-Data/Character-Codex-Data（经 model/codexIndex/index.js 读取）
  * 模板：resources/atlas/codex.html
  *
- * 当前为骨架实现：只负责定位图鉴条目 + 给出明确提示，攻略正文的解析与排版由适配者补全。
- * 适配说明见《角色攻略接入指南》（维护者提供，不随仓库分发）。
+ * 职责：定位图鉴条目 → 取攻略数据 → 用图鉴条目补齐 hero 展示字段（立绘 / 稀有度 / 元素等）
+ * → 交模板渲染。攻略正文的解析全部在 model/codexIndex，本层不读攻略仓库文件。
  */
 import { renderAtlas } from '../components/render.js'
 import { GAME_NAMES, CODEX_PAGE_KEY } from '../components/constants.js'
+import { buildDetailData } from '../components/queryUtils.js'
+import { loadRecord } from '../model/AtlasService.js'
 import { isCodexReady, getCharacterGuide } from '../model/codexIndex/index.js'
+
+/**
+ * 用图鉴条目补齐攻略页 hero 字段（立绘 / 稀有度 / 元素等 chips）
+ * 读原条目而非重新搜索；条目缺失或构建失败时退回只有攻略侧字段
+ * @param {string} gameId
+ * @param {object} entry - search() 结果中的图鉴条目
+ * @returns {{rarity: string, image: string, chips: string[]}}
+ */
+function buildAtlasExtra (gameId, entry) {
+  const extra = { rarity: entry?.rarity || '', image: '', chips: [] }
+  if (entry?.pageKey !== 'character') return extra
+  try {
+    const record = loadRecord(entry.filePath)
+    if (!record) return extra
+    const atlas = buildDetailData(gameId, { ...entry, record })
+    const hero = atlas?.hero || null
+    extra.rarity = atlas?.rarity || extra.rarity
+    extra.image = atlas?.image || hero?.portrait || ''
+    extra.chips = [...(hero?.chips || []), hero?.element, hero?.weapon].filter(Boolean)
+  } catch (err) {
+    logger?.warn(`[Atlas] 攻略页图鉴字段构建失败（${entry?.name || ''}）: ${err.message}`)
+  }
+  return extra
+}
 
 /**
  * 处理角色攻略查询
@@ -38,12 +64,23 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
     return true
   }
 
+  // 图鉴侧字段：攻略仓库只存正文，立绘/稀有度/元素取原条目
+  const extra = buildAtlasExtra(gameId, entry)
+  const chips = [...guide.chips]
+  for (const chip of extra.chips) {
+    if (chip && !chips.includes(chip)) chips.push(chip)
+  }
+
   const data = {
     pageKey: CODEX_PAGE_KEY,
+    pageTitle: '角色攻略',
     gameName: GAME_NAMES[gameId],
     keyword,
     name: entry.name,
     recordName: entry.name,
+    rarity: extra.rarity,
+    image: guide.image || extra.image,
+    chips,
     guide
   }
   const img = await renderAtlas(CODEX_PAGE_KEY, data, { imgType: 'jpeg' })
