@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「宗室银瓮」、死之羽「宗室之翎」、理之冠「宗室面具」、生之花「宗室之花」、时之沙「宗室时计」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "九条裟罗专用",
+      "content.detail.parts.equip_necklace.desc": "九条裟罗专用",
+      "content.detail.parts.equip_dress.desc": "九条裟罗专用",
+      "content.detail.parts.equip_bracer.desc": "九条裟罗专用",
+      "content.detail.parts.equip_shoes.desc": "九条裟罗专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "曾经属于旧日蒙德贵族的首饰瓮，空空如也的腹内仿佛回响着哀戚的风声。"
+        },
+        "equip_necklace": {
+          "desc": "旧日蒙德贵族会猎时在帽檐上佩戴的羽饰。如今傲然挺立依旧，不谙时光。"
+        },
+        "equip_dress": {
+          "desc": "曾经属于旧日蒙德贵族的舞会面具，那空洞的眼眶依旧凝望着昔日的盛景。"
+        },
+        "equip_bracer": {
+          "desc": "绸缎制成的璃色花，常在典雅场合佩戴。如今仍像被抛弃的那天一样鲜明。"
+        },
+        "equip_shoes": {
+          "desc": "曾经属于旧日蒙德贵族的怀表，随漫长的谱系流传至今，见证了过往年岁。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

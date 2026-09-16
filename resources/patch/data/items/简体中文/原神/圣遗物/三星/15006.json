@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「魔女的心之火」、死之羽「魔女常燃之羽」、理之冠「焦灼的魔女帽」、生之花「魔女的炎之花」、时之沙「魔女破灭之时」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "烟绯专用",
+      "content.detail.parts.equip_necklace.desc": "烟绯专用",
+      "content.detail.parts.equip_dress.desc": "烟绯专用",
+      "content.detail.parts.equip_bracer.desc": "烟绯专用",
+      "content.detail.parts.equip_shoes.desc": "烟绯专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "曾经梦想烧尽世间魔物的炎之魔女留下的流火之甕。瓶中火永不熄灭，一如其人。"
+        },
+        "equip_necklace": {
+          "desc": "曾经梦想烧尽世间魔物的魔女触碰过的鸟羽，在恒常的燃烧中挥发着烈焰的温度。"
+        },
+        "equip_dress": {
+          "desc": "曾经梦想烧尽世间魔物的炎之魔女曾经戴过的帽子。宽大的帽檐能遮挡她的视线。"
+        },
+        "equip_bracer": {
+          "desc": "曾经梦想烧尽世间魔物的魔女触碰过的花朵。无名的火舌温暖地舔舐触碰它的人。"
+        },
+        "equip_shoes": {
+          "desc": "曾经梦想烧尽世间魔物的魔女佩戴的时计，其中流淌着的是魔女献给火焰的岁月 。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

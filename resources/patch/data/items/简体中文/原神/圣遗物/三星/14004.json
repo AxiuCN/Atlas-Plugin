@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「少女片刻的闲暇」、死之羽「少女飘摇的思念」、理之冠「少女易逝的芳颜」、生之花「远方的少女之心」、时之沙「少女苦短的良辰」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "芭芭拉专用",
+      "content.detail.parts.equip_necklace.desc": "芭芭拉专用",
+      "content.detail.parts.equip_dress.desc": "芭芭拉专用",
+      "content.detail.parts.equip_bracer.desc": "芭芭拉专用",
+      "content.detail.parts.equip_shoes.desc": "芭芭拉专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "属于红茶而不属于烈酒，属于芳甜而不属于苦涩的杯皿。"
+        },
+        "equip_necklace": {
+          "desc": "寄托谁人的思念的羽饰，就如与风一同去往远方的候鸟。"
+        },
+        "equip_dress": {
+          "desc": "精心保养的女士帽，即使是眼角的皱纹也可以完美遮盖。"
+        },
+        "equip_bracer": {
+          "desc": "永远娇嫩的鲜花，历经长久时光仍不枯萎地散发着芬芳。"
+        },
+        "equip_shoes": {
+          "desc": "指针的旋转不会有尽头，但少女受人宠爱的岁月则相反。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

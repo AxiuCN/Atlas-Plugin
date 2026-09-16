@@ -1,0 +1,37 @@
+{
+  "_patch": {
+    "note": "源站把 3 个部件的 desc 抓成了「XX专用」（理之冠「不动玄石之相」、生之花「磐陀裂生之花」、时之沙「星罗圭璧之晷」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_dress.desc": "凝光专用",
+      "content.detail.parts.equip_bracer.desc": "凝光专用",
+      "content.detail.parts.equip_shoes.desc": "凝光专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_dress": {
+          "desc": "玄岩精雕而成的庄严面具，空洞的双眼永远冰冷地凝视着前方。"
+        },
+        "equip_bracer": {
+          "desc": "盛开于磐陀巨岩的金石之花。花瓣随风轻摇，似有生机。"
+        },
+        "equip_shoes": {
+          "desc": "以整块圭璧雕琢而成的日晷，纹路层叠星罗，沉默地记录着失去的时间。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

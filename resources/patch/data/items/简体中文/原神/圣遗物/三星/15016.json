@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了待定（空之杯「沉波之盏」、死之羽「追忆之风」、理之冠「酒渍船帽」、生之花「饰金胸花」、时之沙「坚铜罗盘」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "待定",
+      "content.detail.parts.equip_necklace.desc": "待定",
+      "content.detail.parts.equip_dress.desc": "待定",
+      "content.detail.parts.equip_bracer.desc": "待定",
+      "content.detail.parts.equip_shoes.desc": "待定",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "无心打捞上来的褪色酒盏，暗淡的外观呢喃着海波之底的往日。"
+        },
+        "equip_necklace": {
+          "desc": "随呜咽的海风、猩红的海浪而来的飞羽，年岁改变了它的形状与颜色。"
+        },
+        "equip_dress": {
+          "desc": "古旧的船帽，缭绕着不散的酒气、浸渍了斑驳的酒痕。"
+        },
+        "equip_bracer": {
+          "desc": "色泽暗淡的斗篷别针。原本镀上的金色已经被海风磨去。"
+        },
+        "equip_shoes": {
+          "desc": "古旧的铜制罗盘，指针始终朝向遥不可及的彼岸，不存在的港湾。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

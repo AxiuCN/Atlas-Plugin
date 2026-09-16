@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「超越之盏」、死之羽「贤医之羽」、理之冠「嗤笑之面」、生之花「无垢之花」、时之沙「停摆之刻」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "罗莎莉亚专用",
+      "content.detail.parts.equip_necklace.desc": "罗莎莉亚专用",
+      "content.detail.parts.equip_dress.desc": "罗莎莉亚专用",
+      "content.detail.parts.equip_bracer.desc": "罗莎莉亚专用",
+      "content.detail.parts.equip_shoes.desc": "罗莎莉亚专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "从外观无从断定经历了多少岁月的精致杯盏。"
+        },
+        "equip_necklace": {
+          "desc": "边缘无比锐利的不祥翎羽，或许象征着异类的不羁。"
+        },
+        "equip_dress": {
+          "desc": "能将面目遮蔽，让人无从判断表情的面具。"
+        },
+        "equip_bracer": {
+          "desc": "湛蓝而坚硬，永不凋败、永不褪色的人造花朵。"
+        },
+        "equip_shoes": {
+          "desc": "壳罩无法打开的怀表，会坚定地随着时光流逝而嘀嗒作响。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "_patch": {
+    "note": "源站把本套装星级标为 [3,4,5]，实际为 3/4 星（单件理之冠，detail.rank 原 [3,4,5] → [3,4]）",
+    "upstream": {
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "rank": [
+        3,
+        4
+      ]
+    }
+  }
+}
