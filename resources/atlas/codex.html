@@ -6,44 +6,47 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/components.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/codex.css"/>
 </head>
 <body>
   <div class="hero hero-plain">
-    {{if guide.image}}<img class="hero-portrait" src="{{guide.image}}"/>{{/if}}
+    {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
     <div class="hero-text">
-      <div class="hero-game">{{gameName}} · 角色攻略</div>
+      <div class="hero-game">{{gameName}} · 角色攻略{{if rarity}} · {{rarity}}{{/if}}</div>
       <div class="hero-title">{{name}}</div>
-      {{if guide.chips && guide.chips.length > 0}}
+      {{if chips && chips.length > 0}}
       <div class="hero-info">
-        {{each guide.chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
+        {{each chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
       </div>
       {{/if}}
       {{if guide.desc}}<div class="hero-desc">{{@guide.desc}}</div>{{/if}}
     </div>
   </div>
 
-  {{each guide.sections section}}
-  <div class="detail-section">
-    <h3>{{section.title}}</h3>
-    {{if section.type === 'text'}}
-      <div class="desc-block">{{@section.text}}</div>
-    {{else if section.type === 'list'}}
+  <div class="codex-grid">
+    {{each guide.sections section}}
+    <div class="codex-cell">
+      <div class="codex-cell-title">{{section.title}}</div>
+      {{if section.type === 'text'}}
+      <div class="codex-cell-body">{{@section.text}}</div>
+      {{else if section.type === 'list'}}
       {{each section.items item}}
       <div class="extra-item">
         <div class="extra-name">{{item.name}}</div>
         {{if item.desc}}<div class="extra-desc">{{@item.desc}}</div>{{/if}}
       </div>
       {{/each}}
-    {{else}}
+      {{else}}
       <table class="detail-table">
         {{each section.fields f}}
         <tr><td class="label">{{f.label}}</td><td class="value">{{f.value}}</td></tr>
         {{/each}}
       </table>
-    {{/if}}
+      {{/if}}
+    </div>
+    {{/each}}
   </div>
-  {{/each}}
 
-  <div class="copyright">攻略数据来自 Character-Codex-Data · Created By TRSS-yunzai & Atlas-Plugin</div>
+  <div class="copyright">{{if guide.docTitle}}攻略来源：{{guide.docTitle}} · {{/if}}攻略数据来自 Character-Codex-Data · Created By TRSS-yunzai & Atlas-Plugin</div>
 </body>
 </html>

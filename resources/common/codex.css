@@ -1,0 +1,68 @@
+/* Atlas-Plugin 样式 — 角色攻略页专用（resources/atlas/codex.html） */
+
+/* ===== 攻略段落网格 .codex-grid（两列，对应攻略仓库的六段结构） ===== */
+.codex-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ===== 攻略段落卡片 .codex-cell（同排等高） ===== */
+.codex-cell {
+  width: calc(50% - 5px);
+  background: #fdfcfb;
+  border: 1px solid #d4d1cd;
+  border-radius: 8px;
+  padding: 12px 18px 14px;
+}
+
+/* ===== 攻略段落标题 .codex-cell-title ===== */
+.codex-cell-title {
+  display: flex;
+  align-items: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #333333;
+  margin-bottom: 8px;
+}
+
+/* ===== 攻略段落标题左侧竖线 .codex-cell-title::before ===== */
+.codex-cell-title::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 20px;
+  background: #4a4a4a;
+  border-radius: 3px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+/* ===== 攻略段落正文 .codex-cell-body ===== */
+.codex-cell-body {
+  font-size: 22px;
+  line-height: 1.65;
+  color: #555555;
+  word-break: break-word;
+}
+
+/* ===== 正文强调：必须 / 高亮（源自攻略仓库的 span.must / span.highlight） ===== */
+.codex-cell-body .must,
+.hero-desc .must {
+  color: #d69e2e;
+  font-weight: 700;
+}
+
+.codex-cell-body .highlight,
+.hero-desc .highlight {
+  color: #e53e3e;
+  font-weight: 700;
+}
+
+/* ===== 正文插图 .codex-img（攻略仓库内的相对图片已解析为 file:// 绝对路径） ===== */
+.codex-img {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 8px 0 2px;
+}
