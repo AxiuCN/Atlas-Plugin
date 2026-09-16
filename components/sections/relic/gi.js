@@ -39,8 +39,11 @@ export function buildGIArtifact (list, detail, meta) {
 
   // 套装效果
   if (detail.affix && Array.isArray(detail.affix)) {
-    const bonuses = detail.affix.map(a => ({
-      require: a.affix_id ? (a.affix_id % 10 ? 4 : 2) : 2,
+    // 件数取 detail.need（权威档位，1 件套写 [1]、常规套装写 [2,4]，与 affix 同序）；
+    // affix_id 末位只在 need 缺失时兜底——祭火/水/雷/风/冰之人是单件套，affix_id 末位为 0 会被误判成 2 件套
+    const needs = Array.isArray(detail.need) ? detail.need : []
+    const bonuses = detail.affix.map((a, i) => ({
+      require: needs[i] ?? (a.affix_id ? (a.affix_id % 10 ? 4 : 2) : 2),
       name: a.name || '',
       desc: cleanMarkup(a.desc || '')
     }))

@@ -1,0 +1,34 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了待定（空之杯「梦醒之瓢」、死之羽「华馆之羽」、理之冠「形骸之笠」、生之花「荣花之期」、时之沙「众生之谣」），游戏内显示为各部件自身的描述文案；desc 已补齐",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "待定",
+      "content.detail.parts.equip_necklace.desc": "待定",
+      "content.detail.parts.equip_dress.desc": "待定",
+      "content.detail.parts.equip_bracer.desc": "待定",
+      "content.detail.parts.equip_shoes.desc": "待定"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "以黑漆与金粉装饰过的葫芦，已看不出本来的颜色，好像主要作用是演出的道具。"
+        },
+        "equip_necklace": {
+          "desc": "于避世之幽馆中一同带出的箭羽状的凭证，因创造者的怜悯之情，而与某具沉睡之躯一同置于馆中。"
+        },
+        "equip_dress": {
+          "desc": "流浪者在旅途中遮光避雨的斗笠，但后来却成为了遮挡面目、隐藏表情的便利道具。"
+        },
+        "equip_bracer": {
+          "desc": "六瓣花形状的小型金饰，以永不凋零之姿，阅遍俗世易逝的荣华。"
+        },
+        "equip_shoes": {
+          "desc": "于稻妻而言乃是舶来品的小物件。名为机芯的零件已被卸下，指针也不再转动。"
+        }
+      }
+    }
+  }
+}

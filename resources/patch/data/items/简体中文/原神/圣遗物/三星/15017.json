@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「盟誓金爵」、死之羽「昭武翎羽」、理之冠「将帅兜鍪」、生之花「勋绩之花」、时之沙「金铜时晷」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "迪奥娜专用",
+      "content.detail.parts.equip_necklace.desc": "迪奥娜专用",
+      "content.detail.parts.equip_dress.desc": "迪奥娜专用",
+      "content.detail.parts.equip_bracer.desc": "迪奥娜专用",
+      "content.detail.parts.equip_shoes.desc": "迪奥娜专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "千岩军用以盟誓的金爵，依旧残留着丝丝酒香。"
+        },
+        "equip_necklace": {
+          "desc": "在仪仗场合佩戴的鹰翎,用以向外人显明璃月港的威严与决心。"
+        },
+        "equip_dress": {
+          "desc": "年代久远的华丽头盔，洗净尘沙后依旧明亮如新。"
+        },
+        "equip_bracer": {
+          "desc": "以金箔制成的精致花朵，象征了其主人所获得的功勋与荣誉。"
+        },
+        "equip_shoes": {
+          "desc": "外观朴素的计时道具，在战乱的时代，一度是千岩军的制式装备。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

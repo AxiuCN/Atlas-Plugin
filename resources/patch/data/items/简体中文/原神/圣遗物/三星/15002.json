@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「翠绿猎人的容器」、死之羽「猎人青翠的箭羽」、理之冠「翠绿的猎人之冠」、生之花「野花记忆的绿野」、时之沙「翠绿猎人的笃定」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "砂糖专用",
+      "content.detail.parts.equip_necklace.desc": "砂糖专用",
+      "content.detail.parts.equip_dress.desc": "砂糖专用",
+      "content.detail.parts.equip_bracer.desc": "砂糖专用",
+      "content.detail.parts.equip_shoes.desc": "砂糖专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "绿野猎人曾用过的水壶，里面的空间远比想象的更大。"
+        },
+        "equip_necklace": {
+          "desc": "曾经一瞬贯穿猎物的箭矢的尾羽，如今依旧平整光洁。"
+        },
+        "equip_dress": {
+          "desc": "曾属于绿野猎人的骄傲头冠，如同原野之风一般青翠。"
+        },
+        "equip_bracer": {
+          "desc": "曾经遍布某地的野花，离开了大地，被猎人佩在胸前。"
+        },
+        "equip_shoes": {
+          "desc": "猎人曾经随身携带的奇妙仪器，永远指向自己的猎物。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

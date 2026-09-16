@@ -49,6 +49,11 @@ export class AtlasStatus extends plugin {
       if (data.images) {
         lines.push(`图片：${data.images.total} 总计 / ${data.images.downloaded} 已下载 / ${data.images.placeholder} 占位`)
       }
+      if (data.codex) {
+        lines.push(data.codex.ready
+          ? `角色攻略：已拉取，${data.codex.total} 张卡片${data.codex.summary ? `（${data.codex.summary}）` : ''}`
+          : '角色攻略：未拉取（使用 #图鉴初始化 / #图鉴更新 拉取）')
+      }
       if (data.fetchedAt) lines.push(`更新时间：${data.fetchedAt}`)
       await e.reply(lines.join('\n'))
     }

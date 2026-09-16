@@ -546,10 +546,18 @@ function findDetailFallbackMatches (flat, variants, seen) {
     && !seen.has(entry.filePath))
 
   for (const entry of highPriorityEntries) {
-    const fullPath = path.join(dataDir, entry.filePath)
-    let raw
-    try { raw = fs.readFileSync(fullPath, 'utf8') } catch { continue }
-    const normalized = normalizeForMatch(raw)
+    // 匹配必须以补丁后的内容为准：补丁会改写甚至删掉上游文本
+    // （如把源站抓成「菲谢尔专用」的部件 desc 换回官方描述），直接扫原文会命中已被改掉的字
+    // 无补丁的条目仍走读原文的快路径，省一次 JSON 解析
+    let text
+    if (loadDataPatch(entry.filePath)) {
+      const patched = loadRecord(entry.filePath)
+      if (!patched) continue
+      text = JSON.stringify(patched)
+    } else {
+      try { text = fs.readFileSync(path.join(dataDir, entry.filePath), 'utf8') } catch { continue }
+    }
+    const normalized = normalizeForMatch(text)
     if (!variants.some(variant => normalized.includes(variant.key))) continue
 
     const record = loadRecord(entry.filePath)

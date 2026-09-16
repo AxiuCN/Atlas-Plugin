@@ -1,0 +1,45 @@
+{
+  "_patch": {
+    "note": "源站把 5 个部件的 desc 抓成了「XX专用」（空之杯「夏祭水玉」、死之羽「夏祭终末」、理之冠「夏祭之面」、生之花「夏祭之花」、时之沙「夏祭之刻」），游戏内显示为各部件自身的描述文案；desc 已补齐；源站按最低星级分目录把本套装归入「三星」，实际为 4/5 星（detail.rank 原 [3,4,5] → [4,5]；rarity 三星 → 四星）",
+    "upstream": {
+      "content.detail.parts.equip_ring.desc": "诺艾尔专用",
+      "content.detail.parts.equip_necklace.desc": "诺艾尔专用",
+      "content.detail.parts.equip_dress.desc": "诺艾尔专用",
+      "content.detail.parts.equip_bracer.desc": "诺艾尔专用",
+      "content.detail.parts.equip_shoes.desc": "诺艾尔专用",
+      "content.detail.rank.0": 3,
+      "content.detail.rank.1": 4,
+      "content.detail.rank.2": 5,
+      "meta.rarity": "三星"
+    },
+    "updatedAt": "2026-09-16"
+  },
+  "content": {
+    "detail": {
+      "parts": {
+        "equip_ring": {
+          "desc": "夏祭时，盛水气球并不罕见。但如此精致的仅此一个。"
+        },
+        "equip_necklace": {
+          "desc": "精致的木造飞镖。抵达终点时才会停滞之物。"
+        },
+        "equip_dress": {
+          "desc": "依据传说中的神明形象制作的，非常流行的面具。"
+        },
+        "equip_bracer": {
+          "desc": "永远盛放的人造之花，其中是否具有生命呢。"
+        },
+        "equip_shoes": {
+          "desc": "停滞在某一时刻的精致怀钟。"
+        }
+      },
+      "rank": [
+        4,
+        5
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "四星"
+  }
+}

@@ -2,7 +2,8 @@
  * 角色攻略数据索引（Character-Codex-Data）
  *
  * 攻略仓库以 git clone 方式落在 tool/Character-Codex-Data/Character-Codex-Data/，
- * 由 `#图鉴初始化` / `#图鉴更新` 的最后一个步骤拉取（见 model/AtlasUpdater.js 的 syncCodexRepo）。
+ * 由 `#图鉴初始化` / `#图鉴更新` / 每日定时任务同步（见 model/AtlasUpdater.js 的 syncCodexRepo，
+ * 调用点是各入口的独立步骤，不挂在图鉴抓取链路的末尾）。
  *
  * **本模块是攻略数据的唯一入口**：页面编排只调用这里，不直接读文件——
  * 攻略仓库的目录结构、字段名、多语言与图片路径解析全部收敛在本文件，
