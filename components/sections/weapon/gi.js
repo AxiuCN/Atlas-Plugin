@@ -3,6 +3,7 @@
  * 满级基础属性 + 精炼效果 + 升级素材
  */
 import { cleanMarkup, propLabel, giPropInfo, formatGiProp, weaponLabel } from '../util.js'
+import { mergeRefineLevels } from './refine.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 
 /**
@@ -73,18 +74,16 @@ export function buildGIWeapon (list, detail, meta) {
     desc
   }
 
-  // 精炼
+  // 精炼：1~5 档合并成一段（各档仅数值不同 → 一条，差异处写 12%/15%/18%/21%/24%；
+  // 文本本身有差异的武器（如「星锋剑」精炼1 多一句）→ 按档位区间分成两条）
   if (detail.refinement && typeof detail.refinement === 'object') {
-    const refs = Object.entries(detail.refinement)
+    const levels = Object.entries(detail.refinement)
       .filter(([k]) => /^\d+$/.test(k))
       .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([k, r]) => ({
-        level: `精炼 ${k}`,
-        name: r.name || '',
-        desc: cleanMarkup(r.desc || '')
-      }))
-    if (refs.length > 0) {
-      sections.push({ title: '精炼', type: 'refinements', items: refs })
+      .map(([k, r]) => ({ level: k, name: r.name || '', desc: r.desc || '' }))
+    const items = mergeRefineLevels(levels, '精炼')
+    if (items.length > 0) {
+      sections.push({ title: '精炼', type: 'refinements', items })
     }
   }
 
