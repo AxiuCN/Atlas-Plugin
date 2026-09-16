@@ -4,7 +4,7 @@
  * 对应 defSet/config.yaml 模板变量:
  *   atlas_priority, atlas_renderScale,
  *   atlas_autoUpdate_*, atlas_alias_set/del/list,
- *   atlas_notifyGroups
+ *   atlas_codex_enabled, atlas_notifyGroups
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -48,6 +48,7 @@ const TEMPLATE_VARS = {
   'alias.set': 'atlas_alias_set',
   'alias.del': 'atlas_alias_del',
   'alias.list': 'atlas_alias_list',
+  'codex.enabled': 'atlas_codex_enabled',
   notifyGroups: 'atlas_notifyGroups',
   notifyMode: 'atlas_notifyMode'
 }
@@ -65,6 +66,7 @@ const DEFAULTS = {
   atlas_alias_set: 'master',
   atlas_alias_del: 'master',
   atlas_alias_list: 'all',
+  atlas_codex_enabled: 'true',
   atlas_notifyGroups: '',
   atlas_notifyMode: 'all'
 }
@@ -231,6 +233,18 @@ export function supportGuoba () {
           }
         },
 
+        // ==================== 角色攻略 ====================
+        { label: '角色攻略', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'codex.enabled',
+          label: '启用角色攻略查询',
+          helpMessage: '是否允许 #角色攻略 / #<角色>攻略 查询（数据来自 Character-Codex-Data）',
+          bottomHelpMessage: '默认开启。关闭后图鉴不再接管攻略查询（消息放行给其他插件），攻略仓库仍会照常同步',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true }
+        },
+
         // ==================== 通知设置 ====================
         { label: '通知设置', component: 'SOFT_GROUP_BEGIN' },
         {
@@ -286,6 +300,7 @@ export function supportGuoba () {
           'alias.set': cfg.alias?.set ?? 'master',
           'alias.del': cfg.alias?.del ?? 'master',
           'alias.list': cfg.alias?.list ?? 'all',
+          'codex.enabled': cfg.codex?.enabled ?? true,
           notifyGroups: (cfg.notifyGroups || '')
             ? String(cfg.notifyGroups).split(/[,，\s]+/).filter(Boolean)
             : [],

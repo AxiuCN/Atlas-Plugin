@@ -34,3 +34,9 @@ alias:
   del: ${atlas_alias_del}
   # 列表查看默认为 all（只读，不涉敏感）
   list: ${atlas_alias_list}
+
+# ---------- 角色攻略 ----------
+codex:
+  # 是否启用角色攻略查询（#角色攻略 / #<角色>攻略）
+  # 关闭后图鉴不再接管攻略查询（消息放行给其他插件），攻略仓库仍照常同步
+  enabled: ${atlas_codex_enabled}

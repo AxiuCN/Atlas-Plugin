@@ -26,6 +26,9 @@ const defaultConfig = {
     del: 'master',
     list: 'all'
   },
+  codex: {
+    enabled: true
+  },
   notifyGroups: [],
   notifyMode: 'all'
 }
@@ -76,6 +79,17 @@ export function getPluginConfig () {
     }
   }
   return defaultConfig
+}
+
+/**
+ * 角色攻略（codex）查询是否启用
+ *
+ * 关闭时图鉴不接管 `#角色攻略` / `#<角色>攻略`（放行给其他插件）；攻略仓库仍照常同步。
+ * 只判 `!== false`：字段缺失、配置读取失败都按启用处理（与 autoUpdate.enabled 同口径）。
+ * @returns {boolean}
+ */
+export function isCodexEnabled () {
+  return getPluginConfig()?.codex?.enabled !== false
 }
 
 export { pluginRoot, configDir, configFile, exampleFile }

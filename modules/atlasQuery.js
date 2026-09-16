@@ -7,6 +7,7 @@ import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, CODEX_PAGE_KEY } from '../components/constants.js'
+import { isCodexEnabled } from '../components/config.js'
 import { handleCodexQuery } from './codexQuery.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
@@ -122,6 +123,9 @@ export async function handleQuery (e, gameId, keyword) {
   try {
     // ── 阶段 0：子视图 / 页面类型后缀检测 ──
     const { searchKeyword, subView, pageType } = parseSubView(keyword, gameId)
+
+    // 攻略功能关闭（config.yaml → codex.enabled）：不搜索、不接管，直接放行给其他插件
+    if (pageType === CODEX_PAGE_KEY && !isCodexEnabled()) return false
 
     let result
     if (subView) {
