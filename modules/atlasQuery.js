@@ -119,11 +119,13 @@ export async function handleQuery (e, gameId, keyword) {
     if (subView) {
       // 带后缀 → 先按剥离后的关键词搜索
       result = search(gameId, searchKeyword)
-      // 首条结果为角色时保留（即使 type 为 list），否则回退：
+      // 子视图只对角色生效；怪物页不做过滤（这些后缀仅用于把「#怪名掉落」这类查询导向怪物页），
+      // 故首条命中角色或怪物都直接使用，不回退。否则首条为其他类型时回退：
       //  - 倍率视图（rates）：回退剥离后缀的关键词普通查询（#xxx倍率 → #xxx 图鉴视图）
       //  - 其他子视图：回退原始关键词搜索
       const topPageKey = result.results?.[0]?.pageKey
-      if (result.type === 'empty' || topPageKey !== 'character') {
+      const usable = result.type !== 'empty' && (topPageKey === 'character' || topPageKey === 'monster')
+      if (!usable) {
         result = subView === 'rates'
           ? search(gameId, searchKeyword)
           : search(gameId, keyword)
@@ -140,10 +142,13 @@ export async function handleQuery (e, gameId, keyword) {
       return await handleCodexQuery(e, gameId, result, searchKeyword)
     }
 
-    // 结果按页面类型收敛（无同类命中时保留原结果，避免「查不到」）
+    // 结果按页面类型收敛：限定类型无任何命中 → 放行给其他插件
+    // （例：#胡桃圣遗物 是 miao-plugin 的角色圣遗物评分查询，图鉴里没有对应页面类型，
+    //   不能被本插件消费，否则消息永远到不了 miao）
     if (pageType && result.results?.length) {
       const hit = result.results.filter(r => r.pageKey === pageType)
-      if (hit.length) result = { ...result, results: hit, total: hit.length }
+      if (hit.length === 0) return false
+      result = { ...result, results: hit, total: hit.length }
     }
 
     switch (result.type) {
