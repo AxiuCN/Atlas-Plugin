@@ -18,6 +18,7 @@ import {
   BACKEND_DIR
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
+import { isCodexReady } from '../model/codexIndex/index.js'
 import { renderStatusImage } from '../components/status.js'
 import { runDiffScrape } from '../model/AtlasUpdater.js'
 
@@ -52,10 +53,11 @@ export class AtlasAdmin extends plugin {
    * #图鉴初始化 — 两阶段：环境准备 → 数据抓取
    */
   async handleInit (e) {
-    // 已初始化 + 数据完整 → 跳过
+    // 已初始化 + 数据完整 → 跳过抓取，但角色攻略仓库仍要检测（与图鉴数据无关，可能尚未拉取）
     if (isInitialized()) {
       if (isDataIntact()) {
-        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复操作。如需强制重新初始化请使用 #图鉴强制初始化', true)
+        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复抓取。正在检查角色攻略仓库...', true)
+        await this._syncCodexRepo(e)
         return true
       }
       // map.json 存在但数据异常（上次超时/崩溃残留），自动允许重新初始化
@@ -92,6 +94,9 @@ export class AtlasAdmin extends plugin {
         return true
       }
     }
+
+    // 角色攻略仓库与图鉴数据源无关，独立同步（首次 clone 提示，失败仅日志）
+    await this._syncCodexRepo(e)
 
     // 阶段一完成，发确认消息，启动后台抓取
     const cfg = getPluginConfig()
@@ -140,9 +145,6 @@ export class AtlasAdmin extends plugin {
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
       await runDiffScrape(['gi', 'hsr', 'zzz'])
-
-      // 再最后：同步角色攻略仓库（git clone / pull，非子模块），失败仅告警
-      await syncCodexRepo()
     }).catch((err) => {
       logger?.error('[Atlas][管理] 初始化异常:', err)
       this._notifyResult(`[Atlas] 图鉴初始化异常：${err.message}`)
@@ -173,8 +175,12 @@ export class AtlasAdmin extends plugin {
     await e.reply('[Atlas] 正在检查图鉴版本...', true)
 
     // ── 同步完成版本检查（~5s）──
+    // 角色攻略仓库与图鉴版本无关，与版本检查并行同步：版本未变化 / 检查失败时也已检测过
     const local = readLocalVersions()
-    const remote = await checkRemoteVersions(['gi', 'hsr', 'zzz'])
+    const [remote] = await Promise.all([
+      checkRemoteVersions(['gi', 'hsr', 'zzz']),
+      this._syncCodexRepo(e)
+    ])
 
     if (!remote.ok) {
       await e.reply(`[Atlas] 远端版本检查失败：${remote.reason || '网络异常'}`, true)
@@ -254,9 +260,6 @@ export class AtlasAdmin extends plugin {
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
       await runDiffScrape(['gi', 'hsr', 'zzz'])
-
-      // 再最后：同步角色攻略仓库（git clone / pull，非子模块），失败仅告警
-      await syncCodexRepo()
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
       this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
@@ -309,6 +312,9 @@ export class AtlasAdmin extends plugin {
     logger?.info('[Atlas][管理] 开始定时自动更新...')
 
     try {
+      // 角色攻略仓库与图鉴版本无关：先独立同步（失败仅日志），再走图鉴版本检查
+      await syncCodexRepo()
+
       const ret = await checkAndUpdate({
         games: ['gi', 'hsr', 'zzz'],
         locales: ['zh'],
@@ -358,12 +364,23 @@ export class AtlasAdmin extends plugin {
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
       await runDiffScrape(['gi', 'hsr', 'zzz'])
-
-      // 再最后：同步角色攻略仓库（git clone / pull，非子模块），失败仅告警
-      await syncCodexRepo()
     } catch (err) {
       logger?.error('[Atlas][管理] 定时更新异常:', err)
     }
+  }
+
+  /**
+   * 同步角色攻略仓库 — 初始化 / 更新 / 定时三条入口的**独立步骤**
+   *
+   * 攻略仓库（Character-Codex-Data）与图鉴数据源无关、更新频率也与图鉴版本无关，
+   * 故不挂在「图鉴抓取成功」的末尾：任一入口（含版本未变化、抓取失败等早退分支）都要检测。
+   * 未拉取（首次 clone）时先提示，避免用户以为卡住；失败仅日志，不影响主流程。
+   * @param {object} [e] - Runtime 实例（仅用于首次 clone 的提示）
+   * @returns {Promise<{ ok: boolean, mode?: string, error?: string }>}
+   */
+  async _syncCodexRepo (e) {
+    if (e && !isCodexReady()) await e.reply('[Atlas] 正在同步角色攻略仓库，请稍候...', true)
+    return await syncCodexRepo()
   }
 }
 

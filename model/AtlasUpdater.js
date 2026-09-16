@@ -33,6 +33,9 @@ let _updateRunning = false
 /** 上次抓取完成时间戳，防止短时间内重复抓取（如初始化后立即被定时任务触发） */
 let _lastScrapeTime = 0
 
+/** 攻略仓库同步的进行中 Promise（并发调用复用同一次 git，见 syncCodexRepo） */
+let _codexSyncing = null
+
 /** 抓取冷却期（毫秒），此时间内拒绝新的抓取 */
 const SCRAPE_COOLDOWN = 5 * 60 * 1000 // 5 分钟
 
@@ -389,15 +392,34 @@ export async function runDiffScrape (games = ['gi', 'hsr', 'zzz']) {
  * ============================================================ */
 
 /**
- * 同步角色攻略仓库（初始化 / 更新流程的最后一个步骤）
+ * 同步角色攻略仓库（初始化 / 更新 / 定时三条入口的**独立步骤**）
  *
  * 该仓库以 git clone 方式落在 CODEX_DIR，**不使用子模块**——插件仓库不记录 gitlink，
  * 攻略仓库的日常更新不需要插件仓库跟着推送。
  * 目录不存在 → `git clone --depth 1`；已存在 → `git pull --ff-only`（分叉时不强推，保留现场）。
  * 攻略属可选数据源，任何失败只告警、不阻断图鉴更新主流程。
+ *
+ * 攻略仓库与图鉴数据源互不相关、更新频率也与图鉴版本无关，故调用点放在各入口的**前段**，
+ * 不挂在「图鉴抓取成功」的末尾——否则版本未变化 / 抓取失败等早退分支永远不会检测它。
  * @returns {Promise<{ ok: boolean, mode?: 'clone'|'pull', error?: string }>}
  */
 export async function syncCodexRepo () {
+  // 并发保护：初始化 / 更新 / 定时可能同时触发，复用同一次 git 调用，
+  // 避免两个 git 进程同时操作同一目录（后到者等前一个完成）
+  if (_codexSyncing) return await _codexSyncing
+  _codexSyncing = _syncCodexRepoOnce()
+  try {
+    return await _codexSyncing
+  } finally {
+    _codexSyncing = null
+  }
+}
+
+/**
+ * 攻略仓库单次同步（调用方负责并发保护）
+ * @returns {Promise<{ ok: boolean, mode?: 'clone'|'pull', error?: string }>}
+ */
+async function _syncCodexRepoOnce () {
   const gitDir = path.join(CODEX_DIR, '.git')
 
   if (!fs.existsSync(gitDir)) {

@@ -107,6 +107,37 @@
   </div>
   {{/if}}
 
+  {{if codex}}
+  <div class="status-card">
+    <h3>角色攻略</h3>
+    {{if codex.ready}}
+    <div class="status-row">
+      <span class="status-label">攻略仓库</span>
+      <span class="status-value">已拉取</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">攻略卡片</span>
+      <span class="status-value">{{codex.total}} 张</span>
+    </div>
+    {{if codex.summary}}
+    <div class="status-row">
+      <span class="status-label">游戏分布</span>
+      <span class="status-value">{{codex.summary}}</span>
+    </div>
+    {{/if}}
+    {{else}}
+    <div class="status-row">
+      <span class="status-label">攻略仓库</span>
+      <span class="status-value">未拉取</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">拉取方式</span>
+      <span class="status-value">#图鉴初始化 / #图鉴更新</span>
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
   {{if !images || images.total == 0}}
   <div class="status-meta">图片尚未下载，请使用 #图鉴初始化 执行首次抓取</div>
   {{/if}}
