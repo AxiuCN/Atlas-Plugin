@@ -440,7 +440,7 @@ async function _syncCodexRepoOnce () {
       return { ok: false, error: result.stderr || result.reason }
     }
     logger?.info(`[Atlas][Updater] 攻略仓库已克隆到 ${CODEX_DIR}`)
-    return { ok: true, mode: 'clone' }
+    return { ok: true, mode: 'clone', updated: true }
   }
 
   const result = await runSpawn('git', ['pull', '--ff-only'], {
@@ -452,7 +452,9 @@ async function _syncCodexRepoOnce () {
     logger?.warn(`[Atlas][Updater] 攻略仓库拉取失败（不影响图鉴数据）: ${result.stderr || result.reason}`)
     return { ok: false, error: result.stderr || result.reason }
   }
-  return { ok: true, mode: 'pull' }
+  // git 输出为「Already up to date.」时表示远端无新内容（成功但无变化）
+  const updated = !/already up[- ]to[- ]date/i.test(result.stdout || '')
+  return { ok: true, mode: 'pull', updated }
 }
 
 /* ============================================================

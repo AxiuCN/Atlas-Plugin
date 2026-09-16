@@ -56,7 +56,7 @@ export class AtlasAdmin extends plugin {
     // 已初始化 + 数据完整 → 跳过抓取，但角色攻略仓库仍要检测（与图鉴数据无关，可能尚未拉取）
     if (isInitialized()) {
       if (isDataIntact()) {
-        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复抓取。正在检查角色攻略仓库...', true)
+        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复抓取', true)
         await this._syncCodexRepo(e)
         return true
       }
@@ -374,14 +374,28 @@ export class AtlasAdmin extends plugin {
    *
    * 攻略仓库（Character-Codex-Data）与图鉴数据源无关、更新频率也与图鉴版本无关，
    * 故不挂在「图鉴抓取成功」的末尾：任一入口（含版本未变化、抓取失败等早退分支）都要检测。
-   * 未拉取（首次 clone）时先提示，避免用户以为卡住；失败仅日志，不影响主流程。
-   * @param {object} [e] - Runtime 实例（仅用于首次 clone 的提示）
-   * @returns {Promise<{ ok: boolean, mode?: string, error?: string }>}
+   * 首次 clone 与拉取结果都直接回复，避免「版本未变化」早退时用户看不到攻略仓库是否同步过。
+   * @param {object} [e] - Runtime 实例（不传则静默，仅日志，供定时任务使用）
+   * @returns {Promise<{ ok: boolean, mode?: string, updated?: boolean, error?: string }>}
    */
   async _syncCodexRepo (e) {
-    if (e && !isCodexReady()) await e.reply('[Atlas] 正在同步角色攻略仓库，请稍候...', true)
-    return await syncCodexRepo()
+    if (!e) return await syncCodexRepo()
+    if (!isCodexReady()) await e.reply('[Atlas] 正在同步角色攻略仓库，请稍候...', true)
+    const ret = await syncCodexRepo()
+    await e.reply(codexSyncText(ret), true)
+    return ret
   }
+}
+
+/**
+ * 攻略仓库同步结果 → 用户提示文案
+ * @param {{ ok: boolean, mode?: string, updated?: boolean, error?: string }} ret
+ * @returns {string}
+ */
+function codexSyncText (ret) {
+  if (!ret?.ok) return `[Atlas] 角色攻略仓库同步失败（不影响图鉴数据）：${ret?.error || '未知原因'}`
+  if (ret.mode === 'clone') return '[Atlas] 角色攻略仓库已克隆完成'
+  return ret.updated ? '[Atlas] 角色攻略仓库已更新' : '[Atlas] 角色攻略仓库已是最新'
 }
 
 /**
