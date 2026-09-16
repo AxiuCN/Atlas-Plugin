@@ -150,7 +150,7 @@ function gameFromRelPath (rel) {
 function readJsonCards (file) {
   let data
   try {
-    data = JSON.parse(fs.readFileSync(file.full, 'utf8'))
+    data = JSON.parse(fs.readFileSync(file.full, 'utf8').replace(/^\uFEFF/, ''))
   } catch (err) {
     logger?.warn(`[Atlas] 攻略数据解析失败 ${file.rel}: ${err.message}`)
     return []

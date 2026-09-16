@@ -7,11 +7,11 @@
  *   - 正文是纯文本，标签由本模块生成（不信任数据里的 HTML）
  *   - 段落配图 image 为仓库内相对路径，解析为 file:// 绝对路径；站外地址与缺失文件丢弃（运行期不联网）
  *
+ * 正文展示形态在这里定：按段落标题把自由文本整理成
+ *   「标签 + 内容」行（rows）/ 队伍成员（teams）/ 数值行（stats），模板只负责画。
+ *
  * 同时保留旧版 HTML 页面的解析（parseGuideHtml），供尚未拉取到 JSON 数据的旧克隆兜底；
  * 仓库里一旦存在 JSON 数据，索引层就只认 JSON（见 index.js）。
- *
- * 输入：JSON 对象（+ 文件路径）/ HTML 文本（+ 文件路径）
- * 输出：{ name, tags, desc, sections } 卡片结构
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -69,16 +69,9 @@ function inlineHtml (text) {
     .replace(/==([^=]+)==/g, '<span class="highlight">$1</span>')
 }
 
-/**
- * 行数组 → 模板用的正文片段
- * @param {Array} lines
- * @returns {string} 以 <br/> 连接的 HTML
- */
-function linesToHtml (lines) {
-  return lines
-    .map(line => inlineHtml(line).trim())
-    .filter(Boolean)
-    .join('<br/>')
+/** 内容里的「>」换成视觉分隔符（转义后再替换，避免误伤标签） */
+function decorateValue (text) {
+  return inlineHtml(text).replace(/ &gt; /g, ' <span class="sep">&gt;</span> ')
 }
 
 /**
@@ -105,6 +98,108 @@ function resolveImage (fileDir, src) {
 }
 
 /* ============================================================
+ *  正文分行（展示层归一）
+ * ============================================================ */
+
+/**
+ * 段落展示形态（数据是自由文本，这里只按标题关键词决定怎么画）
+ * - teams：配队 / 队伍 / 阵容 → 每行一支队伍，成员拆成独立标签
+ * - stats：面板 / 属性 → 数值行用大字号，方便扫读
+ * - rows：默认 → 「标签 + 内容」行
+ * @param {string} title
+ * @returns {'rows' | 'teams' | 'stats'}
+ */
+function sectionKind (title) {
+  if (/配队|队伍|阵容/.test(title)) return 'teams'
+  if (/面板|属性/.test(title)) return 'stats'
+  return 'rows'
+}
+
+/**
+ * 在顶层分隔符处切分（跳过括号内部），用于把「A / B / C」这类并列内容拆成多行
+ * @param {string} text
+ * @param {string} sep
+ * @returns {string[]}
+ */
+function splitTop (text, sep) {
+  const out = []
+  let depth = 0
+  let buf = ''
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if ('(（[【'.includes(ch)) depth += 1
+    else if (')）]】'.includes(ch)) depth = Math.max(0, depth - 1)
+    if (depth === 0 && text.startsWith(sep, i)) {
+      out.push(buf)
+      buf = ''
+      i += sep.length - 1
+      continue
+    }
+    buf += ch
+  }
+  out.push(buf)
+  return out.map(part => part.trim()).filter(Boolean)
+}
+
+/**
+ * 行 → 标签 + 内容：在第一个冒号或破折号处切分，左侧超过 8 字则不切（避免切断长句）
+ * @param {string} line
+ * @returns {{label: string, value: string}}
+ */
+function splitLabel (line) {
+  const text = String(line || '').trim()
+  const colon = text.match(/^([^：:]{1,8})[：:]\s*(.+)$/)
+  if (colon) return { label: colon[1].trim(), value: colon[2].trim() }
+  const dash = text.match(/^([^—]{1,8})——\s*(.+)$/)
+  if (dash) return { label: dash[1].trim(), value: dash[2].trim() }
+  return { label: '', value: text }
+}
+
+/** 段落标题 → 序号徽标 + 标题文字（「1. 武器推荐」→ 「1」+「武器推荐」） */
+function splitTitle (title) {
+  const m = String(title || '').match(/^\s*(\d+)\s*[.、．]\s*(.+)$/)
+  return m ? { badge: m[1], title: m[2].trim() } : { badge: '', title: String(title || '').trim() }
+}
+
+/**
+ * 排名序列拆条：按顶层的「>」「≥」切分（跳过括号内部，避免拆散「空之杯(冰伤 > 攻击)」），
+ * 同时保留原始分隔符，模板据此渲染成「条目 › 条目」的档位序列
+ * @param {string} text
+ * @returns {{items: string[], seps: string[]}} seps 比 items 少一项
+ */
+function splitRank (text) {
+  const items = []
+  const seps = []
+  let depth = 0
+  let buf = ''
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if ('(（[【'.includes(ch)) depth += 1
+    else if (')）]】'.includes(ch)) depth = Math.max(0, depth - 1)
+    if (depth === 0) {
+      const cut = [' > ', ' ≥ '].find(sep => text.startsWith(sep, i))
+      if (cut) {
+        if (buf.trim()) items.push(buf.trim())
+        seps.push(cut.trim())
+        buf = ''
+        i += cut.length - 1
+        continue
+      }
+    }
+    buf += ch
+  }
+  if (buf.trim()) items.push(buf.trim())
+  return { items, seps }
+}
+
+/** 去空后的行数组 */
+function cleanLines (lines) {
+  return (Array.isArray(lines) ? lines : [])
+    .map(line => String(line ?? '').trim())
+    .filter(Boolean)
+}
+
+/* ============================================================
  *  JSON 数据（当前格式）
  * ============================================================ */
 
@@ -117,14 +212,41 @@ function resolveImage (fileDir, src) {
  */
 function toSection (section, fileDir) {
   if (!section || typeof section !== 'object') return null
-  const title = String(section.title || '').trim()
-  if (!title) return null
+  const rawTitle = String(section.title || '').trim()
+  if (!rawTitle) return null
+  const { badge, title } = splitTitle(rawTitle)
+  const image = section.image ? resolveImage(fileDir, section.image) : ''
 
-  if (Array.isArray(section.lines) && section.lines.length) {
-    const text = linesToHtml(section.lines)
-    if (!text) return null
-    const image = section.image ? resolveImage(fileDir, section.image) : ''
-    return { title, type: 'text', text: image ? `${text}<img class="codex-img" src="${image}"/>` : text }
+  const lines = cleanLines(section.lines)
+  if (lines.length) {
+    const kind = sectionKind(rawTitle)
+
+    if (kind === 'teams') {
+      const teams = lines.map(line => {
+        const { label, value } = splitLabel(line)
+        const members = splitTop(value, '+').map(member => inlineHtml(member))
+        return { tag: inlineHtml(label), members: members.length ? members : [inlineHtml(value)] }
+      })
+      return { badge, title, type: 'teams', teams, image }
+    }
+
+    // 并列内容（如「时之沙(攻击力) / 空之杯(冰伤) / 理之冠(暴击)」）各占一行，标签只在首行出现；
+    // 行内再用「>」「≥」拆成档位条目，模板渲染成条目标签，方便扫读
+    const rows = []
+    for (const line of lines) {
+      const { label, value } = splitLabel(line)
+      splitTop(value, ' / ').forEach((part, i) => {
+        const { items, seps } = splitRank(part)
+        rows.push({
+          label: i === 0 ? inlineHtml(label) : '',
+          items: items.map((text, idx) => ({
+            text: decorateValue(text),
+            sepAfter: idx < items.length - 1 ? escapeHtml(seps[idx] || '>') : ''
+          }))
+        })
+      })
+    }
+    return { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows, image }
   }
 
   if (Array.isArray(section.items) && section.items.length) {
@@ -134,7 +256,7 @@ function toSection (section, fileDir) {
         name: inlineHtml(item.name),
         desc: item.desc ? inlineHtml(item.desc) : ''
       }))
-    return items.length ? { title, type: 'list', items } : null
+    return items.length ? { badge, title, type: 'list', items, image } : null
   }
 
   if (Array.isArray(section.fields) && section.fields.length) {
@@ -144,7 +266,7 @@ function toSection (section, fileDir) {
         label: inlineHtml(field.label),
         value: inlineHtml(field.value)
       }))
-    return fields.length ? { title, type: 'fields', fields } : null
+    return fields.length ? { badge, title, type: 'fields', fields, image } : null
   }
 
   return null
@@ -266,14 +388,10 @@ export function sanitizeInline (html, fileDir) {
 }
 
 /**
- * 解析一个攻略 HTML 页面为角色卡片数组
- *
- * 卡片内部只有文本与 <br>，段落由 .section-title + .text-block 成对出现，
- * 故按卡片开标签切块后用成对正则提取，不引入 DOM 依赖。
+ * 解析一个攻略 HTML 页面为角色卡片数组（旧格式：每角色一张 .guide-card）
  * @param {string} html - 文件文本
  * @param {string} filePath - 文件绝对路径
- * @returns {{docTitle: string, cards: Array<{name: string, tags: string[], desc: string,
- *   sections: Array<{title: string, type: string, text: string}>}>}}
+ * @returns {{docTitle: string, cards: Array}}
  */
 export function parseGuideHtml (html, filePath) {
   const text = String(html || '')
@@ -300,12 +418,13 @@ export function parseGuideHtml (html, filePath) {
 
     const highlight = chunk.match(/<div\b[^>]*\bclass\s*=\s*"[^"]*\btext-block\b[^"]*"[^>]*\bstyle\s*=\s*"[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
 
+    // 旧格式不再按展示形态归一：整段作为一行文本交给模板的兜底分支渲染
     const sections = []
     const sectionRe = /<div\b[^>]*\bclass\s*=\s*"[^"]*\bsection-title\b[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<div\b[^>]*\bclass\s*=\s*"[^"]*\btext-block\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi
     for (const s of chunk.matchAll(sectionRe)) {
       const title = plainText(s[1])
       const body = sanitizeInline(s[2], fileDir)
-      if (title && body) sections.push({ title, type: 'text', text: body })
+      if (title && body) sections.push({ title, type: 'html', text: body })
     }
 
     cards.push({ name, tags, desc: highlight ? sanitizeInline(highlight[1], fileDir) : '', sections })

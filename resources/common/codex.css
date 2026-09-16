@@ -1,68 +1,234 @@
-/* Atlas-Plugin 样式 — 角色攻略页专用（resources/atlas/codex.html） */
+/* Atlas-Plugin 样式 — 角色攻略页专用（resources/atlas/codex.html）
+ *
+ * 版式目标：文字宽松、层次清楚——每段一张卡，段内「标签 + 内容」一行一条，
+ * 并列内容各占一行；数值段放大数值，配队段把成员拆成标签。
+ * 只作用于 codex 页，不改 common/ 下与其它页面共用的规则。
+ */
 
-/* ===== 攻略段落网格 .codex-grid（两列，对应攻略仓库的六段结构） ===== */
-.codex-grid {
+/* ===== 数据来源提示条 .codex-note（主观数值等，标注为参考） ===== */
+.codex-note {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 18px;
+  background: #fdf6e9;
+  border: 1px solid #eadfc6;
+  border-radius: 8px;
+  font-size: 20px;
+  color: #7a6320;
 }
 
-/* ===== 攻略段落卡片 .codex-cell（同排等高） ===== */
+/* ===== 提示条标记 .codex-note-tag ===== */
+.codex-note-tag {
+  flex-shrink: 0;
+  padding: 1px 10px;
+  border-radius: 4px;
+  background: #d69e2e;
+  color: #fffdf7;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* ===== 提示条正文 .codex-note-text ===== */
+.codex-note-text {
+  line-height: 1.6;
+}
+
+/* ===== 段落网格 .codex-grid（两列瀑布流：卡片按内容高度自然流动，不留空洞） ===== */
+.codex-grid {
+  column-count: 2;
+  column-gap: 12px;
+}
+
+/* ===== 段落卡片 .codex-cell ===== */
 .codex-cell {
-  width: calc(50% - 5px);
+  break-inside: avoid;
+  margin-bottom: 12px;
   background: #fdfcfb;
   border: 1px solid #d4d1cd;
   border-radius: 8px;
-  padding: 12px 18px 14px;
+  padding: 14px 18px 16px;
 }
 
-/* ===== 攻略段落标题 .codex-cell-title ===== */
+/* ===== 段落标题行 .codex-cell-title ===== */
 .codex-cell-title {
   display: flex;
   align-items: center;
-  font-size: 24px;
+  gap: 10px;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed #e2ded9;
+}
+
+/* ===== 段落序号 .codex-badge ===== */
+.codex-badge {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #4a4a4a;
+  color: #f6f4f1;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 30px;
+  text-align: center;
+}
+
+/* ===== 段落名 .codex-cell-name ===== */
+.codex-cell-name {
+  font-size: 25px;
   font-weight: 700;
   color: #333333;
-  margin-bottom: 8px;
+  letter-spacing: 1px;
 }
 
-/* ===== 攻略段落标题左侧竖线 .codex-cell-title::before ===== */
-.codex-cell-title::before {
-  content: '';
-  display: inline-block;
-  width: 5px;
-  height: 20px;
-  background: #4a4a4a;
-  border-radius: 3px;
-  margin-right: 10px;
-  flex-shrink: 0;
+/* ===== 行容器 .grows（行距即留白，一行一条不挤在一起） ===== */
+.grows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* ===== 攻略段落正文 .codex-cell-body ===== */
-.codex-cell-body {
-  font-size: 22px;
-  line-height: 1.65;
+/* ===== 单行 .grow（标签 + 内容） ===== */
+.grow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 21px;
+  line-height: 1.75;
   color: #555555;
+}
+
+/* ===== 行首标签 .grow-label（固定宽度保证内容左边缘对齐） ===== */
+.grow-label {
+  flex-shrink: 0;
+  min-width: 88px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(110, 110, 110, 0.10);
+  color: #3a3a3a;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: center;
+}
+
+/* ===== 行内容 .grow-value ===== */
+.grow-value {
+  flex: 1;
+  min-width: 0;
   word-break: break-word;
 }
 
-/* ===== 正文强调：必须 / 高亮（源自攻略仓库的 span.must / span.highlight） ===== */
-.codex-cell-body .must,
-.hero-desc .must {
-  color: #d69e2e;
+/* ===== 档位序列 .rank-list（「A › B › C」拆成条目标签） ===== */
+.rank-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== 档位条目 .rank-item ===== */
+.rank-item {
+  padding: 0 10px;
+  border: 1px solid #e3dfda;
+  border-radius: 6px;
+  background: #f6f4f1;
+  font-size: 20px;
+  line-height: 1.7;
+  color: #444444;
+}
+
+/* ===== 内容里的档位分隔符 .sep（数据里的「>」「≥」） ===== */
+.sep {
+  margin: 0 1px;
+  color: #c0bab2;
+  font-size: 18px;
   font-weight: 700;
 }
 
-.codex-cell-body .highlight,
-.hero-desc .highlight {
+/* ===== 数值段 .codex-stats（毕业面板等，数值放大扫读） ===== */
+.codex-stats .grow-value {
+  font-size: 25px;
+  font-weight: 700;
+  color: #333333;
+}
+
+/* ===== 数值段标签略微收窄 ===== */
+.codex-stats .grow-label {
+  min-width: 82px;
+}
+
+/* ===== 配队行 .team-row ===== */
+.team-row {
+  align-items: center;
+}
+
+/* ===== 队伍成员容器 .team-members ===== */
+.team-members {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* ===== 队伍成员 .team-member（预留头像位：日后塞入 img 即可） ===== */
+.team-member {
+  padding: 2px 12px;
+  border: 1px solid #ded9d3;
+  border-radius: 14px;
+  background: #f3f1ee;
+  font-size: 20px;
+  color: #444444;
+  line-height: 1.6;
+}
+
+/* ===== 列表项 .gitem ===== */
+.gitem {
+  font-size: 21px;
+  line-height: 1.75;
+  color: #555555;
+}
+
+/* ===== 列表项名 .gitem-name ===== */
+.gitem-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #3a3a3a;
+}
+
+/* ===== 列表项说明 .gitem-desc ===== */
+.gitem-desc {
+  color: #555555;
+}
+
+/* ===== 正文强调：必须 / 高亮（源自攻略仓库的 **…** 与 ==…==） ===== */
+.must {
+  color: #c8871a;
+  font-weight: 700;
+}
+
+.highlight {
   color: #e53e3e;
   font-weight: 700;
 }
 
-/* ===== 正文插图 .codex-img（攻略仓库内的相对图片已解析为 file:// 绝对路径） ===== */
+/* ===== 段落配图 .codex-img（仓库内相对路径已解析为 file:// 绝对路径） ===== */
 .codex-img {
   display: block;
   max-width: 100%;
+  margin-top: 12px;
   border-radius: 6px;
-  margin: 8px 0 2px;
+}
+
+/* ===== 页脚一行放得下 .codex-copyright（攻略页署名较长，禁止换行并略缩小字号） ===== */
+.codex-copyright {
+  margin-top: 12px;
+  font-size: 18px;
+  line-height: 1.6;
+  white-space: nowrap;
 }
