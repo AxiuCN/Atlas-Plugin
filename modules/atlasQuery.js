@@ -6,13 +6,13 @@
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
-import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, CODEX_PAGE_KEY } from '../components/constants.js'
+import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, CODEX_PAGE_KEY } from '../components/constants.js'
 import { handleCodexQuery } from './codexQuery.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
-/** 子视图后缀列表（长→短，图鉴与页面类型后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
+/** 子视图后缀列表（长→短，图鉴、页面类型与泛用套装后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
 const SUB_VIEW_SUFFIXES = SHORTCUT_SUFFIXES
-  .filter(s => s !== '图鉴' && !PAGE_TYPE_SUFFIXES[s])
+  .filter(s => s !== '图鉴' && s !== SET_SUFFIX && !PAGE_TYPE_SUFFIXES[s])
   .sort((a, b) => b.length - a.length)
   .map(s => ({ suffix: s, subView: SUFFIX_TO_SUBVIEW[s] || 'materials' }))
 
@@ -23,15 +23,23 @@ const PAGE_TYPE_ENTRIES = Object.entries(PAGE_TYPE_SUFFIXES)
 /**
  * 解析子视图/页面类型后缀
  * 页面类型后缀（圣遗物/遗器/驱动盘）优先：仅剥离关键词并把结果限定到对应页面类型
+ * 泛用套装后缀「套」紧随其后，按当前游戏映射到该游戏的套装页面类型
  * @param {string} keyword
+ * @param {string} gameId - gi/hsr/zzz（「套」后缀需要）
  * @returns {{ searchKeyword: string, subView: string|null, pageType: string|null }}
  */
-function parseSubView (keyword) {
+function parseSubView (keyword, gameId) {
   for (const [suffix, pageType] of PAGE_TYPE_ENTRIES) {
     if (keyword.endsWith(suffix)) {
       const searchKeyword = keyword.slice(0, -suffix.length).trim()
       if (searchKeyword) return { searchKeyword, subView: null, pageType }
     }
+  }
+  // 「套」：原神 圣遗物、星铁 遗器套装、绝区零 驱动盘（如 #如雷套 / *铁卫套 / %啄木鸟套）
+  const setPageType = SET_PAGE_TYPE_BY_GAME[gameId]
+  if (setPageType && keyword.endsWith(SET_SUFFIX)) {
+    const searchKeyword = keyword.slice(0, -SET_SUFFIX.length).trim()
+    if (searchKeyword) return { searchKeyword, subView: null, pageType: setPageType }
   }
   for (const { suffix, subView } of SUB_VIEW_SUFFIXES) {
     if (keyword.endsWith(suffix)) {
@@ -113,7 +121,7 @@ export async function handleQuery (e, gameId, keyword) {
 
   try {
     // ── 阶段 0：子视图 / 页面类型后缀检测 ──
-    const { searchKeyword, subView, pageType } = parseSubView(keyword)
+    const { searchKeyword, subView, pageType } = parseSubView(keyword, gameId)
 
     let result
     if (subView) {

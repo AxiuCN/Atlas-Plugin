@@ -37,6 +37,8 @@ export const SHORTCUT_SUFFIXES = [
   '命座', '星魂', '影画',
   // 页面类型类（非子视图：剥离后缀并把搜索结果限定到对应页面类型）
   '圣遗物', '遗器', '驱动盘',
+  // 泛用套装后缀（按游戏映射到各自的套装页面类型，见 SET_PAGE_TYPE_BY_GAME）
+  '套',
   // 角色攻略（独立页面类型 codex，数据来自 Character-Codex-Data，与图鉴条目解耦）
   '攻略', '指南',
   '资料', '描述', '故事', '语音',
@@ -59,6 +61,17 @@ export const PAGE_TYPE_SUFFIXES = {
 
 /** 角色攻略页面类型标识（独立模板 resources/atlas/codex.html） */
 export const CODEX_PAGE_KEY = 'codex'
+
+// 泛用套装后缀 → 各游戏的套装页面类型
+// 三游戏把「套装」叫成不同名字（原神 圣遗物 / 星铁 遗器套装 / 绝区零 驱动盘），
+// 故「套」不能像圣遗物/遗器/驱动盘那样写死在 PAGE_TYPE_SUFFIXES，需按当前游戏取页面类型
+// 行为与页面类型后缀一致：只剥离关键词并收敛结果，不改子视图
+export const SET_SUFFIX = '套'
+export const SET_PAGE_TYPE_BY_GAME = {
+  gi: 'artifact',
+  hsr: 'relicset',
+  zzz: 'equipment'
+}
 
 // 子视图后缀 → subView 规范名（atlasQuery.parseSubView 使用）
 // 同一 subView 收录三游戏各自叫法：星铁「星魂」、绝区零「影画」等同命座，星铁「行迹」「忆灵技」等同天赋/技能，
