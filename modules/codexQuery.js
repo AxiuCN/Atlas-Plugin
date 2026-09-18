@@ -3,19 +3,29 @@
  *
  * 触发：#胡桃攻略 / *符玄攻略 / %雅攻略（后缀登记见 components/constants.js 的 PAGE_TYPE_SUFFIXES）
  * 数据：tool/Character-Codex-Data/Character-Codex-Data（经 model/codexIndex/index.js 读取）
+ * 图标：model/codexIndex/icons.js（按名称到图鉴现取武器/圣遗物/天赋/命座图标）
  * 模板：resources/atlas/codex.html
  *
- * 职责：定位图鉴条目 → 取攻略数据 → 用图鉴条目补齐 hero 展示字段（立绘 / 稀有度 / 元素等）
- * → 交模板渲染。攻略正文的解析全部在 model/codexIndex，本层不读攻略仓库文件。
+ * 职责：定位图鉴条目 → 取攻略数据 → 按长图顺序排段 → 补齐 hero 字段与段落图标 → 交模板渲染。
+ * 攻略正文的解析在 model/codexIndex，本层不读攻略仓库文件。
  */
 import { renderAtlas } from '../components/render.js'
 import { GAME_NAMES, CODEX_PAGE_KEY } from '../components/constants.js'
 import { buildDetailData } from '../components/queryUtils.js'
 import { loadRecord } from '../model/AtlasService.js'
 import { isCodexReady, getCharacterGuide } from '../model/codexIndex/index.js'
+import { resolveGuideIcons } from '../model/codexIndex/icons.js'
 
 /** 长图段落顺序：武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队（未列出的段落按原顺序排在末尾） */
 const SECTION_ORDER = ['武器', '圣遗物', '天赋', '面板', '命座', '配队']
+
+/** 段落标题 → 图标种类（line 表示线稿图标，需要反相成深色） */
+const ICON_BY_SECTION = [
+  [/武器/, 'weapon', false],
+  [/圣遗物/, 'artifact', false],
+  [/天赋/, 'talent', true],
+  [/命座/, 'constellation', true]
+]
 
 /**
  * 按长图顺序排列段落
@@ -33,18 +43,32 @@ function orderSections (sections) {
 }
 
 /**
+ * 给段落挂上标题图标（取不到的段落不加，模板据此不渲染）
+ * @param {Array} sections
+ * @param {object} icons - resolveGuideIcons() 结果
+ * @returns {Array}
+ */
+function attachIcons (sections, icons) {
+  return sections.map(section => {
+    const hit = ICON_BY_SECTION.find(([re]) => re.test(String(section.title || '')))
+    const icon = hit ? icons[hit[1]] : ''
+    if (!icon) return section
+    return { ...section, icon, iconLine: hit[2] }
+  })
+}
+
+/**
  * 用图鉴条目补齐攻略页 hero 字段（立绘 / 稀有度 / 元素等 chips）
  * 读原条目而非重新搜索；条目缺失或构建失败时退回只有攻略侧字段
  * @param {string} gameId
  * @param {object} entry - search() 结果中的图鉴条目
+ * @param {object|null} record - 已读取的图鉴条目 JSON
  * @returns {{rarity: string, image: string, chips: string[]}}
  */
-function buildAtlasExtra (gameId, entry) {
+function buildAtlasExtra (gameId, entry, record) {
   const extra = { rarity: entry?.rarity || '', image: '', chips: [] }
-  if (entry?.pageKey !== 'character') return extra
+  if (!record) return extra
   try {
-    const record = loadRecord(entry.filePath)
-    if (!record) return extra
     const atlas = buildDetailData(gameId, { ...entry, record })
     const hero = atlas?.hero || null
     extra.rarity = atlas?.rarity || extra.rarity
@@ -65,11 +89,11 @@ function buildAtlasExtra (gameId, entry) {
  * @returns {Promise<boolean>} true=消息已处理
  */
 export async function handleCodexQuery (e, gameId, result, keyword) {
-  // 只有「确定命中角色」才由图鉴接管攻略页：命中角色但攻略仓库没有该角色 → 提示并中断。
-  // 判定用搜索结果首条——角色页优先级最高（PAGE_PRIORITY 240），首条不是角色说明关键词命中的
-  // 是圣遗物/物品等其他条目（如 #如雷的盛怒攻略），不是角色攻略查询，放行给其他插件（如 miao 面板）
   const entry = result?.results?.[0]
-  if (entry?.pageKey !== 'character') return false
+  if (!entry) {
+    await e.reply(`[Atlas] 未找到「${keyword}」对应的图鉴条目，无法定位攻略`)
+    return true
+  }
 
   if (!isCodexReady()) {
     await e.reply('[Atlas] 角色攻略数据尚未拉取，请先执行 #图鉴初始化 或 #图鉴更新')
@@ -82,11 +106,22 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
     return true
   }
 
+  // 图鉴条目只读一次：hero 字段与段落图标都基于它
+  let record = null
+  if (entry.pageKey === 'character') {
+    try {
+      record = loadRecord(entry.filePath)
+    } catch (err) {
+      logger?.warn(`[Atlas] 攻略页读取图鉴条目失败（${entry.name}）: ${err.message}`)
+    }
+  }
+
   // 长图单列固定顺序：hero → 参考 → 武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队 → 页脚
-  const guide = { ...rawGuide, sections: orderSections(rawGuide.sections) }
+  let guide = { ...rawGuide, sections: orderSections(rawGuide.sections) }
+  guide = { ...guide, sections: attachIcons(guide.sections, resolveGuideIcons(gameId, guide, record)) }
 
   // 图鉴侧字段：攻略仓库只存正文，立绘/稀有度/元素取原条目
-  const extra = buildAtlasExtra(gameId, entry)
+  const extra = buildAtlasExtra(gameId, entry, record)
   const chips = [...guide.chips]
   for (const chip of extra.chips) {
     if (chip && !chips.includes(chip)) chips.push(chip)

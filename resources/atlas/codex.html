@@ -34,6 +34,10 @@
     <div class="codex-cell codex-{{section.type}}">
       <div class="codex-cell-title">
         {{if section.badge}}<span class="codex-badge">{{section.badge}}</span>{{/if}}
+        {{if section.icon}}
+          {{if section.iconLine}}<img class="codex-cell-icon codex-icon-line" src="{{section.icon}}"/>
+          {{else}}<img class="codex-cell-icon" src="{{section.icon}}"/>{{/if}}
+        {{/if}}
         <span class="codex-cell-name">{{section.title}}</span>
       </div>
 

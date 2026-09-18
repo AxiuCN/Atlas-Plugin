@@ -155,6 +155,17 @@ function splitLabel (line) {
   return { label: '', value: text }
 }
 
+/**
+ * 皇冠推荐若只有「可选 / 无需」，这行没有信息量，攻略页直接不显示
+ * @param {object} row - 已归一的表格行 { label, items }
+ * @returns {boolean}
+ */
+function isOptionalCrown (row) {
+  if (!/皇冠/.test(plainText(row?.label || ''))) return false
+  const value = (row.items || []).map(item => plainText(item.text)).join('')
+  if (!value) return false
+  return !/(必须|建议)/.test(value) && /(可选|无需|不需要)/.test(value)
+}
 /** 段落标题 → 序号徽标 + 标题文字（「1. 武器推荐」→ 「1」+「武器推荐」） */
 function splitTitle (title) {
   const m = String(title || '').match(/^\s*(\d+)\s*[.、．]\s*(.+)$/)
@@ -246,7 +257,8 @@ function toSection (section, fileDir) {
         })
       })
     }
-    return { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows, image }
+    // 皇冠只有「可选/无需」时该行无信息量，直接去掉
+    return { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows: rows.filter(row => !isOptionalCrown(row)), image }
   }
 
   if (Array.isArray(section.items) && section.items.length) {
