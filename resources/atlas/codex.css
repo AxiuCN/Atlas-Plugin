@@ -259,6 +259,17 @@
   white-space: nowrap;
 }
 
+/* ===== 配队成员头像 .team-avatar（只出头像，不显示名字；取不到图标才回退成上面的名字标签） ===== */
+.team-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border: 1px solid #ddd8d2;
+  border-radius: 50%;
+  background: #f4f2ef;
+  object-fit: cover;
+}
+
 /* ============================================================
  *  列表段 / 表格段 / 兜底
  * ============================================================ */
