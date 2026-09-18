@@ -3,6 +3,7 @@
  * 满级主/副属性 + 音擎天赋 + 音擎故事 + 突破素材
  */
 import { cleanMarkup } from '../util.js'
+import { mergeRefineLevels } from './refine.js'
 import { aggregateMats, sortMatItems } from '../materials.js'
 import { getZZZItemName, getZZZItemIcon } from '../../../model/itemIndex/zzz.js'
 import { zzzRank } from '../../constants.js'
@@ -87,18 +88,16 @@ export function buildZZZWeapon (list, detail, meta) {
 
   const sections = []
 
-  // 音擎天赋（类似精炼）
+  // 音擎天赋：1~5 档合并成一段（各档 desc 已代入数值，只有数值差异 → 一条，
+  // 差异处写成 2%/2.3%/2.6%/2.9%/3.2%；文本本身有差异时按档位区间分成多条）
   if (detail.talents && typeof detail.talents === 'object') {
-    const refs = Object.entries(detail.talents)
+    const levels = Object.entries(detail.talents)
       .filter(([k]) => /^\d+$/.test(k))
       .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([k, t]) => ({
-        level: `等级 ${k}`,
-        name: t.name || '',
-        desc: cleanMarkup(t.desc || '')
-      }))
-    if (refs.length > 0) {
-      sections.push({ title: '音擎天赋', type: 'refinements', items: refs })
+      .map(([k, t]) => ({ level: k, name: t.name || '', desc: t.desc || '' }))
+    const items = mergeRefineLevels(levels, '等级')
+    if (items.length > 0) {
+      sections.push({ title: '音擎天赋', type: 'refinements', items })
     }
   }
 

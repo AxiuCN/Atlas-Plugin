@@ -3,6 +3,7 @@
  * 满级基础属性 + 叠影效果 + 晋阶材料
  */
 import { cleanMarkup, hsrLabel, resolveHsrParams } from '../util.js'
+import { mergeRefineLevels } from './refine.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
 import { HSR_MAX_LEVEL } from '../../constants.js'
@@ -36,30 +37,32 @@ export function buildHSRLightcone (list, detail, meta) {
 
   const sections = []
 
-  // 叠影
+  // 叠影：1~5 档合并成一段（desc 是带 #N[fmt] 占位符的模板，各档按自己的 param_list 解析后再对齐合并，
+  // 差异处写 18%/21%/24%/27%/30%；文本本身有差异时按档位区间分成多条）
   if (detail.refinements) {
     const name = detail.refinements.name || ''
-    const desc = cleanMarkup(detail.refinements.desc || '')
-    let refs = []
+    const template = detail.refinements.desc || ''
+    let items = []
     if (detail.refinements.level && typeof detail.refinements.level === 'object') {
-      refs = Object.entries(detail.refinements.level)
+      const levels = Object.entries(detail.refinements.level)
         .filter(([k]) => /^\d+$/.test(k))
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([k, r]) => {
-          // 叠影描述为带占位符的富文本，按该叠影档位的 param_list 取值后保留官方高亮
-          const refDesc = r?.param_list && detail.refinements.desc
-            ? cleanMarkup(resolveHsrParams(detail.refinements.desc, r.param_list))
-            : (r?.param_list ? Object.values(r.param_list).join(' / ') : desc)
-          return { level: `叠影 ${k}`, name, desc: refDesc }
+          // 该档位的完整文案：有 param_list 就代入模板，否则退回该档参数值罗列
+          const desc = r?.param_list
+            ? (template ? resolveHsrParams(template, r.param_list) : Object.values(r.param_list).join(' / '))
+            : template
+          return { level: k, name, desc }
         })
+      items = mergeRefineLevels(levels, '叠影')
     }
-    if (refs.length > 0) {
-      sections.push({ title: '叠影', type: 'refinements', items: refs })
-    } else if (name || desc) {
+    if (items.length > 0) {
+      sections.push({ title: '叠影', type: 'refinements', items })
+    } else if (name || template) {
       sections.push({
         title: '叠影',
         type: 'refinements',
-        items: [{ level: '', name, desc }]
+        items: [{ level: '', name, desc: cleanMarkup(template) }]
       })
     }
   }
