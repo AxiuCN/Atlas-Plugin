@@ -115,6 +115,20 @@
   text-align: center;
 }
 
+/* ===== 段落图标 .codex-cell-icon（标题左侧，取自图鉴：武器 / 圣遗物 / 天赋 / 命座） ===== */
+.codex-cell-icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  margin: -8px 2px -8px 0;
+  object-fit: contain;
+}
+
+/* ===== 线稿类图标反相为深色（天赋 / 命座为白色描边线稿，浅底上需转深） ===== */
+.codex-cell-icon.codex-icon-line {
+  filter: invert(1) brightness(0.9);
+}
+
 /* ===== 段落名 ===== */
 .codex-cell-name {
   font-size: 26px;
