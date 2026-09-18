@@ -14,7 +14,7 @@ import { GAME_NAMES, CODEX_PAGE_KEY } from '../components/constants.js'
 import { buildDetailData } from '../components/queryUtils.js'
 import { loadRecord } from '../model/AtlasService.js'
 import { isCodexReady, getCharacterGuide } from '../model/codexIndex/index.js'
-import { resolveGuideIcons } from '../model/codexIndex/icons.js'
+import { resolveGuideIcons, attachTeamIcons } from '../model/codexIndex/icons.js'
 
 /** 长图段落顺序：武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队（未列出的段落按原顺序排在末尾） */
 const SECTION_ORDER = ['武器', '圣遗物', '天赋', '面板', '命座', '配队']
@@ -118,7 +118,9 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
 
   // 长图单列固定顺序：hero → 参考 → 武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队 → 页脚
   let guide = { ...rawGuide, sections: orderSections(rawGuide.sections) }
-  guide = { ...guide, sections: attachIcons(guide.sections, resolveGuideIcons(gameId, guide, record)) }
+  // 段落标题图标 + 配队成员头像（头像取不到时模板退回显示名字）
+  const icons = resolveGuideIcons(gameId, guide, record)
+  guide = { ...guide, sections: attachTeamIcons(gameId, attachIcons(guide.sections, icons)) }
 
   // 图鉴侧字段：攻略仓库只存正文，立绘/稀有度/元素取原条目
   const extra = buildAtlasExtra(gameId, entry, record)

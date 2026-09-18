@@ -47,7 +47,7 @@
           <div class="grow team-row">
             <span class="grow-label">{{@team.tag}}</span>
             <span class="team-members">
-              {{each team.members m}}<span class="team-member">{{@m}}</span>{{/each}}
+              {{each team.members m}}{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{else}}<span class="team-member">{{@m.name}}</span>{{/if}}{{/each}}
             </span>
           </div>
           {{/each}}
