@@ -2,43 +2,9 @@
  *
  * 单列长图版式：从上到下依次 Hero → 参考 → 各段落 → 页脚，段落宽度一律 100%。
  * 本文件所有规则都挂在 .codex-page 下，只作用于攻略页；common/ 下的共用样式一律不改。
+ * Hero 区与角色页共用 common/hero.css 的框架（背景大图 / 立绘层 / 遮罩 / 头像 / 文字三段），
+ * 本文件不覆盖其中任何一条。
  */
-
-/* ============================================================
- *  Hero：立绘加圆角与浅底（透明 PNG 不发飘），chips 统一高度
- * ============================================================ */
-
-/* ===== 立绘 .codex-portrait ===== */
-.codex-page .codex-portrait {
-  width: 180px;
-  height: 180px;
-  padding: 6px;
-  border: 1px solid #e3dfda;
-  border-radius: 14px;
-  background: rgba(110, 110, 110, 0.08);
-  object-fit: contain;
-}
-
-/* ===== 标签行 .hero-info（加大间距，避免挤在立绘边上） ===== */
-.codex-page .hero-info {
-  gap: 8px;
-  margin-top: 12px;
-}
-
-/* ===== 标签 .hero-info-item（统一高度与内边距，压过 common/hero.css 的同名规则） ===== */
-.codex-page .hero-info-item {
-  display: inline-flex;
-  align-items: center;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid rgba(96, 96, 96, 0.28);
-  border-radius: 6px;
-  background: rgba(96, 96, 96, 0.10);
-  color: #333333;
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1;
-}
 
 /* ============================================================
  *  参考提示条（主观数值等，单独成条）

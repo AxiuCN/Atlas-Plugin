@@ -58,26 +58,41 @@ function attachIcons (sections, icons) {
 }
 
 /**
- * 用图鉴条目补齐攻略页 hero 字段（立绘 / 稀有度 / 元素等 chips）
- * 读原条目而非重新搜索；条目缺失或构建失败时退回只有攻略侧字段
+ * 取图鉴条目的 hero 数据（背景大图 / 立绘 / 头像 / 称号 / 稀有度）
+ *
+ * 攻略页 hero 与角色页共用同一套框架（resources/common/hero.css + character.html 的 hero 块），
+ * 故这里直接透传 buildDetailData 产出的 hero 对象，不自己拼字段：
+ * 原神名片大图、星铁 avatarDrawCard 立绘、绝区零影画大图与圆头像都由它带出。
+ * 读原条目而非重新搜索；条目缺失或构建失败返回 null，由模板走 hero-plain 兜底。
  * @param {string} gameId
  * @param {object} entry - search() 结果中的图鉴条目
  * @param {object|null} record - 已读取的图鉴条目 JSON
- * @returns {{rarity: string, image: string, chips: string[]}}
+ * @returns {{hero: object, image: string}|null}
  */
-function buildAtlasExtra (gameId, entry, record) {
-  const extra = { rarity: entry?.rarity || '', image: '', chips: [] }
-  if (!record) return extra
+function buildAtlasHero (gameId, entry, record) {
+  if (!record) return null
   try {
     const atlas = buildDetailData(gameId, { ...entry, record })
-    const hero = atlas?.hero || null
-    extra.rarity = atlas?.rarity || extra.rarity
-    extra.image = atlas?.image || hero?.portrait || ''
-    extra.chips = [...(hero?.chips || []), hero?.element, hero?.weapon].filter(Boolean)
+    if (!atlas?.hero) return null
+    return { hero: atlas.hero, image: atlas.image || atlas.hero.portrait || '' }
   } catch (err) {
-    logger?.warn(`[Atlas] 攻略页图鉴字段构建失败（${entry?.name || ''}）: ${err.message}`)
+    logger?.warn(`[Atlas] 攻略页图鉴 hero 构建失败（${entry?.name || ''}）: ${err.message}`)
+    return null
   }
-  return extra
+}
+
+/**
+ * 合并 hero 小方框内容：攻略侧标签（建议等级 / 定位）在前，图鉴侧 chips / 元素 / 武器随后
+ * @param {string[]} guideChips - 攻略数据自带标签
+ * @param {object|null} hero
+ * @returns {string[]}
+ */
+function mergeHeroChips (guideChips, hero) {
+  const chips = []
+  for (const chip of [...(guideChips || []), ...(hero?.chips || []), hero?.element, hero?.weapon]) {
+    if (chip && !chips.includes(chip)) chips.push(chip)
+  }
+  return chips
 }
 
 /**
@@ -89,11 +104,11 @@ function buildAtlasExtra (gameId, entry, record) {
  * @returns {Promise<boolean>} true=消息已处理
  */
 export async function handleCodexQuery (e, gameId, result, keyword) {
+  // 只有「确定命中角色」才由图鉴接管攻略页：命中角色但攻略仓库没有该角色 → 提示并中断。
+  // 判定用搜索结果首条——角色页优先级最高（PAGE_PRIORITY 240），首条不是角色说明关键词命中的
+  // 是圣遗物/物品等其他条目（如 #如雷的盛怒攻略），不是角色攻略查询，放行给其他插件（如 miao 面板）
   const entry = result?.results?.[0]
-  if (!entry) {
-    await e.reply(`[Atlas] 未找到「${keyword}」对应的图鉴条目，无法定位攻略`)
-    return true
-  }
+  if (entry?.pageKey !== 'character') return false
 
   if (!isCodexReady()) {
     await e.reply('[Atlas] 角色攻略数据尚未拉取，请先执行 #图鉴初始化 或 #图鉴更新')
@@ -122,12 +137,9 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
   const icons = resolveGuideIcons(gameId, guide, record)
   guide = { ...guide, sections: attachTeamIcons(gameId, attachIcons(guide.sections, icons)) }
 
-  // 图鉴侧字段：攻略仓库只存正文，立绘/稀有度/元素取原条目
-  const extra = buildAtlasExtra(gameId, entry, record)
-  const chips = [...guide.chips]
-  for (const chip of extra.chips) {
-    if (chip && !chips.includes(chip)) chips.push(chip)
-  }
+  // 图鉴侧 hero：背景大图 / 立绘 / 头像 / 称号 / 稀有度全部来自角色页同一套 hero 数据
+  const atlasHero = buildAtlasHero(gameId, entry, record)
+  const hero = atlasHero?.hero || null
 
   const data = {
     pageKey: CODEX_PAGE_KEY,
@@ -136,9 +148,10 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
     keyword,
     name: entry.name,
     recordName: entry.name,
-    rarity: extra.rarity,
-    image: guide.image || extra.image,
-    chips,
+    // 稀有度与兜底图同时挂在顶层：hero 取不到时模板走 hero-plain 分支
+    rarity: hero?.rarity || entry.rarity || '',
+    image: atlasHero?.image || '',
+    hero: hero ? { ...hero, chips: mergeHeroChips(guide.chips, hero) } : null,
     guide
   }
   const img = await renderAtlas(CODEX_PAGE_KEY, data, { imgType: 'jpeg' })

@@ -9,18 +9,58 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/atlas/codex.css"/>
 </head>
 <body class="codex-page">
-  <div class="hero hero-plain">
-    {{if image}}<img class="hero-portrait codex-portrait" src="{{image}}"/>{{/if}}
+  {{if hero}}
+  <div class="hero"{{if hero.namecard && !hero.namecardImages}} style="background-image: url('{{hero.namecard}}')"{{/if}}>
+    {{if hero.namecardImages}}
+    <div class="hero-strip">
+      {{each hero.namecardImages img}}
+      <div class="hero-strip-cell" style="background-image: url('{{img}}')"></div>
+      {{/each}}
+    </div>
+    {{/if}}
+    {{if hero.landscape}}
+    {{if hero.landscape2}}
+    <div class="hero-landscape hero-split hero-split-v">
+      <span class="split-cell split-a" style="background-image: url('{{hero.landscape}}')"></span>
+      <span class="split-cell split-b" style="background-image: url('{{hero.landscape2}}')"></span>
+    </div>
+    {{else}}
+    <div class="hero-landscape" style="background-image: url('{{hero.landscape}}')"></div>
+    {{/if}}
+    {{/if}}
+    <div class="hero-bg"></div>
+    {{if hero.portrait2}}
+    <div class="hero-portrait hero-split hero-split-v">
+      <span class="split-cell split-a" style="background-image: url('{{hero.portrait}}')"></span>
+      <span class="split-cell split-b" style="background-image: url('{{hero.portrait2}}')"></span>
+    </div>
+    {{else if hero.portrait}}
+    <img class="hero-portrait" src="{{hero.portrait}}"/>
+    {{/if}}
     <div class="hero-text">
-      <div class="hero-game">{{gameName}} · 角色攻略{{if rarity}} · {{rarity}}{{/if}}</div>
+      <div class="hero-game">{{gameName}} · {{pageTitle}}{{if hero.rarity}} · {{hero.rarity}}{{/if}}</div>
       <div class="hero-title">{{name}}</div>
-      {{if chips && chips.length > 0}}
+      {{if hero.title}}<div class="hero-subtitle">{{hero.title}}</div>{{/if}}
       <div class="hero-info">
-        {{each chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
+        {{if hero.chips && hero.chips.length > 0}}
+        {{each hero.chips c}}<span class="hero-info-item">{{c}}</span>{{/each}}
+        {{else}}
+        {{if hero.element}}<span class="hero-info-item">{{hero.element}}</span>{{/if}}
+        {{if hero.weapon}}<span class="hero-info-item">{{hero.weapon}}</span>{{/if}}
+        {{if hero.birthday}}<span class="hero-info-item">生日 {{hero.birthday}}</span>{{/if}}
+        {{/if}}
       </div>
-      {{/if}}
     </div>
   </div>
+  {{else}}
+  <div class="hero hero-plain">
+    {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
+    <div class="hero-text">
+      <div class="hero-game">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
+      <div class="hero-title">{{name}}</div>
+    </div>
+  </div>
+  {{/if}}
 
   {{if guide.desc}}
   <div class="codex-note">
