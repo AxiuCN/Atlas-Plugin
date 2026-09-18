@@ -156,6 +156,21 @@ function splitLabel (line) {
 }
 
 /**
+ * 值是否为空（空串、只有占位符 `___`、或只剩标点）：攻略页默认不显示这类待补栏位
+ * @param {string} html
+ * @returns {boolean}
+ */
+function isBlankText (html) {
+  const text = plainText(html)
+  if (!text) return true
+  if (text.includes('___')) return true
+  // 去掉「标签：」「标签——」前缀后还有没有实际内容（「第二档：」这类待补栏位算空）
+  const rest = text.replace(/^[^：:—]{1,8}[：:—]+/, '').trim()
+  if (!rest) return true
+  return /^[_\-—·、/：:（）()]+$/.test(rest)
+}
+
+/**
  * 皇冠推荐若只有「可选 / 无需」，这行没有信息量，攻略页直接不显示
  * @param {object} row - 已归一的表格行 { label, items }
  * @returns {boolean}
@@ -233,12 +248,15 @@ function toSection (section, fileDir) {
     const kind = sectionKind(rawTitle)
 
     if (kind === 'teams') {
-      const teams = lines.map(line => {
-        const { label, value } = splitLabel(line)
-        const members = splitTop(value, '+').map(member => inlineHtml(member))
-        return { tag: inlineHtml(label), members: members.length ? members : [inlineHtml(value)] }
-      })
-      return { badge, title, type: 'teams', teams, image }
+      const teams = lines
+        .map(line => {
+          const { label, value } = splitLabel(line)
+          const members = splitTop(value, '+').map(member => inlineHtml(member)).filter(member => !isBlankText(member))
+          return { tag: inlineHtml(label), members }
+        })
+        // 成员全为空的（待补栏位）不显示
+        .filter(team => team.members.length)
+      return teams.length ? { badge, title, type: 'teams', teams, image } : null
     }
 
     // 并列内容（如「时之沙(攻击力) / 空之杯(冰伤) / 理之冠(暴击)」）各占一行，标签只在首行出现；
@@ -257,23 +275,27 @@ function toSection (section, fileDir) {
         })
       })
     }
-    // 皇冠只有「可选/无需」时该行无信息量，直接去掉
-    return { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows: rows.filter(row => !isOptionalCrown(row)), image }
+    // 空栏位（只有标签没有内容）与「皇冠只有可选/无需」的行都不显示
+    const kept = rows.filter(row => {
+      if (isOptionalCrown(row)) return false
+      return (row.items || []).some(item => !isBlankText(item.text))
+    })
+    return kept.length ? { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows: kept, image } : null
   }
 
   if (Array.isArray(section.items) && section.items.length) {
     const items = section.items
-      .filter(item => item && item.name)
+      .filter(item => item && item.name && !isBlankText(item.name))
       .map(item => ({
         name: inlineHtml(item.name),
-        desc: item.desc ? inlineHtml(item.desc) : ''
+        desc: item.desc && !isBlankText(item.desc) ? inlineHtml(item.desc) : ''
       }))
     return items.length ? { badge, title, type: 'list', items, image } : null
   }
 
   if (Array.isArray(section.fields) && section.fields.length) {
     const fields = section.fields
-      .filter(field => field && field.label != null)
+      .filter(field => field && field.label != null && !isBlankText(field.value) && !isBlankText(field.label))
       .map(field => ({
         label: inlineHtml(field.label),
         value: inlineHtml(field.value)
@@ -300,7 +322,8 @@ export function parseGuideJson (data, meta = {}) {
   const tags = (Array.isArray(data.tags) ? data.tags : [])
     .map(tag => (typeof tag === 'string' ? tag : tag?.text))
     .map(tag => String(tag || '').trim())
-    .filter(Boolean)
+    // 「建议等级：」这类只有标签没有值的、以及 ___ 占位的一律不显示
+    .filter(tag => tag && !tag.includes('___') && !/：\s*$/.test(tag))
 
   const sections = (Array.isArray(data.sections) ? data.sections : [])
     .map(section => toSection(section, meta.fileDir))
@@ -309,7 +332,7 @@ export function parseGuideJson (data, meta = {}) {
   return {
     name,
     tags,
-    desc: data.highlight ? inlineHtml(data.highlight) : '',
+    desc: data.highlight && !isBlankText(data.highlight) ? inlineHtml(data.highlight) : '',
     sections,
     docTitle: String(data.source?.guide || '').trim()
   }
