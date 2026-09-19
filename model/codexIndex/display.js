@@ -6,7 +6,7 @@
  *   - **文本级归一**（措辞替换、符号替换、简写展开）属于数据侧，放在 scripts/lib/schema.mjs 的
  *     `deriveSections`，并让 parse-docx.mjs 能反向读懂；doc → JSON → doc 必须保持往返相等。
  *   - **纯显示级**（标题简称、档位标签、空行/空模块、皇冠并入天赋、命座「命之座X」、
- *     副词条 `＞`、简写展开、面板 `0%` 行）**只在本模块做**，一个字都不写回 JSON / docx。
+ *     副词条 `=`/`＞`、简写展开、面板 `0%` 行）**只在本模块做**，一个字都不写回 JSON / docx。
  *     这样内部 section 标题（`1. 武器推荐` …）保持不动 —— 插件与图标映射依赖它们。
  *
  * 输入/输出都是**渲染模型**（同一套结构），所以两侧渲染结果逐字一致：
@@ -18,6 +18,29 @@
  *   校验：node scripts/check-display-sync.mjs
  * 输入里的行内 HTML（`<span class="must">` 之类）由调用方注入，本模块只做纯文本替换，
  * 因此替换结果不会被二次转义；`**文字**` / `==文字==` 标记也原样保留。
+ *
+ * ===================================================================
+ * 档位词汇表（用户定稿：**三档**，只有这三个是显示用档位词）
+ * ===================================================================
+ *   第 1 档 → `推荐`      第 2 档 → `可选`      第 3 档 → `过渡`
+ *
+ *   - 来源写法（**文档词汇**，必须原样保留以支持 doc → JSON → doc 往返）：
+ *     `第一档` / `第二档` / `第三档`、`首选` / `次选` / `可选` / `过渡` / `套装`。
+ *     其中 `首选`→`推荐`、`其他`/`次选`/`可选`→`可选`；`过渡` 与 `第一~三档` 的
+ *     对应关系见 TIER_LABEL / TIER_BY_INDEX。
+ *   - 显示写法（**显示词汇**，只由本模块产出）：`推荐` / `可选` / `过渡`。
+ *   - `TIER_BY_INDEX` 是档位序号的唯一权威；`推荐/可选/过渡` 属于显示词汇，
+ *     `displayLabel` 对它们**直接放行**（不做二次归一，见 displayLabel 内的提前返回）。
+ *   - 档位行内容为空时**整行不渲染**（不允许出现「过渡：」这种只有标签没有内容的行），
+ *     由 `rowIsEmpty` + `normalizeSection` 统一保证，网页版与面板共用同一条规则。
+ *
+ * ===================================================================
+ * 符号语义（用户定稿，四处一致：正文行 / 面板 / 网页版 / 文档）
+ * ===================================================================
+ *   `=`（显示 `＝`）  同级 / 等价    → 两个独立 chip，中间显示 `=`
+ *   `/`              或者 / 可替换  → 同一个 chip 内 `/`（二选一）
+ *   `>`（显示 `＞`）  优先级 / 顺序  → 前后有序，不可互换
+ *   实现见 `displaySep` / STAT_ALIASES 顶部注释 / `deriveSections`（schema.mjs）。
  */
 
 /* ------------------------------------------------------------------ *
@@ -49,11 +72,13 @@ const TITLE_BY_KEYWORD = [
 /** 空模块占位文案 */
 export const EMPTY_TEXT = '暂无'
 
-/** 行内备注前缀（配队括注统一成 `注：`，与段末「注：」备注行同一套写法） */
-export const NOTE_PREFIX = '注：'
+/** 行内备注前缀（配队括注统一成 `注：`，与段末「注：」备注行同一套写法） */export const NOTE_PREFIX = '注：'
 
 /** 行内备注分隔符（同一行多条备注合并） */
 export const NOTE_SEP = '；'
+
+/** 毕业面板「≤3 条合并成一行」时条目之间的分隔（全角空格：既是间距也是分隔，不画长横线） */
+export const PANEL_MERGE_SEP = '　'
 
 /**
  * 内部标题（`1. 武器推荐`）→ 显示标题（`武器`）。
@@ -86,7 +111,14 @@ export function displayKind (type) {
  * 二、措辞 / 缩写的映射表（可维护：新增简写只改这两张表）
  * ------------------------------------------------------------------ */
 
-/** 档位标签：源写法 → 显示写法（首选→推荐、其他/过渡/次选/可选→可选） */
+/**
+ * 档位标签：**来源写法（文档词汇）→ 显示写法（显示词汇）**。
+ *
+ * 只有 `首选`→`推荐`、`其他`/`次选`→`可选` 是真正的"改写"；
+ * `可选` / `过渡` / `推荐` 本身已经是显示词汇，`displayLabel` 会**提前放行**（不再二次归一），
+ * 所以这里**不要**给 `过渡` 配 `可选` —— 那会让"三档"口径自相矛盾，且是永远走不到的死代码。
+ * 档位序号的权威是 TIER_BY_INDEX。
+ */
 export const TIER_LABEL = {
   第一档: '推荐',
   第二档: '可选',
@@ -94,28 +126,76 @@ export const TIER_LABEL = {
   首选: '推荐',
   其他: '可选',
   次选: '可选',
-  过渡: '可选',
-  可选: '可选',
   套装: '推荐'
 }
 
-/** 档位序号 → 显示标签（只有两档时取前两个：推荐 / 可选） */
+/**
+ * 档位序号 → 显示档位词（**三档口径的唯一权威**）。
+ * 第 1/2/3 档 = 推荐 / 可选 / 过渡；下标 0 占位（档位从 1 开始）。
+ * 只有两档的角色只用到前两个；第三档内容为空时整行不渲染（见 rowIsEmpty）。
+ */
 export const TIER_BY_INDEX = ['', '推荐', '可选', '过渡']
 
 /**
- * 简写 → 全称映射表（**面板与副词条共用**）。三列：
- *   [简写, 全称, notBefore?, notAfter?]
+ * 圣遗物档位的 `kind` → **来源写法（文档词汇）**。
+ *
+ * ⚠ 这里是**文档词汇**，不是显示词汇：`kind` 是内部键名（不改），
+ * 但拼"行首标签"时必须先取这里的来源写法、再交给 `displayLabel` 归一，
+ * 这样面板与网页版**同一份映射**，不会出现"面板显示首选、网页显示推荐"的两端漂移。
+ * 显示词一律不要硬编码在本表里。
+ */
+export const ARTIFACT_KIND_LABEL = {
+  preferred: '首选',
+  transition: '过渡',
+  optional: '可选'
+}
+
+/**
+ * 简写 / 固定术语 → 全称映射表（**全仓唯一一份**）。
+ *
+ * ⚠ 这是"固定术语"的**唯一权威**：网页版（`build-html.mjs`）、面板（`parse.js`）、
+ *   编辑器（`/api/preview` 与表单 chip）**全部只走这一份**，任何一侧都不要再写本地展开表。
+ *   校验：`check-display-sync.mjs` 保证本文件与插件 `model/codexIndex/display.js` 逐字节相同。
+ *
+ * 四列：`[简写, 全称, notBefore?, notAfter?]`
  *   - `notBefore`：命中**后面**紧跟这些字时不换（`充能效率` 里的 `充能`、`暴击率` 里的 `暴击`）
  *   - `notAfter`：命中**前面**是这些字时不换（`元素充能效率` 里的 `充能效率`，避免再叠一层 `元素`）
  * 展开走「长词优先 + 单遍替换」，所以展开结果不会被后续规则再匹配一次。
  *
- * 新识别出简写时直接在这里补一行即可。
+ * 来源：`原神·角色攻略.docx` 里作者使用的简写（`大攻击` / `充能` / `暴伤` / `双爆`…），
+ * 以及面板图鉴词条的标准写法。新识别出简写时**只在这里补一行**即可。
+ *
+ * 术语分类（便于维护）：
+ *   - **同级对**：`双爆` → `暴击率=暴击伤害`（`=` 同级；**不是** `＞` 优先级）
+ *   - 大小前缀：`大生命`/`小生命` → `生命值`、`大攻击`/`小攻击` → `攻击力`、`大防御`/`小防御` → `防御力`
+ *   - 属性别称：`暴伤`/`爆伤` → `暴击伤害`、`精通` → `元素精通`、`充能` → `元素充能效率`
+ *   - 部位连写：`充能沙`/`精通头`/`暴击头`/`攻击杯` …
+ *   - 恒等项（最长，先命中）：占住已是全称的位置，避免短词再叠一层
  */
 export const STAT_ALIASES = [
-  ['双爆', '暴击率=暴击伤害'],
-  ['大生命', '生命值'],
-  ['大攻击', '攻击力'],
-  ['大防御', '防御力'],
+  // 符号语义（用户定稿）：`=` 同级/等价、`/` 或者/可替换、`>`（显示 `＞`）优先级/顺序。
+  // `双爆` 是两个**同级（等价）**候选 → 展开成 `=`，渲染层切成**两个独立 chip、中间显示 `=`**
+  // （不是挤在一个 chip 里、也不是 `>` 优先级，更不是 `/` 的「二选一」）。
+  // `双爆` 是**固定术语**：默认就是**同级（等价）**，展开恒为 `暴击率=暴击伤害`（`=` 同级），
+  // 与优先级 `＞` 无关，**不需要任何启发式判断**。网页版 / 面板 / 编辑器（表单与预览）
+  // 全部只走这一份表，任何一侧都不要自己再写一份展开。
+  //
+  // 边界（`notBefore`=后随字、`notAfter`=前邻字）：`双爆` 只在**词条位置**成立；
+  // 散文里（`提升双爆` / `提供双爆加成` / `减抗，提升双爆`）必须**原样保留**，
+  // 否则会渲染成 `提升暴击率=暴击伤害` 这种读不通的句子。
+  ['双爆', '暴击率=暴击伤害', '加头率伤', '升供加抗减提'],
+  // 百分比词条统一成**简写**（用户定稿）：`大生命` / `大攻击` / `大防御` **本身就是要显示的形态**，
+  // 所以它们是恒等项（占住位置，不再被折成 `生命值` / `攻击力` / `防御力` —— 那是"固定值"语义，会弄错）。
+  // ⚠ `攻击力百分比` **不在这里**：它同时还出现在**主词条**里（`时之沙：攻击力百分比`），
+  //   而主词条用固定词表、不许改；所以那条只在副词条专属的 `subStatText` 里归一。
+  ['大生命', '大生命'],
+  ['大攻击', '大攻击'],
+  ['大防御', '大防御'],
+  ['生命值百分比', '大生命'],
+  ['百分比生命值', '大生命'],
+  ['百分比攻击力', '大攻击'],
+  ['防御力百分比', '大防御'],
+  ['百分比防御力', '大防御'],
   ['小生命', '生命值'],
   ['小攻击', '攻击力'],
   ['小防御', '防御力'],
@@ -198,7 +278,13 @@ function expandAliases (text) {
  * 纯文本显示归一：
  *   1. 简写展开（双爆 → 暴击率=暴击伤害、充能 → 元素充能效率 …）
  *      —— 展开出的全称已经带「元素 / 伤害」等前缀，不会被短词二次命中，无需再做裸词补齐
- *   2. 分隔符两侧空格归一（`暴击率 / 暴击伤害` → `暴击率/暴击伤害`）
+ *   2. 分隔符两侧空格归一（`暴击率 / 暴击伤害` → `暴击率/暴击伤害`、`A = B` → `A＝B`）
+ *
+ * **符号语义（用户定稿）**：`=` 同级/等价、`/` 或者/可替换（` / ` 形态受保护）、`>` 优先级。
+ *
+ * **` / `（两侧带空格的斜杠）不动**：那是「同一格里的可替换项」的分隔写法
+ * （如配队成员 `迪奥娜 / 阿罗夏`），上游解析层（teamsFromLines / parseMembers）靠它把
+ * 候选并回同一格；这里用私有区占位符把它保护起来，出函数前再还原成 ` / `。
  *
  * **不动 `>` 与 `≥`**：档位分隔符由各渲染层的 `sepAfter` 决定
  * （面板用数据原样 `>`，网页版按显示需要换成 `＞`），这里改了会与面板漂移。
@@ -207,15 +293,19 @@ function expandAliases (text) {
  */
 export function displayText (text) {
   const out = expandAliases(text)
+    // 受保护的 ` / ` 先换成占位符，避免被下面的「两侧空白归一」吃掉空格
+    .replace(/ \/ /g, OPTION_SEP_MARK)
     // `/` 两侧空白归一成 `/`，并修掉区间边界上残留的悬挂 `/`（`A / / B` → `A/B`）
     .replace(/[ \t]*[/／][ \t]*/g, '/')
     .replace(/\/{2,}/g, '/')
     .replace(/^\/+|\/+$/g, '')
-    // `=`（同级）两侧留空格，并统一成全角 `＝`；`＞` / `>` / `≥` 原样保留
-    .replace(/[ \t]*[=＝][ \t]*/g, '＝')
+    // `=`（显示 `＝`）= **同级 / 等价**（`双爆` → `暴击率＝暴击伤害`）：原样保留，
+    // 渲染层把它切成两个独立 chip、中间显示 `=`
+    .replace(/[ \t]*[=＝][ \t]*/g, '=')
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
-  return out
+  // 占位符还原成 ` / `（受保护的可替换项分隔符）
+  return out.split(OPTION_SEP_MARK).map(s => s.trim()).join(TEAM_OPTION_SEP)
 }
 
 /**
@@ -232,8 +322,11 @@ export function displayPanelText (text) {
 }
 
 /**
- * 档位标签归一：`第一档`→`推荐`、`第二档`→`可选`、`第三档`→`过渡`、
- * `首选`→`推荐`、`其他`→`可选`。认不出的（自定义队名 / 输出向 / 辅助向 …）原样返回。
+ * 档位标签归一（**三档口径**）：`第一档`→`推荐`、`第二档`→`可选`、`第三档`→`过渡`、
+ * `首选`→`推荐`、`其他`/`次选`→`可选`。认不出的（自定义队名 / 输出向 / 辅助向 …）原样返回。
+ *
+ * `推荐` / `可选` / `过渡` **本身就是显示词汇**，命中即原样放行（见下面的提前返回）：
+ * 其中 `过渡` 既是来源写法也是第三档的显示词，**不再折成 `可选`** —— 这是三档口径的定稿行为。
  * @param {string} label
  * @param {number|string|null} [tier] 档位序号（有 tier 时优先用它）
  * @returns {string}
@@ -243,7 +336,8 @@ export function displayLabel (label, tier = null) {
   if (Number.isInteger(t) && t > 0 && TIER_BY_INDEX[t]) return TIER_BY_INDEX[t]
   const raw = String(label ?? '').trim()
   if (!raw) return ''
-  // 已经是显示词就直接返回，避免二次归一（`过渡` 不能再被折成 `可选`）
+  // 已经是显示词汇（推荐 / 可选 / 过渡）就直接放行，避免二次归一 ——
+  // 尤其 `过渡` 是三档口径的第三档显示词，折成 `可选` 会让两个档位撞名。
   if (TIER_BY_INDEX.includes(raw)) return raw
   if (Object.prototype.hasOwnProperty.call(TIER_LABEL, raw)) return TIER_LABEL[raw]
   const m = raw.match(/^第([一二三四五六123456])[档挡]$/)
@@ -252,6 +346,23 @@ export function displayLabel (label, tier = null) {
     return TIER_BY_INDEX[idx] ?? raw
   }
   return raw
+}
+
+/**
+ * 一个「档位行 / 数据行」是不是空的（**空行整行不渲染**，避免出现 `过渡：` 这类空标签）。
+ *
+ * 判据按显示口径（`isBlankDisplay`：空串 / `___` 占位 / 只剩标点都算空）：
+ *   - 没有条目 → 空；
+ *   - 有条目但**全部**没有可显示文本 → 空；
+ *   - 只要有一条有内容 → 非空。
+ * 面板与网页版共用这一处，保证 `audit-web-vs-panel` 恒为 0。
+ * @param {{items?: Array<{text?: string}>}} row
+ * @returns {boolean}
+ */
+export function rowIsEmpty (row) {
+  const items = row?.items ?? []
+  if (!items.length) return true
+  return !items.some(item => !isBlankDisplay(item?.text ?? ''))
 }
 
 /** 这行文案算不算「没填」（空串 / 占位符 `___` / 只剩标点） */
@@ -284,7 +395,12 @@ export function isZeroValue (text) {
  * ------------------------------------------------------------------ */
 
 /**
- * 档位分隔符显示：`/` → `＞`（优先级语义），`>` / `≥` 原样
+ * 档位分隔符显示：`/` → `＞`（面板把候选分隔符画成全角 `＞`）、`>` / `≥` / `=` 原样
+ *
+ * 符号语义（用户定稿，三处一致）：
+ *   · `=`（显示 `＝`）= **同级 / 等价**（`双爆` → `暴击率=暴击伤害`）→ 两个独立 chip，中间显示 `=`
+ *   · `/` = **或者 / 可替换**（同一格内二选一，如配队成员 `迪奥娜 / 阿罗夏`）→ 同一个 chip 内 ` / `
+ *   · `>`（显示 `＞`）= **优先级 / 顺序**（只有原文确实表示先后才用，如 `充能 ＞ 暴击 ＞ 生命值`）
  * @param {string} sep
  * @returns {string}
  */
@@ -390,13 +506,24 @@ export function normalizePriorityItems (text, crowned = []) {
     let t = buf.trim()
     buf = ''
     if (!t) return
-    // 旧的 `X10` 写法：10 是皇冠标记，不是文本内容 —— 剥掉并转成 crown 标记
-    const legacy = /\s*10\s*$/.test(t)
-    t = t.replace(/\s*10\s*$/, '').trim()
+    // 等级写法：字母 + 紧跟的 1~2 位数字（`E10` / `A1` / `E 10`），10 = 已投皇冠
+    const lvHit = t.match(/^([AEQaeq])\s*(\d{1,2})$/)
+    let level = null
+    if (lvHit) {
+      const lv = Number(lvHit[2])
+      if (Number.isInteger(lv) && lv >= 1 && lv <= 10) level = lv
+      t = lvHit[1].toUpperCase()
+    } else {
+      // 旧写法 `X10`（字母 + 10 + 可能的尾巴）：剥掉并转成 level
+      const legacy = t.match(/^([AEQaeq])\s*10\s*$/)
+      if (legacy) { level = 10; t = legacy[1].toUpperCase() } else t = t.replace(/\s*10\s*$/, '').trim()
+    }
     if (!t) return
     const ch = String(t.match(/[AEQ]/) ?? '')
-    const crown = !!ch && (legacy || crowned.includes(ch))
-    out.push({ text: t, sepAfter: sep, crown })
+    // 缺省 = 1（用户确认：宁可写 1 也不留「未知」）；皇冠 → 10
+    const crown = !!ch && (level === 10 || crowned.includes(ch))
+    if (ch && level === null) level = crown ? 10 : 1
+    out.push({ text: t, sepAfter: sep, crown, level })
   }
   for (let i = 0; i < text.length; i++) {
     const c = text[i]
@@ -464,8 +591,40 @@ export function normalizeWeaponRows (rows) {
 }
 
 /**
- * 圣遗物：`首选` → 推荐、`过渡` → 可选、`次选/可选` → 可选；
- * 主词条候选之间用 `/`（去空格），副词条里的斜杠 → 全角 `＞`，简写展开。
+ * 副词条**专属**的词条写法再归一（**主词条不许用这一套**）。
+ *
+ * 只有 `攻击力百分比` 需要在这里：它同时也是**主词条**的固定词
+ * （`时之沙：攻击力百分比` / `空之杯：攻击力百分比`），主词条必须保持原样，
+ * 所以不能把它放进全局 `STAT_ALIASES`。其余百分比写法（`百分比攻击力` /
+ * `生命值百分比` / `防御力百分比` …）只在副词条出现，已直接进全局表。
+ * @param {string} text
+ * @returns {string}
+ */
+function subStatText (text) {
+  return String(text ?? '').replace(/攻击力百分比/g, '大攻击')
+}
+
+/**
+ * 副词条分隔符的**显示口径**（用户定稿，只用于 `kind:'sub'` 行）：
+ *   `/`（同级/并列）→ `=`；`>`（优先级）→ `＞`；`≥` 原样；其它原样。
+ *
+ * ⚠ 源文档里 `/` 与 `>` 是两种不同语义，**不能都折成 `＞`** —— 那会把"同级"说成"优先级"。
+ * `&gt;` 也一起归一：面板侧 `parse.js` 在交给本模块之前已经把分隔符 HTML 转义
+ * （`escapeHtml(sep)`），所以这里必须同时认转义形态，否则会出现
+ * "网页版 `＞` / 面板 `&gt;`"的两端漂移（`audit-web-vs-panel` 的 canon 会把它当等价而漏掉）。
+ * @param {string} sep
+ * @returns {string}
+ */
+function subSep (sep) {
+  const s = String(sep ?? '').trim()
+  if (s === '/' || s === '／') return '='
+  if (s === '>' || s === '＞' || s === '&gt;') return '＞'
+  return s
+}
+
+/**
+ * 圣遗物：`首选` → `推荐`、`次选`/`可选` → `可选`；`过渡` 是**第三档显示词，原样保留**；
+ * 分隔符**原样保留**（副词条例外：见 `subSep`；其余 `=` 同级、`>` 优先级见 displaySep），简写展开。
  * @param {object[]} rows
  * @returns {object[]}
  */
@@ -477,9 +636,12 @@ export function normalizeArtifactRows (rows) {
       label: displayLabel(row.label),
       items: (row.items ?? []).map(item => ({
         ...item,
-        text: displayItemText(item.text),
+        // 副词条走 `subStatText`（把 `攻击力百分比` 收成 `大攻击`）；其它行不碰
+        text: isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text),
         note: item.note ? displayText(item.note) : item.note,
-        sepAfter: isSub ? (item.sepAfter ? '＞' : item.sepAfter) : displaySep(item.sepAfter)
+        // 副词条：`/` 同级 → `=`；`>` 优先级 → `＞`；`≥` 原样。**不再把 `/` 折成 `＞`** ——
+        // 那会把"同级"说成"优先级"，正是「暴击率＞暴击伤害 应为 暴击率=暴击伤害」那个 bug。
+        sepAfter: isSub ? subSep(item.sepAfter) : displaySep(item.sepAfter)
       }))
     }
   })
@@ -622,17 +784,43 @@ export function constellationNumber (text) {
  */
 export function normalizePanelRows (rows) {
   const out = []
+  /**
+   * 同一分组的行数 ≤ 3 时**合并成一行**（用户要求：面板内容不多，合并后变矮，给天赋 / 配队留空间）。
+   * 面板行的形态有两类，合并时要区别对待：
+   *   · `text` 型（`辅助向：暴击率70%+ / 充能240%+`）：整行是说明文本 → 用 `　`（全角空格）连接
+   *   · `k/v` 型（`暴击率：70%+`）：键值对 → 合并成 `暴击率：70%+　暴击伤害：200%+`
+   * 合并只发生在**同一 label 分组内且条目 ≤ 3** 时；>3 条维持分行（保持可读性）。
+   */
+  const groups = new Map()
+  const order = []
   for (const row of rows ?? []) {
+    const key = String(row?.label ?? '')
+    if (!groups.has(key)) { groups.set(key, []); order.push(key) }
+    groups.get(key).push(row)
+  }
+  for (const key of order) {
+    const rowsInGroup = groups.get(key) ?? []
     const kept = []
-    for (const item of row.items ?? []) {
-      const text = displayPanelText(item.text)
-      if (!text || isZeroValue(text)) continue
-      kept.push({ ...item, text, note: item.note ? displayText(item.note) : item.note })
+    for (const row of rowsInGroup) {
+      const text = displayPanelText(row.text)
+      if (row.k === undefined && (!text || isZeroValue(text))) continue
+      kept.push({ ...row, text, note: row.note ? displayText(row.note) : row.note })
     }
     if (!kept.length) continue
-    // 一行的多个数值之间用 `＞`（与网页版 / 副词条同一套优先级符号）
-    const items = kept.map((item, i) => ({ ...item, sepAfter: i < kept.length - 1 ? '＞' : '' }))
-    out.push({ ...row, label: displayText(row.label ?? ''), items })
+    if (kept.length <= 3) {
+      // 合并成一行：k/v 型拼 `k：v`，text 型直接用文本；**仍保留 items 形态**（下游按 items 渲染）
+      const items = kept.map(row => ({
+        text: row.k !== undefined ? `${displayText(row.k ?? '')}：${row.v ?? ''}` : String(row.text ?? ''),
+        sepAfter: ''
+      })).filter(it => it.text)
+      if (!items.length) continue
+      out.push({ label: displayText(key ?? ''), items, mergedFrom: kept.length })
+      continue
+    }
+    for (const row of kept) {
+      const text = row.k !== undefined ? `${displayText(row.k ?? '')}：${row.v ?? ''}` : String(row.text ?? '')
+      out.push({ ...row, label: displayText(row.label ?? ''), items: [{ text, sepAfter: '' }] })
+    }
   }
   return out
 }
@@ -668,6 +856,23 @@ export function isCostNote (text) {
   return /^(高金|中金|低金|随命座)$/.test(s)
 }
 
+/** 成员格内「可替换项」的分隔符（显示口径固定为 ` / `，两侧各一个半角空格） */
+export const TEAM_OPTION_SEP = ' / '
+/** 过 displayText 时保护 ` / ` 的占位符（私有区字符，正文不会出现） */
+const OPTION_SEP_MARK = '\uE000'
+
+/**
+ * 成员格文本：同一格里的可替换项（`迪奥娜 / 阿罗夏`）并回一格后再做显示归一。
+ * ` / ` 先换成占位符：displayText 会把「分隔符两侧空白」归一掉（`A / B` → `A/B`），
+ * 那会让成员格里的斜杠看起来像档位分隔符，成员被误拆或误并。
+ * @param {string} text
+ * @returns {string}
+ */
+export function joinOptionText (text) {
+  const marked = String(text ?? '').replace(/\s*[/／]\s*/g, OPTION_SEP_MARK)
+  return displayText(marked).split(OPTION_SEP_MARK).map(s => s.trim()).filter(Boolean).join(TEAM_OPTION_SEP)
+}
+
 /**
  * 配队：`首选` → 推荐、`其他` → 可选；**自定义队名（月感电 / 火神队 …）原样**；
  * 角色后面的括注移到行尾，统一成备注（同一行多条合并）。
@@ -687,7 +892,11 @@ export function normalizeTeams (teams) {
         notes.push(member.note)
         return { ...member, note: '' }
       }
-      return { ...member, name: displayText(member.name ?? '') }
+      // 同一格里的可替换项（旧数据的 `A / B` 两格写法）并回一格：`迪奥娜 / 阿罗夏`。
+      // ` / ` 先换成占位符再过 displayText —— 它会做「分隔符两侧空白归一」（`A / B` → `A/B`），
+      // 直接过一遍会把成员的斜杠和档位分隔符的斜杠混成同一个字形（成员就被误拆/误并）。
+      const name = joinOptionText(member.name)
+      return { ...member, name }
     })
     if (team.text) notes.push(displayText(team.text))
     // 旧文本行路径（插件 parse.js 的 linesToTeams）把 `注：xxx` 解析成 tag='注' + 空成员：
@@ -767,6 +976,8 @@ export function normalizePriorityRow (items, crowned, raw) {
       ...it,
       text: displayText(p.text),
       crown: p.crown === true || it.crown === true,
+      // 等级：文档里的数字优先，其次数据里的 field，最后按「皇冠=10 / 其它=1」兜底
+      level: Number.isInteger(p.level) ? p.level : (Number.isInteger(Number(it.level)) && Number(it.level) >= 1 && Number(it.level) <= 10 ? Number(it.level) : (p.crown || it.crown === true ? 10 : 1)),
       sepAfter: pi < parsed.length - 1 ? p.sepAfter : (it.sepAfter || '')
     }))
   }
@@ -809,7 +1020,10 @@ export function normalizeSection (section) {
         if (/优先级/.test(String(row.label ?? ''))) row.items = normalizePriorityRow(row.items, undefined, row.raw ?? row.items?.[0]?.raw)
       }
     }
-    return { ...out, rows, empty: !rows.length }
+    // 空档位行整行不渲染：「过渡：」这类只有标签、条目全空白的行一律丢掉。
+    // 判据与面板侧完全一致（同一份 rowIsEmpty），所以两端不会各有各的空行。
+    const kept = rows.filter(row => !rowIsEmpty(row))
+    return { ...out, rows: kept, empty: !kept.length }
   }
   if (kind === 'list') {
     const items = (section.items ?? [])
@@ -889,14 +1103,21 @@ export function crownItems (text) {
   return out
 }
 
-/** 行内容按标签归一（主词条 `/` 去空格、副词条 `/` → `＞`、其余展开简写） */
+/** 行内容按标签归一（分隔符字形原样；**副词条例外**：`/` 同级 → `=`、`>` 优先级 → `＞`） */
 function normalizeBodyByLabel (label, value) {
   const v = String(value ?? '').trim()
-  if (label === '副词条') return displayText(v).replace(/\s*[/／]\s*/g, '＞')
+  // 副词条：源文档里 `/`（同级/并列，都要堆）显示成 `=`，`>`（优先级）显示成 `＞`。
+  // **不能**把 `/` 折成 `＞`：那会把"同级"误说成"优先级"（`暴击率 / 暴击伤害` 应显示 `暴击率=暴击伤害`）。
+  if (label === '副词条') {
+    return subStatText(displayText(v))
+      .replace(/\s*[/／]\s*/g, '=')
+      .replace(/＝/g, '=')
+      .replace(/\s*[>＞]\s*/g, '＞')
+  }
   return displayText(v)
 }
 
-/** 行首标签 → 档位显示标签（`第一档：…` → `推荐：…`、`首选：` → `推荐：`、`过渡：` → `可选：`） */
+/** 行首标签 → 档位显示标签（`第一档：…` → `推荐：…`、`首选：` → `推荐：`；`过渡：` 是三档显示词、原样保留） */
 function displayLineLabel (label) {
   return displayLabel(label)
 }

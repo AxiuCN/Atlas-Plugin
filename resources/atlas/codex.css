@@ -312,6 +312,103 @@
 .codex-talent .rank-text { position: relative; display: inline-block; }
 .codex-talent:not(:has(.rank-icon)) .crown-badge { top: -6px; left: -4px; }
 
+/* ============================================================
+ *  天赋模块：固定三格（A → E → Q）+ 图标正下方数字 + 皇冠徽标
+ *
+ *  版式参考 miao-plugin 的实测值（resources/character/character-card.css）：
+ *    技能图标 60px 圆底 / 内部图形 46% / 数字条 宽 34 × 高 25、font-size 16、
+ *    距图标下沿 25px、圆角 5px、白底 + 阴影；皇冠 20px：left 50% / top -5px / margin-left -10px
+ *  我们是单列长图（比 miao 的角色卡更宽、更疏），按同等视觉权重折算为：
+ *    图标 44px、数字条 15px/26px 宽、皇冠 16px —— 不照抄尺寸，避免把单列长图压得太紧
+ * ============================================================ */
+
+.rank-list.talents {
+  display: inline-flex;
+  gap: 18px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.rank-unit.talent { display: inline-flex; }
+
+.rank-item.talent-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 62px;
+  padding: 4px 8px 5px;
+  background: transparent;
+  border: none;
+}
+
+.talent-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.codex-talent .rank-item.talent-item .rank-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0;
+}
+
+/* 技能字母（A / E / Q）：图标下方的小标签 */
+.rank-item.talent-item .talent-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b6357;
+  line-height: 1.2;
+}
+
+/* 等级数字：**图标正下方**居中（与 miao 的「深底金字数字条」同一视觉语言） */
+.rank-item.talent-item .talent-level {
+  min-width: 26px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: #2e353e;
+  color: #ffdfa0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
+
+/* 皇冠（已投）：叠在图标顶边居中（内联 SVG，不用 emoji） */
+.rank-item.talent-item .crown-badge {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  margin-left: -8px;
+  width: 16px;
+  height: 16px;
+}
+
+/* ============================================================
+ *  主词条：并列三槽**靠排版分隔**（不写字面 `｜`）
+ * ============================================================ */
+
+.rank-list.main-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.rank-unit.main-slot { display: block; width: 100%; }
+
+.rank-item.main-slot {
+  display: block;
+  width: 100%;
+  padding: 3px 10px;
+  white-space: normal;
+}
+
 /* ===== 线稿类条目图标反相为深色（天赋 / 命座，与段落标题图标同一套处理） ===== */
 .rank-icon.rank-icon-line {
   filter: invert(1) brightness(0.9);
