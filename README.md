@@ -134,3 +134,35 @@ corepack yarn versions
 - [nanoka.cc](https://nanoka.cc/) — 图鉴数据源
 - [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend) — 数据抓取引擎，以子模块引入
 - [Lotus-ReFactor](https://github.com/MOPELotus/Lotus-ReFactor) — 搜索评分系统与别名机制参考
+
+## 许可
+
+本项目是 [AxiuCN/Atlas-Plugin](https://github.com/AxiuCN/Atlas-Plugin) 的 **fork**，
+遵循上游的 **GNU 通用公共许可证第 3 版（GPL-3.0）**。
+
+- **上游协议事实**：上游仓库 `AxiuCN/Atlas-Plugin` 的 `LICENSE` 是 GPL-3.0 全文（674 行），
+  随上游初始提交（`0d65738`）引入，位于上游 `master` 分支：`git show upstream/master:LICENSE`。
+  上游 `package.json` 没有 `license` 字段，上游 README 也没有许可章节。
+- 本仓库根目录的 [`LICENSE`](LICENSE) 与上游 `LICENSE` **逐字节一致**
+  （git blob 同为 `f288702d2fa16d3cdf0035b15a9fcbc552cd88e7`），未做任何改动。
+  本仓库仅按该文件在 `package.json` 中补记 `"license": "GPL-3.0-only"`。
+- 上游的 `LICENSE` 是标准 GPLv3 文本，且未声明「or any later version」，
+  因此按 **GPL-3.0（仅第 3 版）** 理解与再分发。
+
+### 本 fork 相对上游的修改
+
+- 新增「角色攻略」页面：读取配套数据仓库
+  [Character-Codex-Data](https://github.com/Hyposelenia-Moon/Character-Codex-Data)，
+  支持 `#角色攻略` / `#角色指南` 查询，单列长图排版，并接入结构化 v2 数据（用图鉴图标取图、文本行回退）
+- 数据同步：`#图鉴初始化` / `#图鉴更新` 中并入攻略仓库的初始化 / 更新步骤，并明确提示同步结果
+- 渲染调整：配队成员改用角色头像（不显示名字）、攻略页接入图鉴图标、可选行与空栏位不渲染、
+  米三家武器精炼合并为一段显示等
+- 完整的修改清单与日期见本仓库 git 提交历史（GPL-3.0 第 5(a) 条要求的修改声明）
+
+以上修改同样以 GPL-3.0 授权。上游版权归上游作者 **阿修Axiu（AxiuCN）** 所有；
+本 fork 修改部分的版权归本仓库维护者所有。
+
+> 本项目为非官方第三方插件，与 米哈游 / HoYoverse 无隶属或合作关系；
+> 《原神》《崩坏：星穹铁道》《绝区零》等游戏的相关名称、图标与数据版权归其权利人所有。
+> 图鉴数据来源于 [nanoka.cc](https://nanoka.cc/)，相关权利归原数据提供方。
+> 若本 README 与 [`LICENSE`](LICENSE) 有任何冲突，以 `LICENSE` 为准。
