@@ -135,6 +135,7 @@
 
 /* ===== 行首标签（固定宽度，保证所有行的内容左边缘对齐） ===== */
 .grow-label {
+  align-self: start;
   padding: 0 8px;
   border-radius: 4px;
   background: rgba(110, 110, 110, 0.11);
@@ -145,11 +146,55 @@
   text-align: center;
 }
 
+/* ===== 档位标签（推荐 / 可选 / 过渡）：三档配色，越靠前越"实" ===== */
+.grow-label.label-推荐 {
+  background: rgba(46, 125, 50, 0.14);
+  color: #2e6b34;
+}
+.grow-label.label-可选 {
+  background: rgba(110, 110, 110, 0.11);
+  color: #4a4a4a;
+}
+.grow-label.label-过渡 {
+  background: rgba(160, 130, 70, 0.14);
+  color: #7a6428;
+}
+
+/* ===== 行内备注（`注：…` 段末备注行）：小一号灰字，不占档位位置 ===== */
+.grow-note {
+  grid-template-columns: minmax(0, 1fr);
+}
+.row-note {
+  min-width: 0;
+  color: #8a8378;
+  font-size: 19px;
+  font-style: italic;
+  overflow-wrap: break-word;
+}
+
+/* ===== 空模块（暂无）：浅灰占位 ===== */
+.codex-cell-empty .codex-cell-name { color: #9b958c; }
+.codex-cell-empty .codex-cell-title { border-bottom-color: #f0ede9; }
+.codex-cell-empty .empty-text {
+  color: #b3ada4;
+  font-size: 20px;
+  font-style: italic;
+  letter-spacing: 1px;
+}
+
 /* ===== 行内容 ===== */
 .grow-value {
   min-width: 0;
   word-break: normal;
   overflow-wrap: break-word;
+}
+
+/* ===== 配队行内容（成员标签 + 行尾 `注：`）：整体换行不溢出 ===== */
+.team-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ===== 没有标签的行（如只有命座名、没有说明的行）：内容铺满整行 =====
