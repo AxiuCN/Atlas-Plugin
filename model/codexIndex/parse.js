@@ -10,6 +10,11 @@
  * 正文展示形态在这里定：按段落标题把自由文本整理成
  *   「标签 + 内容」行（rows）/ 队伍成员（teams）/ 数值行（stats），模板只负责画。
  *
+ * **纯显示级归一**（标题简称、档位标签 推荐/可选/过渡、副词条 ＞、简写展开、皇冠并入天赋、
+ * 命座「命之座X」、配队括注移行尾「注：」、2+2 组合整体保留、同名套装去重、空模块「暂无」）
+ * 统一走 ./display.js —— 与数据仓库的网页版（scripts/lib/guide-display.mjs）同一份规则，
+ * 两边逐字节相同（数据仓库 scripts/check-display-sync.mjs 校验）。
+ *
  * 数据格式两代并存，**v2 优先**：
  *   - `data.schema === 2` 且带 `data.v2` 时，直接用结构化字段生成渲染模型（见 buildV2Sections）：
  *     武器/套装/天赋/命座的每个条目都带 `ref`（`weapon:西风剑` 这类类型前缀），
@@ -24,6 +29,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { DISPLAY_SECTIONS, normalizeGuideSections, resolveSetItems, displayItemText } from './display.js'
 
 /** 正文中允许保留的内联类名（样式见 resources/common/codex.css） */
 const ALLOWED_SPAN_CLASS = new Set(['must', 'highlight'])
@@ -263,7 +269,8 @@ function cleanLines (lines) {
 function rankItem (item, sepAfter = '', ref = '') {
   if (item === null || item === undefined) return { text: '', note: '', ref: String(ref || ''), sepAfter }
   if (typeof item !== 'object') {
-    return { text: decorateValue(stripMarks(item)), note: '', ref: String(ref || ''), sepAfter }
+    // 纯文本条目走一遍共享显示归一（`A / B` → `A/B`、简写展开），与网页版同一套写法
+    return { text: displayItemText(decorateValue(stripMarks(item))), note: '', ref: String(ref || ''), sepAfter }
   }
   const name = inlineLabel(item.name ?? item.text ?? '')
   const note = String(item.note ?? '').trim()
@@ -418,7 +425,12 @@ function gapSeps (sep, count, fallback) {
   if (count <= 0) return []
   const tokens = String(sep ?? '').trim().split(/\s+/).filter(Boolean)
   if (!tokens.length) return new Array(count).fill(fallback)
-  return tokens.length === count ? tokens : new Array(count).fill(tokens[0])
+  // 逐档按顺序用（\`' / + '\` 配 3 条 → \`/\` 然后 \`+\`），token 不够时重复**最后一个**
+  // —— 早先重复第一个会把「组合符号」和「候选分隔符」错位，
+  //    导致 2+2 组合（\`A / B + C\`）被拆成 \`A / B / C\`
+  const out = []
+  for (let i = 0; i < count; i++) out.push(tokens[i] ?? tokens[tokens.length - 1])
+  return out
 }
 
 /** 段落图标引用：取第一个带 ref 的行（v2 段落整段共用首个引用作为标题图标） */
@@ -459,12 +471,21 @@ function v2ArtifactRows (rows) {
         out.push({
           label: '主词条',
           ref: '',
-          items: slots.map((slot, i) => ({
-            text: `${escapeHtml(slot)}：${inlineText(stats[slot].map(v => String(v ?? '').trim()).filter(Boolean).join(' / '))}`,
-            note: '',
-            ref: '',
-            sepAfter: i < slots.length - 1 ? escapeHtml('/') : ''
-          }))
+          items: slots.map((slot, i) => {
+            const values = stats[slot].map(v => String(v ?? '').trim()).filter(Boolean)
+            // 主词条上的「命座/成本」括注（`空之杯：水元素伤害加成（二命）`）挂在**对应部位**的值后面
+            // —— 与网页版 build-html.mjs 的 splitMainSlots 渲染一致
+            const note = String(row?.note ?? '').trim()
+            const noteSlot = String(row?.noteSlot ?? '').trim()
+            const hit = !!note && (noteSlot ? noteSlot === slot : i === slots.length - 1) &&
+              !values.some(v => /[（(]/.test(v))
+            return {
+              text: `${escapeHtml(slot)}：${inlineText(values.join(' / '))}`,
+              note: hit ? inlineLabel(note) : '',
+              ref: '',
+              sepAfter: i < slots.length - 1 ? escapeHtml('/') : ''
+            }
+          })
         })
       }
       continue
@@ -507,17 +528,36 @@ function v2ArtifactRows (rows) {
     out.push({
       label: inlineLabel(String(row?.label ?? '').trim() || ARTIFACT_HEAD[kind] || ''),
       ref: String(sets[0]?.ref || ''),
-      items: sets.map((set, i) => ({
-        // 套装部件需求（如「2件套」）跟在套装名后作括注
-        text: inlineLabel(set.name ?? set) + (String(set.pieces ?? '').trim() ? `（${inlineLabel(set.pieces)}）` : ''),
+      // 组合归一（2+2 整体保留、同名只留一次）与网页版共用 resolveSetItems
+      items: resolveArtifactSetItems(sets, seps).map((entry, i, arr) => ({
+        text: inlineLabel(entry.name),
         // 套装备注（「千岩牢固（四件套）」拆出来的部分）与武器条目同一套小字渲染，不占图标位
-        note: String(set?.note ?? '').trim() ? inlineLabel(set.note) : '',
-        ref: String(set.ref || ''),
-        sepAfter: i < sets.length - 1 ? escapeHtml(seps[i] || '/') : ''
+        note: String(entry.item?.note ?? '').trim() ? inlineLabel(entry.item.note) : '',
+        ref: String(entry.item?.ref || ''),
+        sepAfter: i < arr.length - 1 ? escapeHtml(entry.sepAfter || '/') : ''
       }))
     })
   }
   return out
+}
+
+/**
+ * 套装行的显示条目：直接复用 ./display.js 的 \`resolveSetItems\`（与网页版同一份规则）。
+ * @param {object[]} sets
+ * @param {string[]} seps
+ * @returns {Array<{name: string, sepAfter: string, item: object}>}
+ */
+function resolveArtifactSetItems (sets, seps) {
+  try {
+    return resolveSetItems(sets, seps, { sep: '/' })
+  } catch {
+    // 兜底：规则模块出问题时退化成原样渲染，不丢内容
+    return sets.map((item, i) => ({
+      name: String(item?.name ?? item ?? '').trim() + (String(item?.pieces ?? '').trim() ? `（${String(item.pieces).trim()}）` : ''),
+      sepAfter: i < sets.length - 1 ? '/' : '',
+      item
+    }))
+  }
 }
 
 /** v2.talents[] → 优先级 / 皇冠行（天赋图标按 ref 的 talent:A/E/Q 解析） */
@@ -530,11 +570,19 @@ function v2TalentRows (rows) {
       const order = (Array.isArray(row?.order) ? row.order : [])
         .filter(item => item && String(item.name ?? item).trim())
       if (!order.length) continue
+      // 逐档分隔符优先用 raw 里的**原写法**（`E / Q` 保持 `/`、`A=Q＞E` 保留 `=` 与 `＞`）；
+      // raw 里取不到的位置再退回 row.sep
+      const rawSeps = String(row?.raw ?? '').split(/[AEQaeq0-9\s]+/).filter(s => /[>＞≥＝=/／]/.test(s))
       const seps = gapSeps(row?.sep || ' > ', order.length - 1, '>')
       out.push({
         label: '优先级',
+        // 原始写法带下去：显示级归一用它还原逐档分隔符
+        raw: String(row?.raw ?? ''),
         ref: String(order[0]?.ref || ''),
-        items: order.map((item, i) => rankItem(item, i < order.length - 1 ? escapeHtml(seps[i] || '>') : ''))
+        items: order.map((item, i) => rankItem(
+          item,
+          i < order.length - 1 ? escapeHtml(rawSeps[i] || seps[i] || '>') : ''
+        ))
       })
       continue
     }
@@ -650,45 +698,63 @@ function buildV2Sections (data, fileDir) {
     return []
   }
 
-  const out = []
-  const add = section => { if (section) out.push(section) }
-  /** 构造「标签 + 内容 / 数值」段落；v2 无内容则回退文本行段落 */
-  const addRows = (title, keyword, type, rows) => {
+  const parts = []
+  /** 构造「标签 + 内容 / 数值」段落；v2 无内容则回退文本行段落，再不行标空（模块显示「暂无」） */
+  const addRows = (keyword, renderType, rows) => {
     const lines = extraLines(keyword)
     const kept = (rows || []).filter(rowHasContent).concat(lines.length ? textLinesToRows(lines) : [])
-    if (!kept.length) {
-      add(fallback(keyword))
+    if (kept.length) {
+      parts.push({ keyword, parsed: { type: renderType, rows: kept, iconRef: firstRef(kept), image: '' } })
       return
     }
-    const { badge, title: name } = splitTitle(title)
-    add({ badge, title: name, type, rows: kept, iconRef: firstRef(kept), image: '' })
+    const fb = fallback(keyword)
+    parts.push(fb ? { keyword, parsed: fb } : { keyword, parsed: null })
   }
 
-  for (const [key, title, keyword, type] of V2_ROW_SECTIONS) {
-    addRows(title, keyword, type, V2_ROW_BUILDERS[key](v2[key]))
+  for (const [key, , keyword, type] of V2_ROW_SECTIONS) {
+    addRows(keyword, type, V2_ROW_BUILDERS[key](v2[key]))
   }
 
   // 配队：成员是对象数组，与「标签 + 内容」行不同形，单独处理
   const teamLines = extraLines('配队')
   const teams = v2TeamRows(v2.teams).concat(teamLines.length ? linesToTeams(teamLines) : [])
-  if (teams.length) {
-    add({ badge: '6', title: '配队推荐', type: 'teams', teams, iconRef: '', image: '' })
+  if (teams.some(team => (team.members || []).length || team.text)) {
+    parts.push({ keyword: '配队', parsed: { type: 'teams', teams, iconRef: '', image: '' } })
   } else {
-    add(fallback('配队'))
+    const fb = fallback('配队')
+    parts.push(fb ? { keyword: '配队', parsed: fb } : { keyword: '配队', parsed: null })
+  }
+
+  const out = []
+  const covered = V2_ROW_SECTIONS.map(([, , keyword]) => keyword).concat('配队')
+  /** 模块在显示顺序里的位置（与网页版 DISPLAY_SECTIONS 同一套：武器→圣遗物→天赋→命座→面板→配队） */
+  const displayAt = keyword => DISPLAY_SECTIONS.findIndex(d => d.title === keyword)
+  for (const part of parts) {
+    const parsed = part.parsed
+    const idx = displayAt(part.keyword)
+    const base = parsed ? { ...parsed } : { rows: [], teams: [] }
+    out.push({ ...base, badge: String(idx + 1), title: part.keyword, __order: idx })
   }
 
   // v2 没覆盖到的段落（仓库以后新加的段）照样按旧版文本行渲染，避免结构化改造吃掉新内容
-  const covered = V2_ROW_SECTIONS.map(([, , keyword]) => keyword).concat('配队')
   for (const section of Array.isArray(data.sections) ? data.sections : []) {
     const title = String(section?.title || '')
     if (covered.some(keyword => title.includes(keyword))) continue
     const parsed = toSection(section, fileDir)
     if (!parsed) continue
     if (out.some(item => item.title === parsed.title)) continue
-    out.push(parsed)
+    out.push({ ...parsed, __order: 100 })
   }
 
-  return out
+  // ---- 纯显示级归一（与网页版 build-html.mjs 同一份规则，见 ./display.js）----
+  // 标题简称、档位标签（推荐/可选/过渡）、副词条 ＞、简写展开、皇冠并入天赋、
+  // 命座「命之座X」、配队括注移行尾「注：」全部在这里做；JSON 原文一个字都不改。
+  const displayed = normalizeGuideSections(out)
+  displayed.sort((a, b) => (a.__order ?? 100) - (b.__order ?? 100))
+  return displayed.map(section => {
+    const { __order, ...rest } = section
+    return rest
+  })
 }
 
 /* ============================================================
