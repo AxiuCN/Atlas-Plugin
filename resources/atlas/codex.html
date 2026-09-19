@@ -88,6 +88,7 @@
             <span class="grow-label">{{@team.tag}}</span>
             <span class="team-members">
               {{each team.members m}}{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{else}}<span class="team-member">{{@m.name}}</span>{{/if}}{{/each}}
+              {{if team.text}}<span class="team-note">{{@team.text}}</span>{{/if}}
             </span>
           </div>
           {{/each}}
@@ -100,10 +101,10 @@
             <span class="grow-label">{{@row.label}}</span>
             {{if row.items.length > 1}}
             <span class="rank-list">
-              {{each row.items it}}<span class="rank-unit"><span class="rank-item">{{@it.text}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}</span>{{/each}}
+              {{each row.items it}}<span class="rank-unit"><span class="rank-item">{{if it.icon}}{{if it.iconLine}}<img class="rank-icon rank-icon-line" src="{{it.icon}}"/>{{else}}<img class="rank-icon" src="{{it.icon}}"/>{{/if}}{{/if}}{{@it.text}}{{if it.note}}<span class="rank-note">{{@it.note}}</span>{{/if}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}</span>{{/each}}
             </span>
             {{else}}
-            <span class="grow-value">{{@row.items[0].text}}</span>
+            <span class="grow-value">{{if row.items[0].icon}}{{if row.items[0].iconLine}}<img class="rank-icon rank-icon-line" src="{{row.items[0].icon}}"/>{{else}}<img class="rank-icon" src="{{row.items[0].icon}}"/>{{/if}}{{/if}}{{@row.items[0].text}}{{if row.items[0].note}}<span class="rank-note">{{@row.items[0].note}}</span>{{/if}}</span>
             {{/if}}
           </div>
           {{/each}}

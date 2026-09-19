@@ -10,6 +10,14 @@
  * 正文展示形态在这里定：按段落标题把自由文本整理成
  *   「标签 + 内容」行（rows）/ 队伍成员（teams）/ 数值行（stats），模板只负责画。
  *
+ * 数据格式两代并存，**v2 优先**：
+ *   - `data.schema === 2` 且带 `data.v2` 时，直接用结构化字段生成渲染模型（见 buildV2Sections）：
+ *     武器/套装/天赋/命座的每个条目都带 `ref`（`weapon:西风剑` 这类类型前缀），
+ *     图标解析因此不必再靠「猜这一行里的名字是武器还是圣遗物」，见 ./icons.js
+ *   - 没有 v2（或 v2 为空、缺字段）时，逐字回退到旧版文本行解析（data.sections[].lines），
+ *     行为与改造前完全一致；两代数据的输出结构同一个形状，模板与编排层无需分支
+ *   - `data.unparsed` 里未结构化的文本行按普通行追加到对应段落末尾
+ *
  * 同时保留旧版 HTML 页面的解析（parseGuideHtml），供尚未拉取到 JSON 数据的旧克隆兜底；
  * 仓库里一旦存在 JSON 数据，索引层就只认 JSON（见 index.js）。
  */
@@ -19,6 +27,9 @@ import { pathToFileURL } from 'node:url'
 
 /** 正文中允许保留的内联类名（样式见 resources/common/codex.css） */
 const ALLOWED_SPAN_CLASS = new Set(['must', 'highlight'])
+
+/** v2 引用标记（`[[w:西风剑]]`）：结构化数据由 ref 字段承载，正文若混写标记也按纯文本展示 */
+const REF_MARK_RE = /\[\[[a-z][:：]([^[\]]+?)\]\]/g
 
 /** 纯文本字段需要解码的 HTML 实体（仅 HTML 旧格式用） */
 const ENTITY_MAP = {
@@ -72,6 +83,28 @@ function inlineHtml (text) {
 /** 内容里的「>」换成视觉分隔符（转义后再替换，避免误伤标签） */
 function decorateValue (text) {
   return inlineHtml(text).replace(/ &gt; /g, ' <span class="sep">&gt;</span> ')
+}
+
+/** 去掉 v2 引用标记只留名称（结构化数据一般不用，混写时兜底） */
+function stripMarks (text) {
+  return String(text ?? '').replace(REF_MARK_RE, '$1')
+}
+
+/** v2 取值文本（去标记 + 行内强调 + 档位分隔符） */
+function inlineText (text) {
+  return decorateValue(stripMarks(text))
+}
+
+/** v2 标签/名称文本（去标记 + 行内强调） */
+function inlineLabel (text) {
+  return inlineHtml(stripMarks(text))
+}
+
+/** 皇冠等级里的「必须」沿用现有的红色小标签（见 codex.css 的 .must），其余按普通备注 */
+function levelHtml (level) {
+  const text = String(level ?? '').trim()
+  if (!text) return ''
+  return /必须/.test(text) ? `<span class="must">${escapeHtml(text)}</span>` : inlineLabel(text)
 }
 
 /**
@@ -172,6 +205,7 @@ function isBlankText (html) {
 
 /**
  * 皇冠推荐若只有「可选 / 无需」，这行没有信息量，攻略页直接不显示
+ * （只作用于旧版文本行；v2 结构化数据里出现皇冠行即视为有意为之，不丢）
  * @param {object} row - 已归一的表格行 { label, items }
  * @returns {boolean}
  */
@@ -225,8 +259,71 @@ function cleanLines (lines) {
     .filter(Boolean)
 }
 
+/** 档位条目（结构化与文本行共用形状；note 为备注/皇冠等级，ref 供图标解析） */
+function rankItem (item, sepAfter = '', ref = '') {
+  if (item === null || item === undefined) return { text: '', note: '', ref: String(ref || ''), sepAfter }
+  if (typeof item !== 'object') {
+    return { text: decorateValue(stripMarks(item)), note: '', ref: String(ref || ''), sepAfter }
+  }
+  const name = inlineLabel(item.name ?? item.text ?? '')
+  const note = String(item.note ?? '').trim()
+    ? inlineLabel(item.note)
+    : String(item.level ?? '').trim() ? levelHtml(item.level) : ''
+  return { text: name, note, ref: String(item.ref || ref || ''), sepAfter }
+}
+
+/** 一行是否有实际内容（档位条目全部为空则整行不画） */
+function rowHasContent (row) {
+  return (row?.items || []).some(item => !isBlankText(item.text))
+}
+
+/**
+ * 文本行 → 「标签 + 内容」行（旧版解析路径）
+ * 并列内容（如「时之沙(攻击力) / 空之杯(冰伤) / 理之冠(暴击)」）各占一行，标签只在首行出现；
+ * 行内再用「>」「≥」拆成档位条目
+ * @param {string[]} lines
+ * @returns {Array<{label: string, ref: string, items: Array}>}
+ */
+function linesToRows (lines) {
+  const rows = []
+  for (const line of cleanLines(lines)) {
+    const { label, value } = splitLabel(line)
+    splitTop(value, ' / ').forEach((part, i) => {
+      const { items, seps } = splitRank(part)
+      rows.push({
+        label: i === 0 ? inlineLabel(label) : '',
+        ref: '',
+        items: items.map((text, idx) => ({
+          text: decorateValue(text),
+          note: '',
+          ref: '',
+          sepAfter: idx < items.length - 1 ? escapeHtml(seps[idx] || '>') : ''
+        }))
+      })
+    })
+  }
+  return rows
+}
+
+/** 旧版文本行 → 已过滤的展示行（空栏位与「皇冠只有可选/无需」的行不显示） */
+function textLinesToRows (lines) {
+  return linesToRows(lines).filter(row => !isOptionalCrown(row) && rowHasContent(row))
+}
+
+/** 旧版文本行 → 队伍行（「首选：A + B + C」） */
+function linesToTeams (lines) {
+  return cleanLines(lines)
+    .map(line => {
+      const { label, value } = splitLabel(line)
+      const members = splitTop(value, '+').map(member => inlineHtml(member)).filter(member => !isBlankText(member))
+      return { tag: inlineLabel(label), members }
+    })
+    // 成员全为空的（待补栏位）不显示
+    .filter(team => team.members.length)
+}
+
 /* ============================================================
- *  JSON 数据（当前格式）
+ *  文本行 JSON 数据（旧格式，v2 缺失时回退）
  * ============================================================ */
 
 /**
@@ -248,39 +345,13 @@ function toSection (section, fileDir) {
     const kind = sectionKind(rawTitle)
 
     if (kind === 'teams') {
-      const teams = lines
-        .map(line => {
-          const { label, value } = splitLabel(line)
-          const members = splitTop(value, '+').map(member => inlineHtml(member)).filter(member => !isBlankText(member))
-          return { tag: inlineHtml(label), members }
-        })
-        // 成员全为空的（待补栏位）不显示
-        .filter(team => team.members.length)
-      return teams.length ? { badge, title, type: 'teams', teams, image } : null
+      const teams = linesToTeams(lines)
+      return teams.length ? { badge, title, type: 'teams', teams, iconRef: '', image } : null
     }
 
-    // 并列内容（如「时之沙(攻击力) / 空之杯(冰伤) / 理之冠(暴击)」）各占一行，标签只在首行出现；
-    // 行内再用「>」「≥」拆成档位条目，模板渲染成条目标签，方便扫读
-    const rows = []
-    for (const line of lines) {
-      const { label, value } = splitLabel(line)
-      splitTop(value, ' / ').forEach((part, i) => {
-        const { items, seps } = splitRank(part)
-        rows.push({
-          label: i === 0 ? inlineHtml(label) : '',
-          items: items.map((text, idx) => ({
-            text: decorateValue(text),
-            sepAfter: idx < items.length - 1 ? escapeHtml(seps[idx] || '>') : ''
-          }))
-        })
-      })
-    }
     // 空栏位（只有标签没有内容）与「皇冠只有可选/无需」的行都不显示
-    const kept = rows.filter(row => {
-      if (isOptionalCrown(row)) return false
-      return (row.items || []).some(item => !isBlankText(item.text))
-    })
-    return kept.length ? { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows: kept, image } : null
+    const kept = textLinesToRows(lines)
+    return kept.length ? { badge, title, type: kind === 'stats' ? 'stats' : 'rows', rows: kept, iconRef: '', image } : null
   }
 
   if (Array.isArray(section.items) && section.items.length) {
@@ -306,6 +377,331 @@ function toSection (section, fileDir) {
   return null
 }
 
+/* ============================================================
+ *  v2 结构化数据（优先：每个引用都带类型前缀 ref）
+ * ============================================================ */
+
+/** 档位中文数字（tier → 第一档 / 第二档 …） */
+const CN_TIER = ['', '一', '二', '三', '四', '五', '六', '七', '八']
+
+/** 套装行的默认档位名（与旧版文本行一致） */
+const ARTIFACT_HEAD = { preferred: '首选', transition: '过渡', optional: '可选' }
+
+/** 圣遗物主词条三槽（顺序固定） */
+const MAIN_SLOTS = ['时之沙', '空之杯', '理之冠']
+
+/** v2 段落 → 标题（与旧版文本行标题一致，下游按标题排序 / 挂段落图标） */
+const V2_ROW_SECTIONS = [
+  ['weapons', '1. 武器推荐', '武器', 'rows'],
+  ['artifacts', '2. 圣遗物推荐', '圣遗物', 'rows'],
+  ['talents', '3. 天赋加点', '天赋', 'rows'],
+  ['panels', '4. 毕业面板参考', '面板', 'stats'],
+  ['constellations', '5. 命座推荐', '命座', 'rows']
+]
+
+/** 是否走 v2 结构化字段（有 v2 对象即用；schema 仅作声明，不强制） */
+function isV2 (data) {
+  return !!data.v2 && typeof data.v2 === 'object' && !Array.isArray(data.v2)
+}
+
+/**
+ * 档位分隔符数组
+ *
+ * v2 的 sep 是「逐档分隔符」按空白拼接的结果（`'/ +'` = 三件套之间先用 / 再用 +），
+ * 只写一个符号时按同一符号重复（武器行的 `' > '` 配 3 个条目很常见）。
+ * @param {string} sep - 数据里的 sep
+ * @param {number} count - 需要的分隔符个数（= 条目数 - 1）
+ * @param {string} fallback - 取不到时的默认分隔符
+ * @returns {string[]}
+ */
+function gapSeps (sep, count, fallback) {
+  if (count <= 0) return []
+  const tokens = String(sep ?? '').trim().split(/\s+/).filter(Boolean)
+  if (!tokens.length) return new Array(count).fill(fallback)
+  return tokens.length === count ? tokens : new Array(count).fill(tokens[0])
+}
+
+/** 段落图标引用：取第一个带 ref 的行（v2 段落整段共用首个引用作为标题图标） */
+function firstRef (rows) {
+  const hit = (rows || []).find(row => row?.ref)
+  return hit ? String(hit.ref) : ''
+}
+
+/** v2.weapons[] → 档位行（武器图标按 ref 的 weapon: 前缀解析，见 icons.js） */
+function v2WeaponRows (rows) {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const items = (Array.isArray(row?.items) ? row.items : [])
+      .filter(item => item && String(item.name ?? item).trim())
+    if (!items.length) continue
+    const tier = Number(row?.tier)
+    const label = String(row?.label ?? '').trim() || (tier > 0 ? `第${CN_TIER[tier] ?? tier}档` : '')
+    const seps = gapSeps(row?.sep, items.length - 1, '>')
+    out.push({
+      label: inlineLabel(label),
+      ref: String(items[0]?.ref || ''),
+      items: items.map((item, i) => rankItem(item, i < items.length - 1 ? escapeHtml(seps[i] || '>') : ''))
+    })
+  }
+  return out
+}
+
+/** v2.artifacts[] → 套装行 / 主词条三槽 / 副词条（圣遗物图标按 ref 的 artifact: 前缀解析） */
+function v2ArtifactRows (rows) {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const kind = String(row?.kind || '').trim()
+
+    if (kind === 'main') {
+      const stats = row?.stats && typeof row.stats === 'object' ? row.stats : {}
+      const slots = MAIN_SLOTS.filter(slot => Array.isArray(stats[slot]) && stats[slot].some(v => String(v ?? '').trim()))
+      if (slots.length) {
+        out.push({
+          label: '主词条',
+          ref: '',
+          items: slots.map((slot, i) => ({
+            text: `${escapeHtml(slot)}：${inlineText(stats[slot].map(v => String(v ?? '').trim()).filter(Boolean).join(' / '))}`,
+            note: '',
+            ref: '',
+            sepAfter: i < slots.length - 1 ? escapeHtml('/') : ''
+          }))
+        })
+      }
+      continue
+    }
+
+    if (kind === 'sub') {
+      const stats = (Array.isArray(row?.stats) ? row.stats : []).map(v => String(v ?? '').trim()).filter(Boolean)
+      if (stats.length) {
+        const seps = gapSeps(row?.sep, stats.length - 1, '>')
+        out.push({
+          label: '副词条',
+          ref: '',
+          items: stats.map((stat, i) => ({
+            text: inlineText(stat),
+            note: '',
+            ref: '',
+            sepAfter: i < stats.length - 1 ? escapeHtml(seps[i] || '>') : ''
+          }))
+        })
+      }
+      continue
+    }
+
+    if (kind === 'text') {
+      const text = String(row?.text ?? '').trim()
+      if (!text) continue
+      out.push({ label: inlineLabel(row.label || ''), ref: '', items: [rankItem(text)] })
+      continue
+    }
+
+    // preferred / transition / optional（以及未标 kind 的套装行）
+    const sets = (Array.isArray(row?.sets) ? row.sets : [])
+      .filter(set => set && String(set.name ?? set).trim())
+    if (!sets.length) {
+      const text = String(row?.text ?? '').trim()
+      if (text) out.push({ label: inlineLabel(row.label || ''), ref: '', items: [rankItem(text)] })
+      continue
+    }
+    const seps = gapSeps(row?.sep, sets.length - 1, '/')
+    out.push({
+      label: inlineLabel(String(row?.label ?? '').trim() || ARTIFACT_HEAD[kind] || ''),
+      ref: String(sets[0]?.ref || ''),
+      items: sets.map((set, i) => ({
+        // 套装部件需求（如「2件套」）跟在套装名后作括注
+        text: inlineLabel(set.name ?? set) + (String(set.pieces ?? '').trim() ? `（${inlineLabel(set.pieces)}）` : ''),
+        note: '',
+        ref: String(set.ref || ''),
+        sepAfter: i < sets.length - 1 ? escapeHtml(seps[i] || '/') : ''
+      }))
+    })
+  }
+  return out
+}
+
+/** v2.talents[] → 优先级 / 皇冠行（天赋图标按 ref 的 talent:A/E/Q 解析） */
+function v2TalentRows (rows) {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const kind = String(row?.kind || '').trim()
+
+    if (kind === 'priority') {
+      const order = (Array.isArray(row?.order) ? row.order : [])
+        .filter(item => item && String(item.name ?? item).trim())
+      if (!order.length) continue
+      const seps = gapSeps(row?.sep || ' > ', order.length - 1, '>')
+      out.push({
+        label: '优先级',
+        ref: String(order[0]?.ref || ''),
+        items: order.map((item, i) => rankItem(item, i < order.length - 1 ? escapeHtml(seps[i] || '>') : ''))
+      })
+      continue
+    }
+
+    if (kind === 'crown') {
+      const items = (Array.isArray(row?.items) ? row.items : [])
+        .filter(item => item && String(item.name ?? item).trim())
+      if (!items.length) continue
+      // 皇冠之间不加分隔符（与旧版文本行「E（建议）Q（必须）」一致），level 进备注
+      out.push({ label: '皇冠', ref: String(items[0]?.ref || ''), items: items.map(item => rankItem(item)) })
+      continue
+    }
+
+    const text = String(row?.text ?? '').trim()
+    if (text) out.push({ label: inlineLabel(row.label || ''), ref: '', items: [rankItem(text)] })
+  }
+  return out
+}
+
+/** v2.panels[] → 毕业面板行（k/v 走单值，label + text 按 / 拆条） */
+function v2PanelRows (rows) {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const key = String(row?.k ?? '').trim()
+    if (key) {
+      const value = String(row?.v ?? '').trim()
+      if (value) out.push({ label: inlineLabel(key), ref: '', items: [rankItem(value)] })
+      continue
+    }
+    const text = String(row?.text ?? '').trim()
+    if (!text) continue
+    const parts = splitTop(text, ' / ')
+    out.push({
+      label: inlineLabel(row.label || ''),
+      ref: '',
+      items: parts.map((part, i) => rankItem(part, i < parts.length - 1 ? escapeHtml('/') : ''))
+    })
+  }
+  return out
+}
+
+/** v2.constellations[] → 命座行（index 供命座图标解析；无说明时整行就是命座名） */
+function v2ConstellationRows (rows) {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const name = String(row?.name ?? '').trim()
+    const text = String(row?.text ?? '').trim()
+    if (!name && !text) continue
+    const index = Number(row?.index)
+    const ref = Number.isInteger(index) && index > 0 ? `constellation:${index}` : ''
+    if (text) out.push({ label: inlineLabel(name), ref, items: [rankItem(text, '', ref)] })
+    else out.push({ label: '', ref, items: [rankItem(name, '', ref)] })
+  }
+  return out
+}
+
+/** v2.teams[] → 队伍行（成员只留 {name, ref}，头像在 icons.js 里按 ref 解析） */
+function v2TeamRows (rows) {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const label = String(row?.label ?? '').trim()
+    const text = String(row?.text ?? '').trim()
+    const members = (Array.isArray(row?.members) ? row.members : [])
+      .map(member => ({
+        name: inlineLabel(member?.name ?? member ?? ''),
+        plain: '',
+        ref: String(member?.ref || ''),
+        icon: ''
+      }))
+      .filter(member => member.name && !isBlankText(member.name))
+    // members 为空但写了说明（如「其他：自由选择」）时保留说明，模板按备注渲染
+    if (!members.length && !text) continue
+    out.push({ tag: inlineLabel(label), members, text: text ? inlineLabel(text) : '' })
+  }
+  return out
+}
+
+/** v2 字段 → 行构造器 */
+const V2_ROW_BUILDERS = {
+  weapons: v2WeaponRows,
+  artifacts: v2ArtifactRows,
+  talents: v2TalentRows,
+  panels: v2PanelRows,
+  constellations: v2ConstellationRows
+}
+
+/**
+ * v2 结构化字段 → 段落数组
+ *
+ * 逐段构造；某段在 v2 里没有内容时回退到同标题的旧版文本行（data.sections），
+ * 因此「部分角色已结构化、部分还没」的过渡期不会出现整段丢失。
+ * @param {object} data - 角色攻略 JSON（已确认带 v2）
+ * @param {string} fileDir - 数据文件所在目录
+ * @returns {Array} 段落数组；v2 完全没产出内容时返回空数组（交由调用方回退）
+ */
+function buildV2Sections (data, fileDir) {
+  const v2 = data.v2 || {}
+  const unparsed = data.unparsed && typeof data.unparsed === 'object' ? data.unparsed : {}
+
+  /** v2 该段为空时的兜底：同标题的旧版文本行段落 */
+  const fallback = keyword => {
+    const src = (Array.isArray(data.sections) ? data.sections : [])
+      .find(section => String(section?.title || '').includes(keyword))
+    return src ? toSection(src, fileDir) : null
+  }
+  /** 未结构化的补充文本行（unparsed）：按标题关键词取 */
+  const extraLines = keyword => {
+    for (const [key, lines] of Object.entries(unparsed)) {
+      if (String(key).includes(keyword)) return cleanLines(lines)
+    }
+    return []
+  }
+
+  const out = []
+  const add = section => { if (section) out.push(section) }
+  /** 构造「标签 + 内容 / 数值」段落；v2 无内容则回退文本行段落 */
+  const addRows = (title, keyword, type, rows) => {
+    const lines = extraLines(keyword)
+    const kept = (rows || []).filter(rowHasContent).concat(lines.length ? textLinesToRows(lines) : [])
+    if (!kept.length) {
+      add(fallback(keyword))
+      return
+    }
+    const { badge, title: name } = splitTitle(title)
+    add({ badge, title: name, type, rows: kept, iconRef: firstRef(kept), image: '' })
+  }
+
+  for (const [key, title, keyword, type] of V2_ROW_SECTIONS) {
+    addRows(title, keyword, type, V2_ROW_BUILDERS[key](v2[key]))
+  }
+
+  // 配队：成员是对象数组，与「标签 + 内容」行不同形，单独处理
+  const teamLines = extraLines('配队')
+  const teams = v2TeamRows(v2.teams).concat(teamLines.length ? linesToTeams(teamLines) : [])
+  if (teams.length) {
+    add({ badge: '6', title: '配队推荐', type: 'teams', teams, iconRef: '', image: '' })
+  } else {
+    add(fallback('配队'))
+  }
+
+  // v2 没覆盖到的段落（仓库以后新加的段）照样按旧版文本行渲染，避免结构化改造吃掉新内容
+  const covered = V2_ROW_SECTIONS.map(([, , keyword]) => keyword).concat('配队')
+  for (const section of Array.isArray(data.sections) ? data.sections : []) {
+    const title = String(section?.title || '')
+    if (covered.some(keyword => title.includes(keyword))) continue
+    const parsed = toSection(section, fileDir)
+    if (!parsed) continue
+    if (out.some(item => item.title === parsed.title)) continue
+    out.push(parsed)
+  }
+
+  return out
+}
+
+/* ============================================================
+ *  JSON 数据入口
+ * ============================================================ */
+
+/** 标签既接受字符串，也接受 { text, style }；v2 的 meta 作为 tags 缺失时的兜底 */
+function normalizeTags (data) {
+  const raw = Array.isArray(data.tags) && data.tags.length ? data.tags : Object.entries(data.meta || {}).map(([key, value]) => `${key}：${value}`)
+  return raw
+    .map(tag => (typeof tag === 'string' ? tag : tag?.text))
+    .map(tag => stripMarks(String(tag || '')).trim())
+    // 「建议等级：」这类只有标签没有值的、以及 ___ 占位的一律不显示
+    .filter(tag => tag && !tag.includes('___') && !/：\s*$/.test(tag))
+}
+
 /**
  * 解析一个角色攻略 JSON
  * @param {object} data - 文件内容
@@ -318,16 +714,15 @@ export function parseGuideJson (data, meta = {}) {
   const name = String(data.name || meta.fileName || '').trim()
   if (!name) return null
 
-  // 标签既接受字符串，也接受 { text, style }（style 供网页配色，展示只用 text）
-  const tags = (Array.isArray(data.tags) ? data.tags : [])
-    .map(tag => (typeof tag === 'string' ? tag : tag?.text))
-    .map(tag => String(tag || '').trim())
-    // 「建议等级：」这类只有标签没有值的、以及 ___ 占位的一律不显示
-    .filter(tag => tag && !tag.includes('___') && !/：\s*$/.test(tag))
+  const tags = normalizeTags(data)
 
-  const sections = (Array.isArray(data.sections) ? data.sections : [])
-    .map(section => toSection(section, meta.fileDir))
-    .filter(Boolean)
+  // v2 优先：结构化字段产出段落就用它；没有 v2 / v2 为空则逐字回退旧版文本行解析
+  const structured = isV2(data) ? buildV2Sections(data, meta.fileDir) : []
+  const sections = structured.length
+    ? structured
+    : (Array.isArray(data.sections) ? data.sections : [])
+      .map(section => toSection(section, meta.fileDir))
+      .filter(Boolean)
 
   return {
     name,

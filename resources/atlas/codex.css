@@ -4,6 +4,8 @@
  * 本文件所有规则都挂在 .codex-page 下，只作用于攻略页；common/ 下的共用样式一律不改。
  * Hero 区与角色页共用 common/hero.css 的框架（背景大图 / 立绘层 / 遮罩 / 头像 / 文字三段），
  * 本文件不覆盖其中任何一条。
+ * v2 结构化数据另有两处小样式：档位条目里的小图标 .rank-icon（武器/圣遗物/天赋/命座）
+ * 与备注 .rank-note（叠影、皇冠等级）、配队说明 .team-note；取不到图标时这些元素不渲染，布局不变。
  */
 
 /* ============================================================
@@ -160,6 +162,13 @@
   color: #5a5a5a;
 }
 
+/* ===== 数值段里的档位条目（一条面板写出多个数值时）：与单值同样放大加粗 ===== */
+.codex-stats .rank-item {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2f2f2f;
+}
+
 /* ============================================================
  *  档位序列：武器 / 优先级等「A › B › C」
  * ============================================================ */
@@ -180,7 +189,7 @@
   white-space: nowrap;
 }
 
-/* ===== 档位条目（名称不拆行） ===== */
+/* ===== 档位条目（名称不拆行；条目图标与备注都排在同一枚标签内） ===== */
 .rank-item {
   padding: 2px 10px;
   border: 1px solid #e3dfda;
@@ -190,6 +199,30 @@
   font-size: 21px;
   line-height: 1.6;
   white-space: nowrap;
+}
+
+/* ===== 档位条目里的小图标 .rank-icon（武器 / 圣遗物 / 天赋 / 命座；取不到图标时不渲染） =====
+ * 比段落标题图标小一号，跟文字同行对齐；行内跟随，不改变条目的 inline 排版 */
+.rank-icon {
+  width: 34px;
+  height: 34px;
+  margin-right: 6px;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+/* ===== 线稿类条目图标反相为深色（天赋 / 命座，与段落标题图标同一套处理） ===== */
+.rank-icon.rank-icon-line {
+  filter: invert(1) brightness(0.9);
+}
+
+/* ===== 条目备注 .rank-note（武器叠影「精五」、皇冠等级「建议」等），斜体弱化 ===== */
+.rank-note {
+  margin-left: 4px;
+  color: #8a8378;
+  font-size: 19px;
+  font-style: italic;
+  font-weight: 400;
 }
 
 /* ===== 档位分隔符（数据里的「>」「≥」） ===== */
@@ -210,6 +243,7 @@
 .team-members {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   min-width: 0;
 }
@@ -223,6 +257,18 @@
   font-size: 21px;
   line-height: 1.6;
   white-space: nowrap;
+}
+
+/* ===== 配队说明 .team-note（没写具体成员、只写了思路的行，如「其他：自由选择」） ===== */
+.team-note {
+  padding: 2px 14px;
+  border: 1px solid #ddd8d2;
+  border-radius: 16px;
+  background: #f4f2ef;
+  color: #7a736a;
+  font-size: 20px;
+  font-style: italic;
+  line-height: 1.6;
 }
 
 /* ===== 配队成员头像 .team-avatar（只出头像，不显示名字；取不到图标才回退成上面的名字标签） ===== */
@@ -266,6 +312,7 @@
   color: #c62828;
   font-size: 19px;
   font-weight: 700;
+  font-style: normal;
   line-height: 1.7;
 }
 
