@@ -336,6 +336,9 @@ export function attachItemIcons (gameId, sections, record) {
     const rows = section.rows.map(row => {
       if (!Array.isArray(row?.items)) return row
       const items = row.items.map(item => {
+        // 皇冠必需项（display.js 归一时打的 crown:true）：即使没有图标也要把标记带下去，
+        // 模板据此在技能图标角上叠皇冠徽标
+        if (item?.crown === true && !item.ref) return { ...item }
         if (!item?.ref) return item
         const { icon, iconLine } = refIcon(gameId, item.ref, record)
         return icon ? { ...item, icon, iconLine } : item

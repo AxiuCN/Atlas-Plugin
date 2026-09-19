@@ -265,6 +265,53 @@
   object-fit: contain;
 }
 
+/* ============================================================
+ *  天赋模块：技能图标加大 + 皇冠徽标（视觉权重更高）
+ * ============================================================ */
+
+/* 天赋段的档位条目：图标约 42px（需求 40~44），条目本身也放大 */
+.codex-talent .rank-icon {
+  width: 42px;
+  height: 42px;
+  margin-right: 8px;
+}
+
+.codex-talent .rank-item {
+  padding: 4px 12px;
+  font-size: 22px;
+  line-height: 1.7;
+}
+
+.codex-talent .rank-list { gap: 10px; }
+.codex-talent .rank-unit { gap: 8px; }
+.codex-talent .grows { gap: 14px; }
+.codex-talent .codex-cell-title { padding-bottom: 12px; margin-bottom: 16px; }
+
+/* 必需项（皇冠）：图标角上的小皇冠徽标（内联 SVG，不用 emoji —— 游戏内 webview 渲染一致） */
+.rank-item.rank-crown { padding-right: 10px; }
+
+/* 徽标锚在条目内容盒左上角 = 图标右上角；rank-text 是内容盒里的第一个「正常流」盒子 */
+.crown-badge {
+  position: absolute;
+  top: -7px;
+  left: -2px;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  padding: 1px;
+  box-sizing: content-box;
+  color: #c8891a;
+  background: #fff8e4;
+  border: 1px solid #e6c165;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(120, 90, 10, .25);
+}
+
+/* 徽标要挂到条目左上角（图标右上），条目本身设成定位上下文 */
+.codex-talent .rank-item { position: relative; }
+.codex-talent .rank-text { position: relative; display: inline-block; }
+.codex-talent:not(:has(.rank-icon)) .crown-badge { top: -6px; left: -4px; }
+
 /* ===== 线稿类条目图标反相为深色（天赋 / 命座，与段落标题图标同一套处理） ===== */
 .rank-icon.rank-icon-line {
   filter: invert(1) brightness(0.9);
@@ -356,6 +403,43 @@
   background: #f4f2ef;
   object-fit: cover;
 }
+
+/* ============================================================
+ *  配队模块：头像加大 + 行距放松 + 队伍名层级更清晰（视觉权重更高）
+ * ============================================================ */
+
+.codex-team .grows { gap: 16px; }
+.codex-team .grow { font-size: 23px; }
+
+/* 队伍名（首选 / 其他 / 平民…）：加粗 + 主题色底，比其它模块的行首标签更醒目 */
+.codex-team .grow-label {
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(43, 108, 176, .14);
+  color: #1f4e86;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: .5px;
+}
+.codex-team .grow-label.label-推荐 { background: rgba(46, 125, 50, .16); color: #276b2d; }
+.codex-team .grow-label.label-可选 { background: rgba(110, 110, 110, .12); color: #454545; }
+.codex-team .grow-label.label-过渡 { background: rgba(160, 130, 70, .16); color: #6f5b24; }
+
+/* 成员排布：头像更大、间距更松 */
+.codex-team .team-members { gap: 14px; }
+.codex-team .team-unit { gap: 4px; }
+.codex-team .team-avatar {
+  width: 76px;
+  height: 76px;
+  border-width: 2px;
+  border-color: #d8d2ca;
+  box-shadow: 0 2px 6px rgba(60, 50, 35, .12);
+}
+.codex-team .team-member { font-size: 22px; padding: 3px 16px; }
+.codex-team .team-member-note { font-size: 19px; }
+.codex-team .team-line { gap: 12px; }
+.codex-team .team-note { font-size: 21px; padding: 3px 16px; }
+.codex-team .codex-cell-title { padding-bottom: 12px; margin-bottom: 16px; }
 
 /* ============================================================
  *  列表段 / 表格段 / 兜底
