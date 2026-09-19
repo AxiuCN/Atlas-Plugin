@@ -510,7 +510,8 @@ function v2ArtifactRows (rows) {
       items: sets.map((set, i) => ({
         // 套装部件需求（如「2件套」）跟在套装名后作括注
         text: inlineLabel(set.name ?? set) + (String(set.pieces ?? '').trim() ? `（${inlineLabel(set.pieces)}）` : ''),
-        note: '',
+        // 套装备注（「千岩牢固（四件套）」拆出来的部分）与武器条目同一套小字渲染，不占图标位
+        note: String(set?.note ?? '').trim() ? inlineLabel(set.note) : '',
         ref: String(set.ref || ''),
         sepAfter: i < sets.length - 1 ? escapeHtml(seps[i] || '/') : ''
       }))
@@ -590,7 +591,7 @@ function v2ConstellationRows (rows) {
   return out
 }
 
-/** v2.teams[] → 队伍行（成员只留 {name, ref}，头像在 icons.js 里按 ref 解析） */
+/** v2.teams[] → 队伍行（成员只留 {name, note, ref}，头像在 icons.js 里按 ref 解析） */
 function v2TeamRows (rows) {
   const out = []
   for (const row of Array.isArray(rows) ? rows : []) {
@@ -599,6 +600,8 @@ function v2TeamRows (rows) {
     const members = (Array.isArray(row?.members) ? row.members : [])
       .map(member => ({
         name: inlineLabel(member?.name ?? member ?? ''),
+        // 括注拆出来的备注（「纳西妲（二命）」→ note「二命」）：随成员带下去，模板按小字渲染
+        note: String(member?.note ?? '').trim() ? inlineLabel(member.note) : '',
         plain: '',
         ref: String(member?.ref || ''),
         icon: ''
