@@ -84,10 +84,10 @@
       {{if section.type === 'teams'}}
         <div class="grows">
           {{each section.teams team}}
-          <div class="grow team-row">
-            <span class="grow-label">{{@team.tag}}</span>
+          <div class="grow team-row{{if !team.tag}} grow-nolabel{{/if}}">
+            {{if team.tag}}<span class="grow-label">{{@team.tag}}</span>{{/if}}
             <span class="team-members">
-              {{each team.members m}}{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{else}}<span class="team-member">{{@m.name}}</span>{{/if}}{{/each}}
+              {{each team.members m}}<span class="team-unit">{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}<span class="team-member">{{@m.name}}{{if m.note}}<span class="team-member-note">（{{@m.note}}）</span>{{/if}}</span>{{/if}}</span>{{/each}}
               {{if team.text}}<span class="team-note">{{@team.text}}</span>{{/if}}
             </span>
           </div>
@@ -97,8 +97,8 @@
       {{else if section.type === 'rows' || section.type === 'stats'}}
         <div class="grows">
           {{each section.rows row}}
-          <div class="grow">
-            <span class="grow-label">{{@row.label}}</span>
+          <div class="grow{{if !row.label}} grow-nolabel{{/if}}">
+            {{if row.label}}<span class="grow-label">{{@row.label}}</span>{{/if}}
             {{if row.items.length > 1}}
             <span class="rank-list">
               {{each row.items it}}<span class="rank-unit"><span class="rank-item">{{if it.icon}}{{if it.iconLine}}<img class="rank-icon rank-icon-line" src="{{it.icon}}"/>{{else}}<img class="rank-icon" src="{{it.icon}}"/>{{/if}}{{/if}}{{@it.text}}{{if it.note}}<span class="rank-note">{{@it.note}}</span>{{/if}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}</span>{{/each}}
