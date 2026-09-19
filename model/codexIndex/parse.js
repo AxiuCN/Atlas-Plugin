@@ -397,6 +397,12 @@ const ARTIFACT_HEAD = { preferred: '首选', transition: '过渡', optional: '�
 /** 圣遗物主词条三槽（顺序固定） */
 const MAIN_SLOTS = ['时之沙', '空之杯', '理之冠']
 
+/**
+ * 槽位之间的分隔符：**并列**关系 → 全角竖线 `｜`（槽位内部候选值仍用 `/`，优先级才用 `＞`）。
+ * 必须与数据仓库 scripts/lib/schema.mjs / scripts/build-html.mjs 的同名常量一致。
+ */
+const MAIN_SLOT_SEP = '｜'
+
 /** v2 段落 → 标题（与旧版文本行标题一致，下游按标题排序 / 挂段落图标） */
 const V2_ROW_SECTIONS = [
   ['weapons', '1. 武器推荐', '武器', 'rows'],
@@ -483,7 +489,9 @@ function v2ArtifactRows (rows) {
               text: `${escapeHtml(slot)}：${inlineText(values.join(' / '))}`,
               note: hit ? inlineLabel(note) : '',
               ref: '',
-              sepAfter: i < slots.length - 1 ? escapeHtml('/') : ''
+              // 槽位之间是**并列**关系（不是优先级）→ 全角竖线，与网页版 build-html.mjs 的
+              // MAIN_SLOT_SEP、数据侧 schema.mjs 的 MAIN_SLOT_SEP 三处保持一致
+              sepAfter: i < slots.length - 1 ? MAIN_SLOT_SEP : ''
             }
           })
         })
