@@ -29,7 +29,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { DISPLAY_SECTIONS, normalizeGuideSections, resolveSetItems, displayItemText } from './display.js'
+import { DISPLAY_SECTIONS, normalizeGuideSections, resolveSetItems, displayItemText, displayLabel, ARTIFACT_KIND_LABEL } from './display.js'
 
 /** 正文中允许保留的内联类名（样式见 resources/common/codex.css） */
 const ALLOWED_SPAN_CLASS = new Set(['must', 'highlight'])
@@ -276,7 +276,13 @@ function rankItem (item, sepAfter = '', ref = '') {
   const note = String(item.note ?? '').trim()
     ? inlineLabel(item.note)
     : String(item.level ?? '').trim() ? levelHtml(item.level) : ''
-  return { text: name, note, ref: String(item.ref || ref || ''), sepAfter }
+  // 天赋等级（v2.talents.priority 的 order[].level，1..10）：渲染成图标/字母下方的小数字
+  const lv = Number(item.talentLevel)
+  const out = { text: name, note, ref: String(item.ref || ref || ''), sepAfter }
+  if (Number.isInteger(lv) && lv >= 1 && lv <= 10) out.talentLevel = lv
+  if (item.crown === true || lv === 10) out.crown = true
+  if (item.slot) out.slot = String(item.slot)
+  return out
 }
 
 /** 一行是否有实际内容（档位条目全部为空则整行不画） */
@@ -391,15 +397,27 @@ function toSection (section, fileDir) {
 /** 档位中文数字（tier → 第一档 / 第二档 …） */
 const CN_TIER = ['', '一', '二', '三', '四', '五', '六', '七', '八']
 
-/** 套装行的默认档位名（与旧版文本行一致） */
-const ARTIFACT_HEAD = { preferred: '首选', transition: '过渡', optional: '可选' }
+/**
+ * 套装行的默认档位名 —— **不在这里硬编码**。
+ *
+ * 取共享显示层的 `ARTIFACT_KIND_LABEL`（档位 kind → **来源写法**）再交给 `displayLabel` 归一，
+ * 与网页版 `build-html.mjs` 走的是同一份档位词汇表；否则一旦两边各写一份，
+ * 就会出现"面板显示 `首选`、网页显示 `推荐`"的两端漂移（audit-web-vs-panel 会抓到）。
+ * @param {string} kind
+ * @returns {string} 显示档位词（推荐 / 可选 / 过渡），认不出返回空串
+ */
+function artifactHead (kind) {
+  const src = ARTIFACT_KIND_LABEL[kind]
+  return src ? displayLabel(src) : ''
+}
 
 /** 圣遗物主词条三槽（顺序固定） */
 const MAIN_SLOTS = ['时之沙', '空之杯', '理之冠']
 
 /**
- * 槽位之间的分隔符：**并列**关系 → 全角竖线 `｜`（槽位内部候选值仍用 `/`，优先级才用 `＞`）。
- * 必须与数据仓库 scripts/lib/schema.mjs / scripts/build-html.mjs 的同名常量一致。
+ * 槽位之间的分隔符（**仅文档 / 纯文本层用**：并列关系 → 全角竖线 `｜`；槽位内部候选值仍用 `/`）。
+ * 面板 / 长图**不写字面 `｜`**：靠排版分隔（见下面 v2ArtifactRows 的 `kind: 'mainSlots'`）。
+ * 常量与数据仓库 scripts/lib/schema.mjs / scripts/build-html.mjs 的同名常量保持一致。
  */
 const MAIN_SLOT_SEP = '｜'
 
@@ -474,9 +492,12 @@ function v2ArtifactRows (rows) {
       const stats = row?.stats && typeof row.stats === 'object' ? row.stats : {}
       const slots = MAIN_SLOTS.filter(slot => Array.isArray(stats[slot]) && stats[slot].some(v => String(v ?? '').trim()))
       if (slots.length) {
+        // 面板/长图**不写字面 `｜`**：三个槽位靠排版分隔（模板把每个槽位渲染成独立的 chip，自动换行）。
+        // 所以这里不带 sepAfter，只给 slot 名（模板用它上色/加粗）。
         out.push({
           label: '主词条',
           ref: '',
+          kind: 'mainSlots',
           items: slots.map((slot, i) => {
             const values = stats[slot].map(v => String(v ?? '').trim()).filter(Boolean)
             // 主词条上的「命座/成本」括注（`空之杯：水元素伤害加成（二命）`）挂在**对应部位**的值后面
@@ -486,12 +507,11 @@ function v2ArtifactRows (rows) {
             const hit = !!note && (noteSlot ? noteSlot === slot : i === slots.length - 1) &&
               !values.some(v => /[（(]/.test(v))
             return {
+              slot,
               text: `${escapeHtml(slot)}：${inlineText(values.join(' / '))}`,
               note: hit ? inlineLabel(note) : '',
               ref: '',
-              // 槽位之间是**并列**关系（不是优先级）→ 全角竖线，与网页版 build-html.mjs 的
-              // MAIN_SLOT_SEP、数据侧 schema.mjs 的 MAIN_SLOT_SEP 三处保持一致
-              sepAfter: i < slots.length - 1 ? MAIN_SLOT_SEP : ''
+              sepAfter: ''
             }
           })
         })
@@ -534,7 +554,7 @@ function v2ArtifactRows (rows) {
     }
     const seps = gapSeps(row?.sep, sets.length - 1, '/')
     out.push({
-      label: inlineLabel(String(row?.label ?? '').trim() || ARTIFACT_HEAD[kind] || ''),
+      label: inlineLabel(String(row?.label ?? '').trim() || artifactHead(kind)),
       ref: String(sets[0]?.ref || ''),
       // 组合归一（2+2 整体保留、同名只留一次）与网页版共用 resolveSetItems
       items: resolveArtifactSetItems(sets, seps).map((entry, i, arr) => ({
@@ -571,39 +591,41 @@ function resolveArtifactSetItems (sets, seps) {
 /** v2.talents[] → 优先级 / 皇冠行（天赋图标按 ref 的 talent:A/E/Q 解析） */
 function v2TalentRows (rows) {
   const out = []
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const kind = String(row?.kind || '').trim()
-
-    if (kind === 'priority') {
-      const order = (Array.isArray(row?.order) ? row.order : [])
-        .filter(item => item && String(item.name ?? item).trim())
-      if (!order.length) continue
-      // 逐档分隔符优先用 raw 里的**原写法**（`E / Q` 保持 `/`、`A=Q＞E` 保留 `=` 与 `＞`）；
-      // raw 里取不到的位置再退回 row.sep
-      const rawSeps = String(row?.raw ?? '').split(/[AEQaeq0-9\s]+/).filter(s => /[>＞≥＝=/／]/.test(s))
-      const seps = gapSeps(row?.sep || ' > ', order.length - 1, '>')
-      out.push({
-        label: '优先级',
-        // 原始写法带下去：显示级归一用它还原逐档分隔符
-        raw: String(row?.raw ?? ''),
-        ref: String(order[0]?.ref || ''),
-        items: order.map((item, i) => rankItem(
-          item,
-          i < order.length - 1 ? escapeHtml(rawSeps[i] || seps[i] || '>') : ''
-        ))
+  const talents = Array.isArray(rows) ? rows : []
+  // 天赋：**固定三格 A → E → Q**（不再按优先级排序，也不画「优先级」行）。
+  // 等级取 priority.order[].level（缺省 1），皇冠由 crown:true / level===10 决定。
+  const byName = new Map()
+  for (const row of talents) {
+    if (String(row?.kind || '').trim() !== 'priority') continue
+    for (const item of Array.isArray(row?.order) ? row.order : []) {
+      const name = String(item?.name ?? item ?? '').trim().toUpperCase()
+      if (!/^[AEQ]$/.test(name)) continue
+      const lv = Number(item?.level)
+      const level = Number.isInteger(lv) && lv >= 1 && lv <= 10 ? lv : 1
+      byName.set(name, {
+        name,
+        level,
+        crown: item?.crown === true || level === 10,
+        // 等级要单独传给渲染层（图标下方小数字），不塞进 text
+        talentLevel: level,
+        ref: String(item?.ref || `talent:${name}`)
       })
-      continue
     }
-
-    if (kind === 'crown') {
-      const items = (Array.isArray(row?.items) ? row.items : [])
-        .filter(item => item && String(item.name ?? item).trim())
-      if (!items.length) continue
-      // 皇冠之间不加分隔符（与旧版文本行「E（建议）Q（必须）」一致），level 进备注
-      out.push({ label: '皇冠', ref: String(items[0]?.ref || ''), items: items.map(item => rankItem(item)) })
-      continue
-    }
-
+  }
+  if (byName.size) {
+    out.push({
+      label: '天赋',
+      kind: 'talents',
+      ref: String((byName.get('A') || byName.values().next().value || {}).ref || ''),
+      items: ['A', 'E', 'Q'].map(name => {
+        const hit = byName.get(name) || { name, level: 1, crown: false, talentLevel: 1, ref: `talent:${name}` }
+        return rankItem(hit, '')
+      })
+    })
+  }
+  for (const row of talents) {
+    const kind = String(row?.kind || '').trim()
+    if (kind === 'priority' || kind === 'crown') continue
     const text = String(row?.text ?? '').trim()
     if (text) out.push({ label: inlineLabel(row.label || ''), ref: '', items: [rankItem(text)] })
   }
@@ -653,19 +675,27 @@ function v2TeamRows (rows) {
   for (const row of Array.isArray(rows) ? rows : []) {
     const label = String(row?.label ?? '').trim()
     const text = String(row?.text ?? '').trim()
-    const members = (Array.isArray(row?.members) ? row.members : [])
-      .map(member => ({
-        name: inlineLabel(member?.name ?? member ?? ''),
-        // 括注拆出来的备注（「纳西妲（二命）」→ note「二命」）：随成员带下去，模板按小字渲染
-        note: String(member?.note ?? '').trim() ? inlineLabel(member.note) : '',
-        plain: '',
-        ref: String(member?.ref || ''),
-        icon: ''
-      }))
-      .filter(member => member.name && !isBlankText(member.name))
+    const toMember = (member) => ({
+      name: inlineLabel(member?.name ?? member ?? ''),
+      // 括注拆出来的备注（「纳西妲（二命）」→ note「二命」）：随成员带下去，模板按小字渲染
+      note: String(member?.note ?? '').trim() ? inlineLabel(member.note) : '',
+      plain: '',
+      ref: String(member?.ref || ''),
+      icon: ''
+    })
+    // `+` 连接的是并列成员；成员名里的 `/` 是**同一格的可替换项**（二选一）——
+    // 用户要求：并进**同一个成员格**、格内保留 ` / `（如 `[迪奥娜 / 阿罗夏]`），不加任何中文标注
+    const members = []
+    const list = Array.isArray(row?.members) ? row.members : []
+    for (const raw of list) {
+      const name = inlineLabel(String(raw?.name ?? raw ?? '').replace(/\s*[/／]\s*/g, ' / ').trim())
+      if (!name) continue
+      members.push(toMember({ ...(raw && typeof raw === 'object' ? raw : {}), name }))
+    }
+    const kept = members.filter(m => m.name && !isBlankText(m.name))
     // members 为空但写了说明（如「其他：自由选择」）时保留说明，模板按备注渲染
-    if (!members.length && !text) continue
-    out.push({ tag: inlineLabel(label), members, text: text ? inlineLabel(text) : '' })
+    if (!kept.length && !text) continue
+    out.push({ tag: inlineLabel(label), members: kept, options: [], text: text ? inlineLabel(text) : '' })
   }
   return out
 }
