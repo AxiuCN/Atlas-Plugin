@@ -3,10 +3,11 @@
  *
  * 触发：#胡桃攻略 / *符玄攻略 / %雅攻略（后缀登记见 components/constants.js 的 PAGE_TYPE_SUFFIXES）
  * 数据：tool/Character-Codex-Data/Character-Codex-Data（经 model/codexIndex/index.js 读取）
- * 图标：model/codexIndex/icons.js（按名称到图鉴现取武器/圣遗物/天赋/命座图标）
+ * 图标：model/codexIndex/icons.js（v2 数据按 ref 的类型前缀取武器/圣遗物/天赋/命座图标，
+ *       旧版文本行按名称到图鉴现取；配队成员同理取头像）
  * 模板：resources/atlas/codex.html
  *
- * 职责：定位图鉴条目 → 取攻略数据 → 按长图顺序排段 → 补齐 hero 字段与段落图标 → 交模板渲染。
+ * 职责：定位图鉴条目 → 取攻略数据 → 按长图顺序排段 → 补齐 hero 字段与段落/条目图标 → 交模板渲染。
  * 攻略正文的解析在 model/codexIndex，本层不读攻略仓库文件。
  */
 import { renderAtlas } from '../components/render.js'
@@ -14,7 +15,7 @@ import { GAME_NAMES, CODEX_PAGE_KEY } from '../components/constants.js'
 import { buildDetailData } from '../components/queryUtils.js'
 import { loadRecord } from '../model/AtlasService.js'
 import { isCodexReady, getCharacterGuide } from '../model/codexIndex/index.js'
-import { resolveGuideIcons, attachTeamIcons } from '../model/codexIndex/icons.js'
+import { resolveGuideIcons, attachItemIcons, attachTeamIcons } from '../model/codexIndex/icons.js'
 
 /** 长图段落顺序：武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队（未列出的段落按原顺序排在末尾） */
 const SECTION_ORDER = ['武器', '圣遗物', '天赋', '面板', '命座', '配队']
@@ -133,9 +134,13 @@ export async function handleCodexQuery (e, gameId, result, keyword) {
 
   // 长图单列固定顺序：hero → 参考 → 武器 → 圣遗物 → 天赋 → 面板 → 命座 → 配队 → 页脚
   let guide = { ...rawGuide, sections: orderSections(rawGuide.sections) }
-  // 段落标题图标 + 配队成员头像（头像取不到时模板退回显示名字）
+  // 段落标题图标 + 档位条目图标（v2 按 ref 解析，没有 ref 的旧版条目自动跳过）+ 配队成员头像
+  // （头像取不到时模板退回显示名字，图标取不到时模板退回纯文字条目）
   const icons = resolveGuideIcons(gameId, guide, record)
-  guide = { ...guide, sections: attachTeamIcons(gameId, attachIcons(guide.sections, icons)) }
+  guide = {
+    ...guide,
+    sections: attachTeamIcons(gameId, attachIcons(attachItemIcons(gameId, guide.sections, record), icons))
+  }
 
   // 图鉴侧 hero：背景大图 / 立绘 / 头像 / 称号 / 稀有度全部来自角色页同一套 hero 数据
   const atlasHero = buildAtlasHero(gameId, entry, record)
