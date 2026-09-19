@@ -71,7 +71,7 @@
 
   <div class="codex-sections">
     {{each guide.sections section}}
-    <div class="codex-cell codex-{{section.type}}">
+    <div class="codex-cell codex-{{section.type}}{{if section.empty}} codex-cell-empty{{/if}}">
       <div class="codex-cell-title">
         {{if section.badge}}<span class="codex-badge">{{section.badge}}</span>{{/if}}
         {{if section.icon}}
@@ -81,14 +81,23 @@
         <span class="codex-cell-name">{{section.title}}</span>
       </div>
 
-      {{if section.type === 'teams'}}
+      {{if section.empty}}
+        <div class="grows">
+          <div class="grow grow-nolabel"><span class="empty-text">暂无</span></div>
+        </div>
+
+      {{else if section.type === 'teams'}}
         <div class="grows">
           {{each section.teams team}}
-          <div class="grow team-row">
-            <span class="grow-label">{{@team.tag}}</span>
-            <span class="team-members">
-              {{each team.members m}}{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{else}}<span class="team-member">{{@m.name}}</span>{{/if}}{{/each}}
-              {{if team.text}}<span class="team-note">{{@team.text}}</span>{{/if}}
+          <div class="grow team-row{{if !team.tag}} grow-nolabel{{/if}}">
+            {{if team.tag}}<span class="grow-label {{team.tagClass}}">{{@team.tag}}</span>{{/if}}
+            <span class="grow-value team-line">
+              {{if team.members.length}}
+              <span class="team-members">
+                {{each team.members m}}<span class="team-unit">{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}<span class="team-member">{{@m.name}}{{if m.note}}<span class="team-member-note">（{{@m.note}}）</span>{{/if}}</span>{{/if}}</span>{{/each}}
+              </span>
+              {{/if}}
+              {{if team.note}}<span class="team-note">{{@team.note}}</span>{{/if}}
             </span>
           </div>
           {{/each}}
@@ -97,9 +106,13 @@
       {{else if section.type === 'rows' || section.type === 'stats'}}
         <div class="grows">
           {{each section.rows row}}
-          <div class="grow">
-            <span class="grow-label">{{@row.label}}</span>
-            {{if row.items.length > 1}}
+          <div class="grow{{if !row.label}} grow-nolabel{{/if}}{{if row.kind === 'note'}} grow-note{{/if}}">
+            {{if row.label}}<span class="grow-label {{row.labelClass}}">{{@row.label}}</span>{{/if}}
+            {{if row.kind === 'note'}}
+            <span class="row-note">{{@row.items[0].text}}</span>
+            {{else if !row.items.length}}
+            <span class="grow-value"></span>
+            {{else if row.items.length > 1}}
             <span class="rank-list">
               {{each row.items it}}<span class="rank-unit"><span class="rank-item">{{if it.icon}}{{if it.iconLine}}<img class="rank-icon rank-icon-line" src="{{it.icon}}"/>{{else}}<img class="rank-icon" src="{{it.icon}}"/>{{/if}}{{/if}}{{@it.text}}{{if it.note}}<span class="rank-note">{{@it.note}}</span>{{/if}}</span>{{if it.sepAfter}}<span class="sep">{{@it.sepAfter}}</span>{{/if}}</span>{{/each}}
             </span>

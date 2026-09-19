@@ -274,6 +274,10 @@ function refIcon (gameId, ref, record) {
  * 有 v2 就用段落里的 ref（`section.iconRef` 起头，顺次往后找第一个能取到图的）直接取图；
  * 一段 ref 都取不到（或干脆没有 ref，即旧版文本行）时，退回「取该段第一个推荐名字」的启发式，
  * 行为与改造前一致。
+ *
+ * 武器 / 圣遗物与图鉴角色条目无关（v2 的 `weapon:` / `artifact:` ref 与旧版的按名字取图都不读 record），
+ * 所以在 record 缺失时照样解析；只有天赋 / 命座（图标取自角色条目 detail.skills / detail.constellations）
+ * 会因读不到条目而留空。图鉴条目缺数据不该连带把武器 / 圣遗物的标题图标一起弄丢。
  * @param {string} gameId - gi / hsr / zzz
  * @param {object} guide - getCharacterGuide() 返回的攻略数据（段落已按长图顺序排好）
  * @param {object|null} record - 图鉴角色条目（角色页 hero 用的同一份，可为 null）
@@ -281,7 +285,7 @@ function refIcon (gameId, ref, record) {
  */
 export function resolveGuideIcons (gameId, guide, record) {
   const empty = { weapon: '', artifact: '', talent: '', constellation: '' }
-  if (!gameId || !guide || !record) return empty
+  if (!gameId || !guide) return empty
   const sections = guide.sections || []
   const find = (re) => sections.find(s => re.test(String(s.title || '')))
   const weaponSection = find(/武器/)
@@ -289,24 +293,29 @@ export function resolveGuideIcons (gameId, guide, record) {
   const talentSection = find(/天赋/)
   const constellationSection = find(/命座/)
 
-  /**
-   * 有 ref 先走 ref（按段落内的顺序，第一个能取到图的就用作段落图标），
-   * 全取不到再退回「按名字猜」（旧版文本行的路径，行为不变）
-   */
-  const withRef = (section, byName) => {
-    const refs = [section?.iconRef, ...(section?.rows || []).map(row => row.ref)].filter(Boolean)
-    for (const ref of refs) {
-      const { icon } = refIcon(gameId, ref, record)
+  /** 段落里的候选引用：段落级 iconRef 在前，其次各行的首个引用（整段共用一个标题图标） */
+  const refsOf = section => [section?.iconRef, ...(section?.rows || []).map(row => row.ref)].filter(Boolean)
+
+  /** 依次试 ref，取第一个能出图的；record 只有天赋 / 命座用得上，与它们无关的段落传 null 即可 */
+  const iconFromRefs = (section, recordOrNull) => {
+    for (const ref of refsOf(section)) {
+      const { icon } = refIcon(gameId, ref, recordOrNull)
       if (icon) return icon
     }
-    return byName()
+    return ''
   }
 
+  // 不依赖 record 的两段先算出来：ref（weapon:/artifact:）优先，取不到再按名字猜（旧版路径，行为不变）
+  const weapon = iconFromRefs(weaponSection, null) || weaponIcon(gameId, firstValue(weaponSection))
+  const artifact = iconFromRefs(artifactSection, null) || artifactIcon(gameId, firstValue(artifactSection))
+
+  if (!record) return { weapon, artifact, talent: '', constellation: '' }
+
   return {
-    weapon: withRef(weaponSection, () => weaponIcon(gameId, firstValue(weaponSection))),
-    artifact: withRef(artifactSection, () => artifactIcon(gameId, firstValue(artifactSection))),
-    talent: withRef(talentSection, () => talentIcon(record, firstValue(talentSection))),
-    constellation: withRef(constellationSection, () => constellationIcon(record, constellationSection?.rows?.[0]?.label))
+    weapon,
+    artifact,
+    talent: iconFromRefs(talentSection, record) || talentIcon(record, firstValue(talentSection)),
+    constellation: iconFromRefs(constellationSection, record) || constellationIcon(record, constellationSection?.rows?.[0]?.label)
   }
 }
 
@@ -339,8 +348,9 @@ export function attachItemIcons (gameId, sections, record) {
 
 /**
  * 给配队段落挂成员头像
- * 成员由「纯名字字符串」变成 { name, plain, icon }：模板只画头像，取不到图标时才退回显示名字
- * v2 成员是 { name, ref } 对象（按 ref 严格取图，名字照样只作降级），旧版文本行成员是纯字符串
+ * 成员由「纯名字字符串」变成 { name, note, plain, icon }：模板只画头像，取不到图标时才退回显示名字；
+ * note（「纳西妲（二命）」拆出来的「二命」）原样带下去，模板按小字 / 括注渲染，不占头像位
+ * v2 成员是 { name, note, ref } 对象（按 ref 严格取图，名字照样只作降级），旧版文本行成员是纯字符串
  * （旧版保持原来的宽松取图，不改现状）
  * @param {string} gameId
  * @param {Array} sections - parse.js 产出的段落数组
@@ -361,7 +371,7 @@ export function attachTeamIcons (gameId, sections) {
         const icon = (structured && member.icon) || (ref
           ? refIcon(gameId, ref, null).icon
           : characterIcon(gameId, plain))
-        return { name, plain, ref, icon }
+        return { name, note: structured ? String(member.note || '') : '', plain, ref, icon }
       })
     }))
     return { ...section, teams }

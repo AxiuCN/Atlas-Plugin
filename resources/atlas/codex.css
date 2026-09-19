@@ -5,7 +5,9 @@
  * Hero 区与角色页共用 common/hero.css 的框架（背景大图 / 立绘层 / 遮罩 / 头像 / 文字三段），
  * 本文件不覆盖其中任何一条。
  * v2 结构化数据另有两处小样式：档位条目里的小图标 .rank-icon（武器/圣遗物/天赋/命座）
- * 与备注 .rank-note（叠影、皇冠等级）、配队说明 .team-note；取不到图标时这些元素不渲染，布局不变。
+ * 与备注 .rank-note（叠影、皇冠等级）、配队说明 .team-note 与成员备注 .team-member-note；
+ * 取不到图标时这些元素不渲染，布局不变。没有标签的行（.grow-nolabel）内容铺满整行，
+ * 不画空的 .grow-label 小胶囊。
  */
 
 /* ============================================================
@@ -133,6 +135,7 @@
 
 /* ===== 行首标签（固定宽度，保证所有行的内容左边缘对齐） ===== */
 .grow-label {
+  align-self: start;
   padding: 0 8px;
   border-radius: 4px;
   background: rgba(110, 110, 110, 0.11);
@@ -143,11 +146,62 @@
   text-align: center;
 }
 
+/* ===== 档位标签（推荐 / 可选 / 过渡）：三档配色，越靠前越"实" ===== */
+.grow-label.label-推荐 {
+  background: rgba(46, 125, 50, 0.14);
+  color: #2e6b34;
+}
+.grow-label.label-可选 {
+  background: rgba(110, 110, 110, 0.11);
+  color: #4a4a4a;
+}
+.grow-label.label-过渡 {
+  background: rgba(160, 130, 70, 0.14);
+  color: #7a6428;
+}
+
+/* ===== 行内备注（`注：…` 段末备注行）：小一号灰字，不占档位位置 ===== */
+.grow-note {
+  grid-template-columns: minmax(0, 1fr);
+}
+.row-note {
+  min-width: 0;
+  color: #8a8378;
+  font-size: 19px;
+  font-style: italic;
+  overflow-wrap: break-word;
+}
+
+/* ===== 空模块（暂无）：浅灰占位 ===== */
+.codex-cell-empty .codex-cell-name { color: #9b958c; }
+.codex-cell-empty .codex-cell-title { border-bottom-color: #f0ede9; }
+.codex-cell-empty .empty-text {
+  color: #b3ada4;
+  font-size: 20px;
+  font-style: italic;
+  letter-spacing: 1px;
+}
+
 /* ===== 行内容 ===== */
 .grow-value {
   min-width: 0;
   word-break: normal;
   overflow-wrap: break-word;
+}
+
+/* ===== 配队行内容（成员标签 + 行尾 `注：`）：整体换行不溢出 ===== */
+.team-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== 没有标签的行（如只有命座名、没有说明的行）：内容铺满整行 =====
+ * 模板对空 label 不再画空的 .grow-label 小胶囊，这里把两列网格收成一列，
+ * 避免内容被挤进原本的 96px 标签列 */
+.grow.grow-nolabel {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* ===== 数值段（毕业面板）：数值放大、标签弱化，两列对齐 ===== */
@@ -269,6 +323,27 @@
   font-size: 20px;
   font-style: italic;
   line-height: 1.6;
+}
+
+/* ===== 配队成员单元：头像（或名字标签）+ 其下的小字括注 =====
+ * 备注不占头像位——头像照常渲染，备注排在头像下方一行小字 */
+.team-unit {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* ===== 配队成员备注 .team-member-note（「希诺宁（二命）」里的「二命」） =====
+ * 有头像时缀在头像下方，取不到头像时跟在名字后面作括注；与条目备注 .rank-note 同一套弱化样式 */
+.team-member-note {
+  color: #8a8378;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* ===== 配队成员头像 .team-avatar（只出头像，不显示名字；取不到图标才回退成上面的名字标签） ===== */

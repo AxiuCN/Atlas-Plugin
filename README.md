@@ -134,3 +134,9 @@ corepack yarn versions
 - [nanoka.cc](https://nanoka.cc/) — 图鉴数据源
 - [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend) — 数据抓取引擎，以子模块引入
 - [Lotus-ReFactor](https://github.com/MOPELotus/Lotus-ReFactor) — 搜索评分系统与别名机制参考
+
+## 许可
+
+[![GPLv3](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.html)
+
+本项目采用 [GPL-3.0](./LICENSE) 许可证。
