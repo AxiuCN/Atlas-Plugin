@@ -636,11 +636,29 @@ export function normalizePanelRows (rows) {
   }
   return out
 }
-/** 行内备注（成员括注 / 队伍说明）→ `注：…` 文本 */
+/** 行内备注（成员括注 / 队伍说明）→ `注：…` 文本；要不要加前缀由调用方按 NOTE_PREFIX_RULE 决定 */
 function noteLine (notes) {
   const parts = notes.map(t => String(t ?? '').trim()).filter(Boolean)
   return parts.length ? `${NOTE_PREFIX}${parts.join(NOTE_SEP)}` : ''
 }
+
+/**
+ * 「注：」前缀的使用规则（网页版与面板必须一致；`scripts/lib/guide-display.mjs`
+ * 与插件 `display.js` 逐字节同步）
+ *
+ *   1. **整行就是这条备注** → 不加 `注：`，它就是这一行的内容。
+ *      例：`可选：自由选择`（不是 `可选：注：自由选择`）、`推荐：减抗位`。
+ *   2. **备注是对已有内容的补充 / 限定** → 加 `注：`，并且放在**该行末尾**、渲染成小一号灰字。
+ *      例：`推荐：丝柯克 + 希诺宁 + 芙宁娜　注：希诺宁为二命`、
+ *          `主词条：… ｜ 空之杯：生命值 注：建议二命及以上使用水伤杯`。
+ *   3. **同一条信息不要既当内容又当备注**（避免重复渲染）。
+ *      `（精五）` / `（满命）` 这类**括注**是条目自带的说明，仍留在条目后面，不升级成 `注：`。
+ *   4. 命座说明、面板、天赋同理：**只有「补充 / 限定」才用 `注：`**，纯内容不用。
+ *
+ * 实现：模型里把备注存成 `note`（**不带前缀**）并给一个 `notePrefix`；
+ * 渲染层据此决定加不加 `注：`（网页版见 build-html.mjs，面板见 codex.html 的 `team.notePrefix`）。
+ */
+export const NOTE_PREFIX_RULE = '注：只在「对已有内容的补充/限定」时使用；整行就是备注时不加（见 guide-display.mjs 注释）'
 
 /** 成员括注算不算「备注走廊」（命座 / 成本类）：与 schema.mjs 的 isCostNoteText 同一判据 */
 export function isCostNote (text) {
@@ -652,7 +670,11 @@ export function isCostNote (text) {
 
 /**
  * 配队：`首选` → 推荐、`其他` → 可选；**自定义队名（月感电 / 火神队 …）原样**；
- * 角色后面的括注移到行尾，统一成 `注：…`（同一行多条合并）。
+ * 角色后面的括注移到行尾，统一成备注（同一行多条合并）。
+ *
+ * `note` 一律**不带** `注：` 前缀，由 `notePrefix` 决定渲染时加不加（规则见 NOTE_PREFIX_RULE）：
+ *   · 有成员 → 备注是补充说明，`notePrefix: true`（渲染成 `… + 芙宁娜　注：希诺宁为二命`）
+ *   · 没有成员（整行就是这条备注）→ `notePrefix: false`（渲染成 `可选：自由选择`）
  * @param {object[]} teams
  * @returns {object[]}
  */
@@ -660,7 +682,7 @@ export function normalizeTeams (teams) {
   return (teams ?? []).map(team => {
     const notes = []
     const members = (team.members ?? []).map(member => {
-      // 成员括注（命座 / 成本类）→ 行尾 `注：`；其它括注（精五 …）留在成员上
+      // 成员括注（命座 / 成本类）→ 行尾备注；其它括注（精五 …）留在成员上
       if (member.note && isCostNote(member.note)) {
         notes.push(member.note)
         return { ...member, note: '' }
@@ -668,13 +690,23 @@ export function normalizeTeams (teams) {
       return { ...member, name: displayText(member.name ?? '') }
     })
     if (team.text) notes.push(displayText(team.text))
-    // 输入模型里已经写好的行尾备注（网页版把「减抗位」这类说明放进 note）原样保留
-    if (team.note) notes.push(String(team.note))
-    const tag = displayLabel(team.tag)
-    const note = noteLine(notes)
+    // 旧文本行路径（插件 parse.js 的 linesToTeams）把 `注：xxx` 解析成 tag='注' + 空成员：
+    // 这里把它还原成**整行备注**（不加 `注：` 前缀），与网页版 teamsFromLines 的结果对齐
+    let tagRaw = String(team.tag ?? '').trim()
+    let inlineNote = ''
+    if (!members.length && /^注\s*[:：]?$/.test(tagRaw)) { inlineNote = displayText(tagRaw.replace(/^注\s*[:：]?/, '')); tagRaw = '' }
+    // Web 路径（build-html 的 teamsFromLines）已经解析过一次：那时备注在 `note` 里、`text` 是空的。
+    // 这里要把它接过来，否则「整行只有一条说明」的行会被判成空行、标签也一起丢掉。
+    const rawText = String(team.text ?? '').trim()
+    const existingNote = String(team.note ?? '').trim().replace(/^注\s*[:：]/, '') || inlineNote
+    const text = (notes.map(t => String(t ?? '').trim()).filter(Boolean).join(NOTE_SEP)) || existingNote
+    const notePrefix = team.notePrefix !== undefined
+      ? team.notePrefix === true
+      : members.length > 0
+    const tag = displayLabel(tagRaw)
     // 没有成员也没有备注的行不画标签，避免渲染出空的「可选：」
-    const hasBody = members.length > 0 || note
-    return { ...team, tag: hasBody ? tag : '', tagClass: tierLabelClass(tag), members, text: '', note }
+    const hasBody = members.length > 0 || !!text || !!rawText || !!existingNote
+    return { ...team, tag: hasBody ? tag : '', tagClass: tierLabelClass(tag), members, text: '', note: text || existingNote, notePrefix: text || existingNote ? notePrefix : false }
   })
 }
 
