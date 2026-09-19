@@ -371,11 +371,15 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
 export const TALENT_RANK_SEPS = [' > ', ' ≥ ', '＞', '>', '≥', '＝', '=', ' / ', '/', '／']
 
 /**
- * 优先级条目：把「一条里写了多个字母」的写法拆开，并给必需项（皇冠）的字母补 `10`。
- * 网页版与面板都走这里，保证 `体Q(E)` 这类写法两侧渲染一致。
- * @param {string} text 条目文本（如 `A=Q＞E` 或 `体Q`）
+ * 优先级条目：把「一条里写了多个字母」的写法拆开，并标记必需项（皇冠）。
+ *
+ * **文本里不带 `10`**（`Q10 ＞ E` → `Q ＞ E`）：皇冠必需与否只落在渲染模型的 `crown: true` 上，
+ * 由渲染层在技能图标角上叠一个皇冠徽标（面板）/ 保持纯字母（网页版）。
+ * 这样「数据与文档文本」保持干净，两侧文本也天然一致。
+ *
+ * @param {string} text 条目文本（如 `A=Q＞E`、`体Q(E)` 或旧写法 `Q10`）
  * @param {string[]} [crowned] 需要皇冠的字母（如 `['A','E']`）
- * @returns {Array<{text: string, sepAfter: string}>}
+ * @returns {Array<{text: string, sepAfter: string, crown: boolean}>}
  */
 export function normalizePriorityItems (text, crowned = []) {
   const seps = TALENT_RANK_SEPS
@@ -386,12 +390,13 @@ export function normalizePriorityItems (text, crowned = []) {
     let t = buf.trim()
     buf = ''
     if (!t) return
-    // 已有的 `10` 一律先去掉：皇冠必需与否只看 `crowned`（数据里的皇冠行是权威来源）
+    // 旧的 `X10` 写法：10 是皇冠标记，不是文本内容 —— 剥掉并转成 crown 标记
+    const legacy = /\s*10\s*$/.test(t)
     t = t.replace(/\s*10\s*$/, '').trim()
     if (!t) return
     const ch = String(t.match(/[AEQ]/) ?? '')
-    if (ch && crowned.includes(ch)) t += '10'
-    out.push({ text: t, sepAfter: sep })
+    const crown = !!ch && (legacy || crowned.includes(ch))
+    out.push({ text: t, sepAfter: sep, crown })
   }
   for (let i = 0; i < text.length; i++) {
     const c = text[i]
@@ -481,11 +486,11 @@ export function normalizeArtifactRows (rows) {
 }
 
 /**
- * 天赋：皇冠行并入优先级行 —— 必需的（必须）在字母后加 `10`，可选的（建议/可选）不标注，
- * 单独的「皇冠」行删除。合并结果如 `优先级：Q＞E＞A　E10`。
+ * 天赋：皇冠行并入优先级行 —— 必需项（必须）在该条目上标 `crown: true`（文本保持纯字母），
+ * 可选的（建议/可选）不标注，单独的「皇冠」行删除。渲染层在图标角上叠皇冠徽标。
  *
  * 优先级的档位条目在数据里可能是一条（`A＞E＞Q`）也可能是多条，这里先按档位分隔符
- * 拆开再按字母定位，所以「必需项带 10」永远落在**对应的那个字母**上（`E` → `E10`）。
+ * 拆开再按字母定位，所以「必需」标记永远落在**对应的那个字母**上（`E` → `crown:true`）。
  * @param {object[]} rows
  * @returns {object[]}
  */
@@ -501,7 +506,7 @@ export function normalizeTalentRows (rows) {
     for (const item of row.items ?? []) {
       const level = String(item.level ?? item.note ?? '')
       const name = String(item.name ?? item.text ?? '').trim()
-      // 「必须」= 需要皇冠 → 字母后直接跟 10；「建议 / 可选 / 无需」不标注
+      // 「必须」= 需要皇冠；「建议 / 可选 / 无需」不标注
       if (name && /必须/.test(level)) crowned.push(name.toUpperCase())
     }
   }
@@ -517,14 +522,15 @@ export function normalizeTalentRows (rows) {
       const name = String(token.text.match(/[AEQ]/) ?? '')
       members.push({
         ...item,
-        text: crowned.includes(name) ? `${token.text}10` : token.text,
+        text: token.text,
+        crown: !!name && (crowned.includes(name) || item.crown === true),
         sepAfter: i < tokens.length - 1 ? (token.sep || '＞') : (item.sepAfter || '')
       })
     })
   }
   const present = new Set(members.map(item => String((item.text ?? '').match(/[AEQ]/) ?? '')))
   for (const name of crowned) {
-    if (!present.has(name)) members.push({ text: `${name}10`, note: '', ref: `talent:${name}`, sepAfter: '' })
+    if (!present.has(name)) members.push({ text: name, note: '', ref: `talent:${name}`, crown: true, sepAfter: '' })
   }
   return [{ ...head, items: members }, ...others]
 }
@@ -691,23 +697,27 @@ function normalizeRowsByTitle (title, rows) {
 }
 
 /**
- * 优先级文本里「需要皇冠」的字母（出现 `X10` 即视为必需）
+ * 优先级文本里「需要皇冠」的字母：既认旧写法 `X10`，也认 `X（必须）`。
  * @param {string} text
  * @returns {string[]}
  */
 export function crownedLetters (text) {
   const out = []
-  for (const m of String(text ?? '').matchAll(/([AEQ])\s*10/g)) if (!out.includes(m[1])) out.push(m[1])
+  const s = String(text ?? '')
+  for (const m of s.matchAll(/([AEQ])\s*10/g)) if (!out.includes(m[1])) out.push(m[1])
+  for (const m of s.matchAll(/([AEQ])\s*[（(]([^）)]*)[）)]/g)) {
+    if (/必须/.test(m[2]) && !out.includes(m[1])) out.push(m[1])
+  }
   return out
 }
 
 /**
- * 归一优先级行：拆开一条里的多个字母（`A=Q＞E`）、必需项补 `10`，并**沿用数据里的分隔符**
- * （`E / Q` 保持 `/`、`E＞Q` 保持 `＞`、`A=Q` 保留同级 `=`）；raw 里没有的档位退回 `＞`。
- * 网页版与面板共用，保证「皇冠必需项带 10」两侧落在同一个字母上。
+ * 归一优先级行：拆开一条里的多个字母（`A=Q＞E`）、必需项标 `crown: true`（**文本不带 10**），
+ * 并**沿用数据里的分隔符**（`E / Q` 保持 `/`、`E＞Q` 保持 `＞`、`A=Q` 保留同级 `=`）；
+ * raw 里没有的档位退回 `＞`。网页版与面板共用。
  *
- * `crowned` 省略时从条目文本里已有的 `X10` 推断（面板侧皇冠行已经先跑过，
- * 那是权威来源）；网页版直接从 `v2.talents` 里的皇冠行取，避免二次推断出歧义。
+ * `crowned` 省略时从条目文本里推断（`X10` 或 `X（必须）`）；网页版直接把 `v2.talents`
+ * 皇冠行里带「必须」的字母传进来，避免二次推断出歧义。
  * @param {Array<{text?: string, sepAfter?: string, [k: string]: any}>} items
  * @param {string[]} [crowned] 需要皇冠的字母
  * @param {string} [raw] 数据里的原始优先级写法（用来还原逐档分隔符）
@@ -716,7 +726,7 @@ export function crownedLetters (text) {
 export function normalizePriorityRow (items, crowned, raw) {
   const list = items ?? []
   const marks = crowned ?? crownedLetters(list.map(it => String(it.text ?? '')).join(' '))
-  // 原始分隔符逐档取（`E / Q` → ['/']、`A=Q＞E` → ['=','＞']）
+  // 原始分隔符逐档取（`E / Q` → ['/']、`A=Q＞E` → ['='、'＞']）
   const rawSeps = String(raw ?? '').split(/[AEQaeq0-9\s]+/).filter(s => /[>＞≥＝=/／]/.test(s))
   const out = []
   for (const it of list) {
@@ -724,6 +734,7 @@ export function normalizePriorityRow (items, crowned, raw) {
     parsed.forEach((p, pi) => out.push({
       ...it,
       text: displayText(p.text),
+      crown: p.crown === true || it.crown === true,
       sepAfter: pi < parsed.length - 1 ? p.sepAfter : (it.sepAfter || '')
     }))
   }
@@ -823,17 +834,25 @@ export function normalizeGuideSections (sections) {
  * ------------------------------------------------------------------ */
 
 /**
- * 皇冠行文本 → 必需项（`E（必须）Q（建议）` → `['E10']`）
+ * 皇冠行文本 → 必需项字母（`E（必须）Q（建议）` → `['E']`；旧写法 `E10` 也认）
+ *
+ * 注意：这里的 `10` 只是**旧写法的兼容解析**，渲染模型里皇冠用布尔 `crown` 表达，
+ * 文本一律不带 `10`（见 normalizePriorityItems）。
  * @param {string} text
  * @returns {string[]}
  */
 export function crownItems (text) {
   const out = []
-  const re = /([AEQaeq])\s*(?:[（(]([^）)]*)[）)])?/g
+  const re = /([AEQaeq])\s*(?:10|(?:[（(]([^）)]*)[）)]))?/g
   let m
   while ((m = re.exec(String(text ?? ''))) !== null) {
     const name = m[1].toUpperCase()
-    if (/必须/.test(m[2] ?? '')) out.push(`${name}10`)
+    if (m[2] === undefined || m[2] === null || /必须/.test(m[2])) {
+      // `X10`（无括注）与 `X（必须）` 都算必需；`X（建议）` 不算
+      if (m[2] === undefined ? /\s*10/.test(m[0]) : /必须/.test(m[2])) {
+        if (!out.includes(name)) out.push(name)
+      }
+    }
   }
   return out
 }
@@ -926,24 +945,25 @@ export class LineNormalizer {
   }
 
   /**
-   * 把皇冠并进同段的优先级行：命中的字母后面直接加 `10`（`Q＞E＞A` → `Q＞E10＞A`），
-   * 该行末尾再用全角空格补一个皇冠摘要（`　E10`），与面板侧的合并写法一致。
-   * @param {string[]} crowned 形如 ['E10']
+   * 把皇冠并进同段的优先级行：命中的字母标 `crown: true`（**不再往文本里写 `10`**），
+   * 文本保持 `优先级：Q＞E＞A`，皇冠由渲染层用「图标角上的皇冠徽标」表达。
+   * @param {string[]} crowned 必需项字母（如 ['E']）或旧写法 ['E10']
    */
   mergeIntoPriority (crowned) {
+    const letters = crowned.map(c => String(c).match(/[AEQ]/)?.[0] ?? '').filter(Boolean)
     const row = this.priorityAt >= 0 ? this.done[this.priorityAt] : null
     if (row && Array.isArray(row.parts)) {
-      const letters = new Set()
       for (const part of row.parts) {
         const name = String(part.text.match(/[AEQ]/) ?? '')
-        letters.add(name)
-        if (crowned.includes(`${name}10`)) part.text = `${part.text}10`
+        if (name && letters.includes(name)) part.crown = true
       }
-      const missing = crowned.filter(c => !letters.has(c[0]))
-      row.tail = missing.length ? missing.join('　') : ''
+      // 皇冠行里有、但优先级行没提到的字母：不新增条目（文本保持原样），仅记录在行上供渲染层参考
+      const present = new Set(row.parts.map(part => String(part.text.match(/[AEQ]/) ?? '')))
+      row.crownedExtra = letters.filter(l => !present.has(l))
       return
     }
-    this.done.push({ label: '优先级', parts: crowned.map(text => ({ text, sep: '' })) })
+    // 只有皇冠行、没有优先级行：保留皇冠字母本身（此时不再有 `10`）
+    this.done.push({ label: '优先级', parts: letters.map(text => ({ text, sep: '' })), crownedCrowns: true })
     this.priorityAt = this.done.length - 1
   }
 
