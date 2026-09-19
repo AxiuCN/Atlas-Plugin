@@ -97,7 +97,7 @@
                 {{each team.members m}}<span class="team-unit">{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}<span class="team-member">{{@m.name}}{{if m.note}}<span class="team-member-note">（{{@m.note}}）</span>{{/if}}</span>{{/if}}</span>{{/each}}
               </span>
               {{/if}}
-              {{if team.note}}<span class="team-note">{{@team.note}}</span>{{/if}}
+              {{if team.note}}<span class="team-note">{{if team.notePrefix}}注：{{/if}}{{@team.note}}</span>{{/if}}
             </span>
           </div>
           {{/each}}
