@@ -94,7 +94,7 @@
             <span class="grow-value team-line">
               {{if team.members.length}}
               <span class="team-members">
-                {{each team.members m i}}<span class="team-unit">{{if m.candidates && m.candidates.length > 1}}{{each m.candidates c k}}{{if k}}<span class="team-slash">/</span>{{/if}}{{if c.icon}}<img class="team-avatar" src="{{c.icon}}"/>{{else}}<span class="team-member">{{@c.name}}</span>{{/if}}{{/each}}{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}<span class="team-member">{{@m.name}}{{if m.note}}<span class="team-member-note">（{{@m.note}}）</span>{{/if}}</span>{{/if}}{{/if}}</span>{{if i + 1 < team.members.length}}<span class="team-plus">+</span>{{/if}}{{/each}}
+                {{each team.members m i}}<span class="team-unit">{{if m.candidates && m.candidates.length > 1}}<span class="team-alts">{{each m.candidates c k}}{{if k}}<span class="team-slash">/</span>{{/if}}{{if c.icon}}<img class="team-avatar" src="{{c.icon}}"/>{{else}}<span class="team-member">{{@c.name}}</span>{{/if}}{{/each}}</span>{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}{{if m.icon}}<img class="team-avatar" src="{{m.icon}}"/>{{if m.note}}<span class="team-member-note">{{@m.note}}</span>{{/if}}{{else}}<span class="team-member">{{@m.name}}{{if m.note}}<span class="team-member-note">（{{@m.note}}）</span>{{/if}}</span>{{/if}}{{/if}}</span>{{if i + 1 < team.members.length}}<span class="team-plus">+</span>{{/if}}{{/each}}
               </span>
               {{/if}}
               {{if team.note}}<span class="team-note">{{if team.notePrefix}}注：{{/if}}{{@team.note}}</span>{{/if}}
@@ -107,7 +107,7 @@
         <div class="grows">
           {{each section.rows row}}
           <div class="grow{{if !row.label}} grow-nolabel{{/if}}{{if row.kind === 'note'}} grow-note{{/if}}{{if row.items[0] && row.items[0].ref && row.items[0].ref.indexOf('constellation:') === 0}} grow-constellation{{/if}}">
-            {{if row.items[0] && row.items[0].ref && row.items[0].ref.indexOf('constellation:') === 0}}<span class="grow-icon">{{if row.items[0].icon}}<img class="rank-icon" src="{{row.items[0].icon}}"/>{{/if}}</span>{{/if}}
+            {{if row.items[0] && row.items[0].ref && row.items[0].ref.indexOf('constellation:') === 0}}<span class="grow-icon">{{if row.items[0].icon}}{{if row.items[0].iconLine}}<img class="rank-icon rank-icon-line" src="{{row.items[0].icon}}"/>{{else}}<img class="rank-icon" src="{{row.items[0].icon}}"/>{{/if}}{{/if}}</span>{{/if}}
             {{if row.label}}<span class="grow-label {{row.labelClass}}">{{@row.label}}</span>{{/if}}
             {{if row.kind === 'note'}}
             <span class="row-note">{{@row.items[0].text}}</span>
