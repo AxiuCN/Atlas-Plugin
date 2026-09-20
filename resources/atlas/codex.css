@@ -204,6 +204,25 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* ===== 命座行：**图标在 `命之座N` 之前**（用户定稿：图标与「命之座2」的顺序别颠倒） =====
+ * 网格多出一列专门放图标：`[图标] [命之座N] [说明]`，三列垂直居中。
+ * 图标由模板在行首渲染（`.grow-icon`），值那一列不再重复画图标。 */
+.grow.grow-constellation {
+  grid-template-columns: auto 96px minmax(0, 1fr);
+  align-items: center;
+}
+.grow-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.grow-icon .rank-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0;
+}
+
 /* ===== 数值段（毕业面板）：数值放大、标签弱化，两列对齐 ===== */
 .codex-stats .grow-value {
   font-size: 25px;
@@ -534,6 +553,29 @@
 }
 .codex-team .team-member { font-size: 22px; padding: 3px 16px; }
 .codex-team .team-member-note { font-size: 19px; }
+/* 成员**头像之间**的 `+`（同级可替换的角色在**同一格**里用 ` / `，见 .team-unit） */
+.codex-team .team-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: 0 4px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: #b3a89c;
+}
+/* 同一格里的**可替换候选**（`迪奥娜 / 阿罗夏`）：头像之间画 `/`，与格子之间的 `+` 区分开 */
+.codex-team .team-slash {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  padding: 0 3px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: #c0b6aa;
+}
 .codex-team .team-line { gap: 12px; }
 .codex-team .team-note { font-size: 21px; padding: 3px 16px; }
 .codex-team .codex-cell-title { padding-bottom: 12px; margin-bottom: 16px; }

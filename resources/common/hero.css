@@ -21,11 +21,14 @@
   background: #f4f1ef;
 }
 
-/* ===== Hero 背景遮罩 .hero-bg（米色半透，弱化立绘保可读） ===== */
+/* ===== Hero 背景遮罩 .hero-bg（米色半透，弱化立绘保可读） =====
+ * 对比度（用户反馈：hero 区文字与背景图对比不够）：遮罩从 0.3 提到 0.52，
+ * 再把文字加深 + 加白色描边（见下面 .hero-title / .hero-game），
+ * 这样无论名刺图多亮/多花，字都压得住。 */
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: rgba(244, 241, 239, 0.3);
+  background: rgba(246, 243, 240, 0.52);
   pointer-events: none;
 }
 
@@ -127,23 +130,35 @@
   z-index: 1;
 }
 
-/* ===== Hero 游戏标签 .hero-game ===== */
+/* ===== Hero 游戏标签 .hero-game =====
+ * 对比度（用户反馈 hero 区对比不够）：字更深 + 四向白色描边 + 柔光，背景图再花也读得清 */
 .hero .hero-game {
   font-size: 23px;
-  font-weight: 500;
-  color: #4a4a4a;
+  font-weight: 700;
+  color: #33322f;
   margin-bottom: 4px;
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 -1px 0 rgba(255, 255, 255, 0.85),
+    1px 0 0 rgba(255, 255, 255, 0.85),
+    -1px 0 0 rgba(255, 255, 255, 0.85),
+    0 0 12px rgba(255, 255, 255, 0.95);
 }
 
 /* ===== Hero 大标题 .hero-title ===== */
 .hero .hero-title {
   font-family: "hk4e", Number, "MiSans Semibold", MiSans, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, "华文中宋", STZhongsong, PingFangSC-Medium, "PingFang SC", sans-serif;
   font-size: 52px;
-  font-weight: 600;
-  color: #3a3a3a;
+  font-weight: 700;
+  color: #23221e;
   line-height: 1.2;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 -1px 0 rgba(255, 255, 255, 0.9),
+    1px 0 0 rgba(255, 255, 255, 0.9),
+    -1px 0 0 rgba(255, 255, 255, 0.9),
+    0 2px 8px rgba(255, 255, 255, 0.9),
+    0 0 16px rgba(255, 255, 255, 0.85);
 }
 
 /* ===== Hero 副标题 .hero-subtitle ===== */

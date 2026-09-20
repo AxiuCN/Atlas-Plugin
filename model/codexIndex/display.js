@@ -33,6 +33,13 @@
  *     `displayLabel` 对它们**直接放行**（不做二次归一，见 displayLabel 内的提前返回）。
  *   - 档位行内容为空时**整行不渲染**（不允许出现「过渡：」这种只有标签没有内容的行），
  *     由 `rowIsEmpty` + `normalizeSection` 统一保证，网页版与面板共用同一条规则。
+ *   - **自定义档位词**（用户定稿）：行的 `label` 非空时**它就是这一行的标签**
+ *     （如把「推荐」写成「建议」→ 文档 `建议：西风剑`、网页版 / 面板同显 `建议`）；
+ *     此时**不写** `第N档：`、也不看 `tier`。两端与文档层同口径：
+ *     显示 = `displayLabel`（本文件）、文档 = `schema.renderWeaponRow`。
+ *     所以「自定义词」与「档位序号」在文档里是**互斥**的（一行只有一个标签词），
+ *     编辑器负责在输入时二选一（见 `resources/editor/app.js` 的 `isCustomLabel`），
+ *     避免出现 `建议：第一档：…` 这种文档层无法还原的写法。
  *
  * ===================================================================
  * 符号语义（用户定稿，四处一致：正文行 / 面板 / 网页版 / 文档）
@@ -167,7 +174,9 @@ export const ARTIFACT_KIND_LABEL = {
  *
  * 术语分类（便于维护）：
  *   - **同级对**：`双爆` → `暴击率=暴击伤害`（`=` 同级；**不是** `＞` 优先级）
- *   - 大小前缀：`大生命`/`小生命` → `生命值`、`大攻击`/`小攻击` → `攻击力`、`大防御`/`小防御` → `防御力`
+ *   - 大小前缀（**副词条口径，两个都是最终显示形态**）：
+ *     `大生命`/`大攻击`/`大防御` = 百分比；`小生命`/`小攻击`/`小防御` = 固定值。
+ *     主词条**不写「百分比」**（主词条默认就是百分比）：直接写 `攻击力` / `生命值` / `防御力`。
  *   - 属性别称：`暴伤`/`爆伤` → `暴击伤害`、`精通` → `元素精通`、`充能` → `元素充能效率`
  *   - 部位连写：`充能沙`/`精通头`/`暴击头`/`攻击杯` …
  *   - 恒等项（最长，先命中）：占住已是全称的位置，避免短词再叠一层
@@ -186,8 +195,10 @@ export const STAT_ALIASES = [
   ['双爆', '暴击率=暴击伤害', '加头率伤', '升供加抗减提'],
   // 百分比词条统一成**简写**（用户定稿）：`大生命` / `大攻击` / `大防御` **本身就是要显示的形态**，
   // 所以它们是恒等项（占住位置，不再被折成 `生命值` / `攻击力` / `防御力` —— 那是"固定值"语义，会弄错）。
-  // ⚠ `攻击力百分比` **不在这里**：它同时还出现在**主词条**里（`时之沙：攻击力百分比`），
+  // 固定值同理（用户定稿）：副词条写 `小生命` / `小攻击` / `小防御`，**也原样显示**。
+  // ⚠ `攻击力百分比` **不在这里**：它同时还出现在**主词条**里（旧写法 `时之沙：攻击力百分比`），
   //   而主词条用固定词表、不许改；所以那条只在副词条专属的 `subStatText` 里归一。
+  //   主词条现在的写法是**不带「百分比」**的 `攻击力` / `生命值` / `防御力`（默认就是百分比）。
   ['大生命', '大生命'],
   ['大攻击', '大攻击'],
   ['大防御', '大防御'],
@@ -196,9 +207,9 @@ export const STAT_ALIASES = [
   ['百分比攻击力', '大攻击'],
   ['防御力百分比', '大防御'],
   ['百分比防御力', '大防御'],
-  ['小生命', '生命值'],
-  ['小攻击', '攻击力'],
-  ['小防御', '防御力'],
+  ['小生命', '小生命'],
+  ['小攻击', '小攻击'],
+  ['小防御', '小防御'],
   ['暴伤', '暴击伤害'],
   ['爆伤', '暴击伤害'],
   // 恒等项（最长，先命中）：把已经是全称的位置占住，后面的短词规则就不会再叠一层
@@ -207,11 +218,14 @@ export const STAT_ALIASES = [
   ['充能效率', '元素充能效率'],
   ['充能沙', '元素充能效率'],
   ['元素充能', '元素充能效率'],
-  ['充能', '元素充能效率', '效沙'],
+  ['充能', '元素充能效率', '效沙', '24'],
   ['精通头', '元素精通'],
   ['精通沙', '元素精通'],
   ['精通杯', '元素精通'],
-  ['精通', '元素精通'],
+  // `2X` / `4X` = **圣遗物件数简写**（`2精通 + 2精通`、`2充能 + 2充能`）：件数后面的词条**不展开**，
+  // 否则会把"简写"重新变回全称（`2元素精通`），违背用户口径「2+2 用简写」。
+  // 判据用「前邻字符是 2 或 4」—— 正值场景（`265精通`）不受影响。
+  ['精通', '元素精通', undefined, '24'],
   ['暴击头', '暴击率'],
   ['暴伤头', '暴击伤害'],
   ['爆伤头', '暴击伤害'],
@@ -328,24 +342,30 @@ export function displayPanelText (text) {
  * `推荐` / `可选` / `过渡` **本身就是显示词汇**，命中即原样放行（见下面的提前返回）：
  * 其中 `过渡` 既是来源写法也是第三档的显示词，**不再折成 `可选`** —— 这是三档口径的定稿行为。
  * @param {string} label
- * @param {number|string|null} [tier] 档位序号（有 tier 时优先用它）
+ * @param {number|string|null} [tier] 档位序号（**只在 `label` 为空时**才用它）
  * @returns {string}
  */
 export function displayLabel (label, tier = null) {
+  const raw = String(label ?? '').trim()
+  // **自定义词优先**（与文档层 schema.renderWeaponRow、编辑器同口径）：
+  // `label` 非空就用它（`建议` 这类自定义档位词原样显示），只有 label 为空时才看档位序号。
+  // 为什么必须 label 优先：网页版 / 编辑器预览过去按 tier 算标签，于是
+  // 「档位=推荐 + 自定义词=建议」时网页版显示 `推荐`、面板显示 `建议`（两端漂移）。
+  if (raw) {
+    // 已经是显示词汇（推荐 / 可选 / 过渡）就直接放行，避免二次归一 ——
+    // 尤其 `过渡` 是三档口径的第三档显示词，折成 `可选` 会让两个档位撞名。
+    if (TIER_BY_INDEX.includes(raw)) return raw
+    if (Object.prototype.hasOwnProperty.call(TIER_LABEL, raw)) return TIER_LABEL[raw]
+    const m = raw.match(/^第([一二三四五六123456])[档挡]$/)
+    if (m) {
+      const idx = '一二三四五六'.indexOf(m[1]) + 1 || Number(m[1])
+      return TIER_BY_INDEX[idx] ?? raw
+    }
+    return raw
+  }
   const t = Number(tier)
   if (Number.isInteger(t) && t > 0 && TIER_BY_INDEX[t]) return TIER_BY_INDEX[t]
-  const raw = String(label ?? '').trim()
-  if (!raw) return ''
-  // 已经是显示词汇（推荐 / 可选 / 过渡）就直接放行，避免二次归一 ——
-  // 尤其 `过渡` 是三档口径的第三档显示词，折成 `可选` 会让两个档位撞名。
-  if (TIER_BY_INDEX.includes(raw)) return raw
-  if (Object.prototype.hasOwnProperty.call(TIER_LABEL, raw)) return TIER_LABEL[raw]
-  const m = raw.match(/^第([一二三四五六123456])[档挡]$/)
-  if (m) {
-    const idx = '一二三四五六'.indexOf(m[1]) + 1 || Number(m[1])
-    return TIER_BY_INDEX[idx] ?? raw
-  }
-  return raw
+  return ''
 }
 
 /**
@@ -427,6 +447,54 @@ export const SECTION_KEYWORDS = { 武器: '武器', 圣遗物: '圣遗物', 天�
 export const SET_COMBO_SEP = '+'
 
 /**
+ * 圣遗物**同级**（源文档里的 `/`）的显示分隔符：**空** ——
+ * 两个 chip 紧挨着，不画 `＞`（用户定稿：「同级的圣遗物套装之间不要用 ＞ 区分」）。
+ * 只有**优先级**（`>` / `≥`）才保留分隔符。
+ */
+export const SET_LEVEL_SEP = ''
+
+/**
+ * 两条套装之间的显示分隔符：同级 → `''`（紧挨着）、优先级 → 原样（渲染成 `＞`）。
+ * @param {string} raw 源文档里的分隔符
+ * @param {string} fallback 认不出时的兜底
+ * @returns {string}
+ */
+function gapSepOf (raw, fallback = '') {
+  const t = String(raw ?? '').trim()
+  if (!t) return ''
+  if (t === '/' || t === '／') return SET_LEVEL_SEP
+  if (t === '+' || t === '＋' || t === '&' || t === '＆') return fallback || SET_LEVEL_SEP
+  return t
+}
+
+/**
+ * `2X` / `4X` = **圣遗物件数简写**（`2精通` / `2充能` / `2攻击`…），是"效果描述"不是套装名。
+ * @param {string} p
+ * @returns {boolean}
+ */
+function isPieceShorthand (p) {
+  return /^[24][^\d\s]/.test(String(p ?? '').trim())
+}
+
+/**
+ * 组合内的同名去重（`A + A` → `A`）。
+ *
+ * ⚠ **件数简写不去重**（用户定稿）：`2精通 + 2精通` 是"两套都给精通"的效果描述，
+ * 合成一个 `2精通` 会被读成"只要一件 2 件套" —— 用户明确要的是 `2精通+2精通`。
+ * 真套装名（`千岩牢固 + 千岩牢固`）仍然去重。
+ * @param {string[]} parts
+ * @returns {string[]}
+ */
+function dedupeParts (parts) {
+  const out = []
+  for (const p of parts ?? []) {
+    if (isPieceShorthand(p)) { out.push(p); continue }
+    if (!out.includes(p)) out.push(p)
+  }
+  return out
+}
+
+/**
  * 套装行的**显示级组合归一**（网页版与面板共用同一份规则）。
  *
  * 输入是「原始套装序列 + 逐档分隔符」，输出是「显示条目」：
@@ -459,8 +527,8 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
     if (!name) continue
     const pieces = String(sets[i]?.pieces ?? '').trim()
     const joined = i > 0 && isPlus(seps[i - 1])
-    if (cur && joined) cur.parts.push(pieces ? `${name}（${pieces}）` : name)
-    else { cur = { parts: [pieces ? `${name}（${pieces}）` : name], base: sets[i] }; entries.push(cur) }
+    const after = String(seps[i] ?? '') // 这一条**后面**的分隔符（最后一条为 ''）
+    if (cur && joined) { cur.parts.push(pieces ? `${name}（${pieces}）` : name); cur.gapAfter = after } else { cur = { parts: [pieces ? `${name}（${pieces}）` : name], base: sets[i], gapAfter: after }; entries.push(cur) }
   }
 
   // 2. 同名只保留一次：某条目的**全部**套装名都在更靠后的条目里出现过时，整条丢掉
@@ -469,12 +537,14 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
   const kept = entries.filter((e, i) => e.parts.some(p => lastAt.get(p) === i))
 
   return kept.map((e, i) => {
-    const parts = [...new Set(e.parts)]
+    const parts = dedupeParts(e.parts)
     return {
       name: parts.join(SET_COMBO_SEP),
       // 名字里已经拼过括注，这里把原字段清掉，避免模板再补一次
       pieces: '',
-      sepAfter: i === kept.length - 1 ? '' : outSep,
+      // **同级**（源文档写 `/`）→ 两个 chip **紧挨着**，不画 `＞`（用户定稿）；
+      // 优先级（`>` / `≥`）才保留分隔符（由 displaySep 渲染成 `＞`）。见 SET_LEVEL_SEP。
+      sepAfter: i === kept.length - 1 ? '' : gapSepOf(e.gapAfter, outSep),
       item: e.base
     }
   })
@@ -615,11 +685,53 @@ function subStatText (text) {
  * @param {string} sep
  * @returns {string}
  */
+/**
+ * 副词条分隔符的**显示口径**（用户定稿）：
+ *   · **只有「暴击率 ↔ 暴击伤害」是同级** → 显示 `=`（`双爆` 也是这一对）；
+ *   · **其余一律是优先级** → 显示 `＞`（源文档里不管是 `/` 还是 `>` 写的）。
+ *
+ * ⚠ 这里曾经把副词条的 `/` **全部**折成 `=`，于是
+ * `暴击率 / 暴击伤害 / 元素充能效率 / 元素精通` 被渲染成
+ * `暴击率 = 暴击伤害 = 元素充能效率 = 元素精通` —— 用户明确指出：
+ * **「只有暴击和爆伤是等价的，其他都是大于」**。所以现在 `/` 只有在暴击对之间才是 `=`。
+ *
+ * `&gt;` 也一起归一：面板侧 `parse.js` 在交给本模块之前已经把分隔符 HTML 转义
+ * （`escapeHtml(sep)`），所以这里必须同时认转义形态，否则会出现
+ * "网页版 `＞` / 面板 `&gt;`"的两端漂移（`audit-web-vs-panel` 的 canon 会把它当等价而漏掉）。
+ * @param {string} sep
+ * @returns {string}
+ */
 function subSep (sep) {
   const s = String(sep ?? '').trim()
   if (s === '/' || s === '／') return '='
   if (s === '>' || s === '＞' || s === '&gt;') return '＞'
   return s
+}
+
+/** 显示文本是不是「暴击率」这一侧（`暴击` / `暴击率` 都算） */
+function isCritRateText (text) {
+  const t = String(text ?? '').replace(/<[^>]*>/g, '').trim()
+  return t === '暴击率' || t === '暴击'
+}
+
+/** 显示文本是不是「暴击伤害」这一侧（`暴伤` / `爆伤` 展开后也算） */
+function isCritDmgText (text) {
+  return String(text ?? '').replace(/<[^>]*>/g, '').trim() === '暴击伤害'
+}
+
+/**
+ * 这一档分隔符该显示成什么：**只有暴击对（暴击率 ↔ 暴击伤害）才是 `=`**，其余一律 `＞`。
+ * 判据用**显示文本**（`暴击` / `暴伤` 已经展开成 `暴击率` / `暴击伤害` 后再比）。
+ * @param {string} sep
+ * @param {string} left 左侧条目的显示文本
+ * @param {string} right 右侧条目的显示文本
+ * @returns {string}
+ */
+function subSepBetween (sep, left, right) {
+  const shown = subSep(sep)
+  if (shown !== '=') return shown
+  const pair = (isCritRateText(left) && isCritDmgText(right)) || (isCritDmgText(left) && isCritRateText(right))
+  return pair ? '=' : '＞'
 }
 
 /**
@@ -631,17 +743,22 @@ function subSep (sep) {
 export function normalizeArtifactRows (rows) {
   return (rows ?? []).map(row => {
     const isSub = /副词条/.test(String(row.label ?? ''))
+    const src = row.items ?? []
+    // 先把每条的显示文本算出来（`暴击` → `暴击率`、`爆伤` → `暴击伤害`…），
+    // 分隔符要**看着左右两边的文本**决定：只有暴击对才是 `=`，其余都是 `＞`。
+    const texts = src.map(item => isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text))
     return {
       ...row,
       label: displayLabel(row.label),
-      items: (row.items ?? []).map(item => ({
+      items: src.map((item, i) => ({
         ...item,
         // 副词条走 `subStatText`（把 `攻击力百分比` 收成 `大攻击`）；其它行不碰
-        text: isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text),
+        text: texts[i],
         note: item.note ? displayText(item.note) : item.note,
-        // 副词条：`/` 同级 → `=`；`>` 优先级 → `＞`；`≥` 原样。**不再把 `/` 折成 `＞`** ——
-        // 那会把"同级"说成"优先级"，正是「暴击率＞暴击伤害 应为 暴击率=暴击伤害」那个 bug。
-        sepAfter: isSub ? subSep(item.sepAfter) : displaySep(item.sepAfter)
+        // 副词条：**只有暴力对之间** `/` 才是同级 `=`，其余 `/` 与 `>` 都显示 `＞`（见 subSepBetween）
+        sepAfter: isSub
+          ? subSepBetween(item.sepAfter, texts[i], texts[i + 1])
+          : displaySep(item.sepAfter)
       }))
     }
   })
