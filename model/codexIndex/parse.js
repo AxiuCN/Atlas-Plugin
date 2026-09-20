@@ -562,7 +562,9 @@ function v2ArtifactRows (rows) {
         // 套装备注（「千岩牢固（四件套）」拆出来的部分）与武器条目同一套小字渲染，不占图标位
         note: String(entry.item?.note ?? '').trim() ? inlineLabel(entry.item.note) : '',
         ref: String(entry.item?.ref || ''),
-        sepAfter: i < arr.length - 1 ? escapeHtml(entry.sepAfter || '/') : ''
+        // 同级（源文档 `/`）→ **空**：两个 chip 紧挨着，不画 `＞`（用户定稿）；
+        // 优先级（`>`/`≥`）→ `＞`。与网页版同口径（见 guide-display.mjs 的 gapSepOf）
+        sepAfter: entry.sepAfter ? '＞' : ''
       }))
     })
   }
@@ -577,7 +579,7 @@ function v2ArtifactRows (rows) {
  */
 function resolveArtifactSetItems (sets, seps) {
   try {
-    return resolveSetItems(sets, seps, { sep: '/' })
+    return resolveSetItems(sets, seps, { sep: '' })
   } catch {
     // 兜底：规则模块出问题时退化成原样渲染，不丢内容（件数已定稿不显示，见下）
     return sets.map((item, i) => ({
@@ -614,7 +616,8 @@ function v2TalentRows (rows) {
   }
   if (byName.size) {
     out.push({
-      label: '天赋',
+      // 行首标签用**显示词汇** `推荐`（与武器 / 圣遗物行一致；文档里仍写 `天赋：…`，网页版同口径）
+      label: '推荐',
       kind: 'talents',
       ref: String((byName.get('A') || byName.values().next().value || {}).ref || ''),
       items: ['A', 'E', 'Q'].map(name => {

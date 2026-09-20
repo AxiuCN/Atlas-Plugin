@@ -218,11 +218,14 @@ export const STAT_ALIASES = [
   ['充能效率', '元素充能效率'],
   ['充能沙', '元素充能效率'],
   ['元素充能', '元素充能效率'],
-  ['充能', '元素充能效率', '效沙'],
+  ['充能', '元素充能效率', '效沙', '24'],
   ['精通头', '元素精通'],
   ['精通沙', '元素精通'],
   ['精通杯', '元素精通'],
-  ['精通', '元素精通'],
+  // `2X` / `4X` = **圣遗物件数简写**（`2精通 + 2精通`、`2充能 + 2充能`）：件数后面的词条**不展开**，
+  // 否则会把"简写"重新变回全称（`2元素精通`），违背用户口径「2+2 用简写」。
+  // 判据用「前邻字符是 2 或 4」—— 正值场景（`265精通`）不受影响。
+  ['精通', '元素精通', undefined, '24'],
   ['暴击头', '暴击率'],
   ['暴伤头', '暴击伤害'],
   ['爆伤头', '暴击伤害'],
@@ -444,6 +447,54 @@ export const SECTION_KEYWORDS = { 武器: '武器', 圣遗物: '圣遗物', 天�
 export const SET_COMBO_SEP = '+'
 
 /**
+ * 圣遗物**同级**（源文档里的 `/`）的显示分隔符：**空** ——
+ * 两个 chip 紧挨着，不画 `＞`（用户定稿：「同级的圣遗物套装之间不要用 ＞ 区分」）。
+ * 只有**优先级**（`>` / `≥`）才保留分隔符。
+ */
+export const SET_LEVEL_SEP = ''
+
+/**
+ * 两条套装之间的显示分隔符：同级 → `''`（紧挨着）、优先级 → 原样（渲染成 `＞`）。
+ * @param {string} raw 源文档里的分隔符
+ * @param {string} fallback 认不出时的兜底
+ * @returns {string}
+ */
+function gapSepOf (raw, fallback = '') {
+  const t = String(raw ?? '').trim()
+  if (!t) return ''
+  if (t === '/' || t === '／') return SET_LEVEL_SEP
+  if (t === '+' || t === '＋' || t === '&' || t === '＆') return fallback || SET_LEVEL_SEP
+  return t
+}
+
+/**
+ * `2X` / `4X` = **圣遗物件数简写**（`2精通` / `2充能` / `2攻击`…），是"效果描述"不是套装名。
+ * @param {string} p
+ * @returns {boolean}
+ */
+function isPieceShorthand (p) {
+  return /^[24][^\d\s]/.test(String(p ?? '').trim())
+}
+
+/**
+ * 组合内的同名去重（`A + A` → `A`）。
+ *
+ * ⚠ **件数简写不去重**（用户定稿）：`2精通 + 2精通` 是"两套都给精通"的效果描述，
+ * 合成一个 `2精通` 会被读成"只要一件 2 件套" —— 用户明确要的是 `2精通+2精通`。
+ * 真套装名（`千岩牢固 + 千岩牢固`）仍然去重。
+ * @param {string[]} parts
+ * @returns {string[]}
+ */
+function dedupeParts (parts) {
+  const out = []
+  for (const p of parts ?? []) {
+    if (isPieceShorthand(p)) { out.push(p); continue }
+    if (!out.includes(p)) out.push(p)
+  }
+  return out
+}
+
+/**
  * 套装行的**显示级组合归一**（网页版与面板共用同一份规则）。
  *
  * 输入是「原始套装序列 + 逐档分隔符」，输出是「显示条目」：
@@ -476,8 +527,8 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
     if (!name) continue
     const pieces = String(sets[i]?.pieces ?? '').trim()
     const joined = i > 0 && isPlus(seps[i - 1])
-    if (cur && joined) cur.parts.push(pieces ? `${name}（${pieces}）` : name)
-    else { cur = { parts: [pieces ? `${name}（${pieces}）` : name], base: sets[i] }; entries.push(cur) }
+    const after = String(seps[i] ?? '') // 这一条**后面**的分隔符（最后一条为 ''）
+    if (cur && joined) { cur.parts.push(pieces ? `${name}（${pieces}）` : name); cur.gapAfter = after } else { cur = { parts: [pieces ? `${name}（${pieces}）` : name], base: sets[i], gapAfter: after }; entries.push(cur) }
   }
 
   // 2. 同名只保留一次：某条目的**全部**套装名都在更靠后的条目里出现过时，整条丢掉
@@ -486,12 +537,14 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
   const kept = entries.filter((e, i) => e.parts.some(p => lastAt.get(p) === i))
 
   return kept.map((e, i) => {
-    const parts = [...new Set(e.parts)]
+    const parts = dedupeParts(e.parts)
     return {
       name: parts.join(SET_COMBO_SEP),
       // 名字里已经拼过括注，这里把原字段清掉，避免模板再补一次
       pieces: '',
-      sepAfter: i === kept.length - 1 ? '' : outSep,
+      // **同级**（源文档写 `/`）→ 两个 chip **紧挨着**，不画 `＞`（用户定稿）；
+      // 优先级（`>` / `≥`）才保留分隔符（由 displaySep 渲染成 `＞`）。见 SET_LEVEL_SEP。
+      sepAfter: i === kept.length - 1 ? '' : gapSepOf(e.gapAfter, outSep),
       item: e.base
     }
   })

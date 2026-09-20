@@ -371,10 +371,15 @@ export function attachTeamIcons (gameId, sections) {
         const plain = plainText(name)
         // v2 成员按 ref（character: 前缀）严格取图；旧版只有纯名字，走原来的宽松路径
         const ref = structured ? String(member.ref || '') : ''
-        const icon = (structured && member.icon) || (ref
-          ? refIcon(gameId, ref, null).icon
-          : characterIcon(gameId, plain))
-        return { name, note: structured ? String(member.note || '') : '', plain, ref, icon }
+        // 一格可以有多个**可替换**候选（`迪奥娜 / 阿罗夏`）：**每个候选各取一张头像**，
+        // 模板在候选之间画 `/`（用户口径：同一格可替换用 `/`，格子之间用 `+`）。
+        const names = String(name ?? '').split(/\s*[/／]\s*/).map(s => s.trim()).filter(Boolean)
+        const candidates = (names.length ? names : [plain]).map((n, i) => {
+          const r = i === 0 ? ref : ''
+          return { name: n, icon: r ? refIcon(gameId, r, null).icon : characterIcon(gameId, n) }
+        })
+        const icon = (structured && member.icon) || (candidates[0] ? candidates[0].icon : '')
+        return { name, note: structured ? String(member.note || '') : '', plain, ref, icon, candidates }
       })
     }))
     return { ...section, teams }
