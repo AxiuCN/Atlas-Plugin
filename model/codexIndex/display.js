@@ -777,6 +777,26 @@ function subSepBetween (sep, left, right) {
  * @param {object[]} rows
  * @returns {object[]}
  */
+/**
+ * **主词条 / 副词条值末尾的括注** → `{ text, note }`（用户定稿 2026-09-20：括注统一写在**值里**）。
+ *
+ * 数据里括注跟在**具体那个值**后面：`防御力（特殊）`、`暴击率（西风）`、`水元素伤害加成（二命）`、
+ * `暴击率（携带西风秘典时）`。显示时折成「值 + 小字备注」，走与面板/网页版模板 `note` 分支
+ * 完全相同的一条路，所以两种历史写法（值里 / `note`+`noteSlot` 字段）看起来一模一样。
+ *
+ * 只认**末尾那一层**括号（与 parse-docx 的 `NAME_NOTE_RE` 同一判据）；括号出现在值中间
+ * 说明写法不对（`scan-separators.mjs` 会警告），因为部位内部的分隔符逻辑会把它切开。
+ *
+ * ⚠ 凡是要**按值精确匹配**的地方（候选表、别名归一、审计比对）都要先过这个函数拿 `text`。
+ * @param {string} value
+ * @returns {{text: string, note: string}}
+ */
+export function splitStatNote (value) {
+  const s = String(value ?? '')
+  const m = s.match(/^(.*?)\s*[（(]([^（()）]+)[）)]\s*$/)
+  return m ? { text: m[1].trim(), note: m[2].trim() } : { text: s, note: '' }
+}
+
 export function normalizeArtifactRows (rows) {
   return (rows ?? []).map(row => {
     const fromLabel = String(row.label ?? '')
@@ -784,15 +804,10 @@ export function normalizeArtifactRows (rows) {
     const isSub = /副词条/.test(fromLabel)
     const src = row.items ?? []
     // **主词条 / 副词条值末尾的括注 → 条目的 `note`（渲染成小字弱化）**
-    // （用户定稿 2026-09-20：「主词条的括注没有对所有角色生效」）
-    //   数据里有两种写法，必须收敛成同一个效果：
-    //     · `kind:'main'` 的 `note` + `noteSlot` 字段（面板本来就画成 note，网页版却画成行内括注）
-    //     · 直接写在值里的括注（`防御力（特殊）`、`暴击率（西风）`、`暴击率（携带西风秘典时）`）
-    //   在显示层统一拆出来，两条链路就都走模板的 `note`（小字）分支，文档 / JSON 一个字不改。
-    const splitNote = (t) => {
-      const m = String(t ?? '').match(/^(.*?)\s*[（(]([^（()）]+)[）)]\s*$/)
-      return m ? { text: m[1].trim(), note: m[2].trim() } : { text: String(t ?? ''), note: '' }
-    }
+    // （用户定稿 2026-09-20：括注统一写在**值里**，见 splitStatNote）
+    //   历史数据里还有另一种写法：`kind:'main'` 的 `note` + `noteSlot` 字段（面板本来就画成
+    //   note、网页版却画成行内括注）。两种写法在显示层收敛到同一个效果 —— 模板的 `note` 分支。
+    const splitNote = splitStatNote
     // 先把每条的显示文本算出来（`暴击` → `暴击率`、`爆伤` → `暴击伤害`…），
     // 分隔符要**看着左右两边的文本**决定：只有暴击对才是 `=`，其余都是 `＞`。
     // 括注要在**算分隔符之前**拆掉，否则 `暴击率（西风）` 认不出是暴击对。
@@ -1053,19 +1068,21 @@ function noteLine (notes) {
  * 「注：」前缀的使用规则（网页版与面板必须一致；`scripts/lib/guide-display.mjs`
  * 与插件 `display.js` 逐字节同步）
  *
- *   1. **整行就是这条备注** → 不加 `注：`，它就是这一行的内容。
- *      例：`可选：自由选择`（不是 `可选：注：自由选择`）、`推荐：减抗位`。
- *   2. **备注是对已有内容的补充 / 限定** → 加 `注：`，并且放在**该行末尾**、渲染成小一号灰字。
+ *   1. **对已有内容的补充 / 限定** → 加 `注：`，放在**行尾**、渲染成小一号灰字。
  *      例：`推荐：丝柯克 + 希诺宁 + 芙宁娜　注：希诺宁为二命`、
  *          `主词条：… ｜ 空之杯：生命值 注：建议二命及以上使用水伤杯`。
- *   3. **同一条信息不要既当内容又当备注**（避免重复渲染）。
- *      `（精五）` / `（满命）` 这类**括注**是条目自带的说明，仍留在条目后面，不升级成 `注：`。
- *   4. 命座说明、面板、天赋同理：**只有「补充 / 限定」才用 `注：`**，纯内容不用。
+ *   2. **段落最下方那条纯文字行**（没有成员、也没有档位词）→ 加 `注：`。
+ *      例：`注：建议二命及以上；高金配置`。
+ *   3. **整行就是这一行的内容**（带档位词、没有成员）→ 不加 `注：`。
+ *      例：`可选：自由选择`（不是 `可选：注：自由选择`）、`推荐：减抗位`。
+ *   4. **成员自带的说明用行内全角括弧**（用户定稿 2026-09-20：与圣遗物的
+ *      `千岩牢固（四件套）` 同款，比 `… + 希诺宁　注：二命` 精简）：
+ *      `叶洛亚 / 希诺宁（二命）` —— 不升级成 `注：`。
  *
  * 实现：模型里把备注存成 `note`（**不带前缀**）并给一个 `notePrefix`；
  * 渲染层据此决定加不加 `注：`（网页版见 build-html.mjs，面板见 codex.html 的 `team.notePrefix`）。
  */
-export const NOTE_PREFIX_RULE = '注：只在「对已有内容的补充/限定」时使用；整行就是备注时不加（见 guide-display.mjs 注释）'
+export const NOTE_PREFIX_RULE = '注：只给「补充/限定」与段末那条纯文字行；带档位词、整行就是内容的不加；成员括注用行内全角括弧（见 guide-display.mjs 注释）'
 
 /** 成员括注算不算「备注走廊」（命座 / 成本类）：与 schema.mjs 的 isCostNoteText 同一判据 */
 export function isCostNote (text) {
@@ -1093,12 +1110,18 @@ export function joinOptionText (text) {
 }
 
 /**
- * 配队：`首选` → 推荐、`其他` → 可选；**自定义队名（月感电 / 火神队 …）原样**；
- * 角色后面的括注移到行尾，统一成备注（同一行多条合并）。
+ * 配队：`首选` → 推荐、`其他` → 可选；**自定义队名（月感电 / 火神队 …）原样**。
+ *
+ * **成员括注留在成员身上**（用户定稿 2026-09-20：「把备注也改为圣遗物同款括弧，去掉『注：』，
+ * 只有最下方的文字行才用 `注：`」）：渲染成 `叶洛亚 / 希诺宁（二命）`——与圣遗物的
+ * `千岩牢固（四件套）` 同一种写法，比 `… + 希诺宁　注：二命` 精简。
+ * （以前这里会把「命座 / 成本」类括注提到行尾当备注，现已取消。）
  *
  * `note` 一律**不带** `注：` 前缀，由 `notePrefix` 决定渲染时加不加（规则见 NOTE_PREFIX_RULE）：
- *   · 有成员 → 备注是补充说明，`notePrefix: true`（渲染成 `… + 芙宁娜　注：希诺宁为二命`）
- *   · 没有成员（整行就是这条备注）→ `notePrefix: false`（渲染成 `可选：自由选择`）
+ *   · 有成员 → 行尾备注是补充说明，`notePrefix: true`（`… + 芙宁娜　注：希诺宁为二命`）
+ *   · 没有成员、**也没有档位词**（整行就是那条备注，通常是段落最下方那行）→ `notePrefix: true`
+ *     （`注：建议二命及以上；高金配置`）
+ *   · 没有成员、但有档位词（`可选：自由选择`）→ `notePrefix: false`（备注就是这一行的内容）
  * @param {object[]} teams
  * @returns {object[]}
  */
@@ -1106,20 +1129,16 @@ export function normalizeTeams (teams) {
   return (teams ?? []).map(team => {
     const notes = []
     const members = (team.members ?? []).map(member => {
-      // 成员括注（命座 / 成本类）→ 行尾备注；其它括注（精五 …）留在成员上
-      if (member.note && isCostNote(member.note)) {
-        notes.push(member.note)
-        return { ...member, note: '' }
-      }
       // 同一格里的可替换项（旧数据的 `A / B` 两格写法）并回一格：`迪奥娜 / 阿罗夏`。
       // ` / ` 先换成占位符再过 displayText —— 它会做「分隔符两侧空白归一」（`A / B` → `A/B`），
       // 直接过一遍会把成员的斜杠和档位分隔符的斜杠混成同一个字形（成员就被误拆/误并）。
       const name = joinOptionText(member.name)
-      return { ...member, name }
+      // 成员括注原样留在成员上（模板渲染成 `（二命）` 行内括弧）
+      return { ...member, name, note: String(member.note ?? '').trim() }
     })
     if (team.text) notes.push(displayText(team.text))
     // 旧文本行路径（插件 parse.js 的 linesToTeams）把 `注：xxx` 解析成 tag='注' + 空成员：
-    // 这里把它还原成**整行备注**（不加 `注：` 前缀），与网页版 teamsFromLines 的结果对齐
+    // 这里把它还原成**整行备注**，与网页版 teamsFromLines 的结果对齐
     let tagRaw = String(team.tag ?? '').trim()
     let inlineNote = ''
     if (!members.length && /^注\s*[:：]?$/.test(tagRaw)) { inlineNote = displayText(tagRaw.replace(/^注\s*[:：]?/, '')); tagRaw = '' }
@@ -1128,9 +1147,10 @@ export function normalizeTeams (teams) {
     const rawText = String(team.text ?? '').trim()
     const existingNote = String(team.note ?? '').trim().replace(/^注\s*[:：]/, '') || inlineNote
     const text = (notes.map(t => String(t ?? '').trim()).filter(Boolean).join(NOTE_SEP)) || existingNote
+    // 「注：」只给「对已有内容的补充/限定」与**段落最下方那条纯备注行**（无成员、无档位词）
     const notePrefix = team.notePrefix !== undefined
       ? team.notePrefix === true
-      : members.length > 0
+      : (members.length > 0 || !tagRaw)
     const tag = displayLabel(tagRaw)
     // 没有成员也没有备注的行不画标签，避免渲染出空的「可选：」
     const hasBody = members.length > 0 || !!text || !!rawText || !!existingNote
