@@ -22,6 +22,33 @@ let allRecordsCache = null
 /** @type {Map<string, string>} gameId → 全量 mapCache（备用，含所有页面） */
 let mapCache = null
 
+/** 上面两个投影缓存所属的 map 对象：map 换新即视为过期 */
+let derivedMap = null
+
+/**
+ * map 变化时丢弃投影缓存
+ *
+ * 图鉴数据更新后 mapCache 会重建为新对象，投影缓存若只判 `!cache` 就永远指向旧索引，
+ * 表现为「更新成功但素材名/图标仍是旧的」——故按对象身份判断而非是否为空
+ * @param {object} map - 当前 map.json 对象
+ */
+function ensureDerived (map) {
+  if (derivedMap === map) return
+  derivedMap = map
+  recordsCache = null
+  allRecordsCache = null
+}
+
+/**
+ * 重载 map.json 及其投影缓存（数据更新后由 AtlasService.reloadIndex 调用）
+ */
+export function resetItemMapCache () {
+  mapCache = null
+  recordsCache = null
+  allRecordsCache = null
+  derivedMap = null
+}
+
 /**
  * 惰性加载 map.json（进程内仅解析一次）
  * @returns {object} mapCache
@@ -46,9 +73,10 @@ export function loadMap () {
  * @returns {object} id → {id, name, path, ...}；不存在返回 {}
  */
 export function getItemRecords (gameId) {
+  const map = loadMap()
+  ensureDerived(map)
   if (!recordsCache) {
     recordsCache = new Map()
-    const map = loadMap()
     for (const g of Object.keys(map.games || {})) {
       const records = map?.games?.[g]?.locales?.zh?.pages?.item?.records
       recordsCache.set(g, records && typeof records === 'object' ? records : {})
@@ -64,9 +92,10 @@ export function getItemRecords (gameId) {
  * @returns {object} id → {id, name, path, ...}；不存在返回 {}
  */
 export function getItemAllRecords (gameId) {
+  const map = loadMap()
+  ensureDerived(map)
   if (!allRecordsCache) {
     allRecordsCache = new Map()
-    const map = loadMap()
     for (const g of Object.keys(map.games || {})) {
       const records = map?.games?.[g]?.locales?.zh?.pages?.item_all?.records
       allRecordsCache.set(g, records && typeof records === 'object' ? records : {})

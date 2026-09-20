@@ -11,7 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { backendRoot } from '../AtlasService.js'
-import { getItemRecords } from './mapLoader.js'
+import { getItemRecords, loadMap } from './mapLoader.js'
 
 /** @type {object|null} item 页 records（名称+路径） */
 let recordsCache = null
@@ -19,11 +19,26 @@ let recordsCache = null
 /** @type {Map<string, string>} itemId → 图标 file:// URL（按需懒加载） */
 let iconCache = null
 
+/** 上述缓存所属的 map 对象：图鉴数据重载后 map.json 换新，两者一并作废 */
+let cacheMap = null
+
+/**
+ * map 变化时丢弃全部派生缓存（只判 `!cache` 惰性缓存拿不到新数据）
+ */
+function ensureCacheMap () {
+  const map = loadMap()
+  if (cacheMap === map) return
+  cacheMap = map
+  recordsCache = null
+  iconCache = null
+}
+
 /**
  * 惰性获取 ZZZ 物品 records（map.json 一次性解析，id → {name, path}）
  * @returns {object}
  */
 function getZzzRecords () {
+  ensureCacheMap()
   if (!recordsCache) recordsCache = getItemRecords('zzz')
   return recordsCache
 }
@@ -44,6 +59,7 @@ export function getZZZItemName (id) {
  * @returns {string} file:// URL，查不到返回空串
  */
 export function getZZZItemIcon (id) {
+  ensureCacheMap()
   const key = String(id)
   if (iconCache && iconCache.has(key)) return iconCache.get(key)
   if (!iconCache) iconCache = new Map()

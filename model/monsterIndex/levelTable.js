@@ -12,14 +12,19 @@ import { loadRecord } from '../AtlasService.js'
 /** @type {Map<number, Map<number, object>>|null} 组 → 等级 → 比率 */
 let cache = null
 
+/** cache 所属的 map 对象：图鉴数据重载后 map.json 换新，等级表随之重读 */
+let cacheMap = null
+
 /**
- * 读取难度组表（惰性，进程内一次）
+ * 读取难度组表（惰性，进程内一次；map 换新则重建）
  * @returns {Map<number, Map<number, object>>}
  */
 function loadTable () {
-  if (cache) return cache
+  const map = loadMap()
+  if (cache && cacheMap === map) return cache
+  cacheMap = map
   cache = new Map()
-  const records = loadMap()?.games?.hsr?.locales?.zh?.pages?.HardLevelGroup?.records || {}
+  const records = map?.games?.hsr?.locales?.zh?.pages?.HardLevelGroup?.records || {}
   for (const rec of Object.values(records)) {
     if (!rec?.path) continue
     let list

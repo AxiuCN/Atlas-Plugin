@@ -33,6 +33,24 @@ const charIconCache = new Map()
 /** 武器名 → 图标 URL（v2 会给每个推荐武器挂图标，命中率高的别名重复出现时不必重查） */
 const weaponIconCache = new Map()
 
+/** 上述四个缓存所属的 map 对象：图鉴数据重载后 map.json 换新，缓存随之作废 */
+let cacheMap = null
+
+/**
+ * map 变化时丢弃全部名称/图标缓存
+ *
+ * 这些缓存按名字记结果、连空结果也缓存，只判 `has()` 时更新数据后仍会沿用旧的取图结论
+ */
+function ensureCacheMap () {
+  const map = loadMap()
+  if (cacheMap === map) return
+  cacheMap = map
+  setIconCache.clear()
+  charPathCache.clear()
+  charIconCache.clear()
+  weaponIconCache.clear()
+}
+
 /** 剥掉行内标签与实体，得到纯文本（用于从模板数据里取名称） */
 function plainText (html) {
   return String(html || '')
@@ -86,6 +104,7 @@ function nameMatches (gameId, name, entry) {
  * @returns {Map<string, string>}
  */
 function setIconIndex (gameId) {
+  ensureCacheMap()
   if (setIconCache.has(gameId)) return setIconCache.get(gameId)
   const index = new Map()
   const records = loadMap()?.games?.[gameId]?.locales?.zh?.pages?.artifact?.records || {}
@@ -115,6 +134,7 @@ function setIconIndex (gameId) {
  * @param {boolean} [strict] - 严格模式（v2 的 ref）：名字对不上就不出图，避免出错误图标
  */
 function weaponIcon (gameId, name, strict = false) {
+  ensureCacheMap()
   if (!name) return ''
   const key = `${gameId}|${name}|${strict ? 's' : 'n'}`
   if (weaponIconCache.has(key)) return weaponIconCache.get(key)
@@ -151,6 +171,7 @@ function artifactIcon (gameId, name) {
  * @returns {Map<string, string>}
  */
 function characterPaths (gameId) {
+  ensureCacheMap()
   if (charPathCache.has(gameId)) return charPathCache.get(gameId)
   const map = new Map()
   const records = loadMap()?.games?.[gameId]?.locales?.zh?.pages?.character?.records || {}
@@ -172,6 +193,7 @@ function characterPaths (gameId) {
  * @returns {string} file:// URL；取不到返回空串
  */
 export function characterIcon (gameId, name, strict = false) {
+  ensureCacheMap()
   const raw = String(name || '').trim()
   if (!raw) return ''
   const key = `${gameId}|${raw}|${strict ? 's' : 'n'}`

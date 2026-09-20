@@ -251,7 +251,10 @@ function _stripColorTags (text) {
 
 /**
  * 重载文本链接索引（数据更新后调用）
+ *
+ * 两份缓存同属图鉴数据，必须一起清：只清 LINK 索引会让 `{PARAM#P…}` 参数解析继续用旧值
  */
 export function reloadLinkIndex () {
   linkIndexCache.clear()
+  paramArrayCache = null
 }

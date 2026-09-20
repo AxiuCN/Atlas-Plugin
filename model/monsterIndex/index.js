@@ -26,6 +26,23 @@ const deepCache = new Map()
 /** 变体缓存：filePath → 变体数组（同一条目可能被页面与终局重复取用） */
 const variantCache = new Map()
 
+/** 三个索引缓存所属的 map 对象：图鉴数据重载后 map.json 换新，缓存随之作废 */
+let cacheMap = null
+
+/**
+ * map 变化时丢弃全部索引缓存
+ *
+ * 顶层缓存只判 `has()` 就返回，不按 map 身份判断的话，更新数据后仍会按旧索引解析怪物 id
+ */
+function ensureCacheMap () {
+  const map = loadMap()
+  if (cacheMap === map) return
+  cacheMap = map
+  shallowCache.clear()
+  deepCache.clear()
+  variantCache.clear()
+}
+
 /** 已告警过的「未登记阵营」id，避免重复刷日志 */
 const warnedCamps = new Set()
 
@@ -47,6 +64,7 @@ function monsterRecords (gameId) {
  * @returns {Map<string, {recordId:string,name:string,filePath:string}>}
  */
 function shallowIndex (gameId) {
+  ensureCacheMap()
   if (!shallowCache.has(gameId)) {
     const map = new Map()
     for (const [recordId, rec] of Object.entries(monsterRecords(gameId))) {
@@ -64,6 +82,7 @@ function shallowIndex (gameId) {
  * @returns {Map<string, {recordId:string,name:string,filePath:string}>}
  */
 function deepIndex (gameId) {
+  ensureCacheMap()
   if (deepCache.has(gameId)) return deepCache.get(gameId)
   const map = shallowIndex(gameId)
   const ids = GAMES[gameId]?.ids
@@ -133,6 +152,7 @@ export function resolveMonsterId (gameId, rawId) {
  * @returns {Array<object>} 变体数组，字段见各游戏模块
  */
 export function getMonsterVariants (gameId, filePath) {
+  ensureCacheMap()
   const cacheKey = `${gameId}|${filePath}`
   if (variantCache.has(cacheKey)) return variantCache.get(cacheKey)
   let variants = []

@@ -9,18 +9,26 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { fileURLToPath } from 'node:url'
 import { backendRoot } from '../AtlasService.js'
-import { getItemRecords } from './mapLoader.js'
+import { getItemRecords, loadMap } from './mapLoader.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {object|null} item 页 records（map.json 已按 id 建索引，直接访问） */
 let recordsCache = null
 
+/** recordsCache 所属的 map 对象：图鉴数据重载后 map.json 换新，缓存随之作废 */
+let cacheMap = null
+
 /**
  * 惰性获取 HSR 物品 records（map.json 一次性解析，id → {name, ...}）
  * @returns {object}
  */
 function getHsrRecords () {
+  const map = loadMap()
+  if (cacheMap !== map) {
+    cacheMap = map
+    recordsCache = null
+  }
   if (!recordsCache) recordsCache = getItemRecords('hsr')
   return recordsCache
 }

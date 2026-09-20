@@ -25,11 +25,29 @@ let allRecordsCache = null
 /** @type {Map<string, {setName:string, partName:string}>|null} 圣遗物部件图标名 → 套装名/部件名 */
 let relicIconCache = null
 
+/** 上述缓存所属的 map 对象：图鉴数据重载后 map.json 换新，三者一并作废 */
+let cacheMap = null
+
+/**
+ * map 变化时丢弃全部派生缓存
+ *
+ * 只判 `!cache` 的惰性缓存拿到新数据也不会重建，故按 map 对象身份判断
+ */
+function ensureCacheMap () {
+  const map = loadMap()
+  if (cacheMap === map) return
+  cacheMap = map
+  recordsCache = null
+  allRecordsCache = null
+  relicIconCache = null
+}
+
 /**
  * 惰性获取 GI 物品 records（map.json 一次性解析，id → {name, ...}）
  * @returns {object}
  */
 function getGIRecords () {
+  ensureCacheMap()
   if (!recordsCache) recordsCache = getItemRecords('gi')
   return recordsCache
 }
@@ -39,6 +57,7 @@ function getGIRecords () {
  * @returns {object}
  */
 function getGIAllRecords () {
+  ensureCacheMap()
   if (!allRecordsCache) allRecordsCache = getItemAllRecords('gi')
   return allRecordsCache
 }
@@ -86,6 +105,7 @@ export function getGIIconByName (iconName) {
  * @returns {Map<string, {setName:string, partName:string}>}
  */
 function getGIRelicIconMap () {
+  ensureCacheMap()
   if (relicIconCache) return relicIconCache
   relicIconCache = new Map()
   const records = loadMap()?.games?.gi?.locales?.zh?.pages?.artifact?.records || {}

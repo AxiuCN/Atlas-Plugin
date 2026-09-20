@@ -16,6 +16,9 @@ import {
   loadAliasMap
 } from './AliasLoader.js'
 import { familyName, variantOf, variantDisplayName, variantAliases, familyGenderAliases, isProtagonistFamily } from '../components/protagonist.js'
+import { reloadLinkIndex } from './LinkResolver.js'
+import { clearMiaoParamCache } from './MiaoParams.js'
+import { resetItemMapCache } from './itemIndex/mapLoader.js'
 import {
   patchImageUrl,
   imageGameFolder,
@@ -767,11 +770,18 @@ export function resolveEntryPageKey (gameId, keyword) {
 
 /**
  * 重载索引（数据更新后调用）
+ *
+ * 除了本模块的 map / 索引 / 补丁缓存，还要一并清掉各模块自持的派生缓存：
+ * 它们各自读同一份图鉴数据，漏掉任何一个都会出现「更新成功但该模块仍按旧数据渲染」
+ * （LINK 参数解析、素材名/图标、怪物索引与等级表、miao 参数名；其余派生缓存按 map 对象身份自失效）
  */
 export function reloadIndex () {
   mapCache = null
   indexCache = new Map()
   clearPatchCache() // 补丁文件可能随更新变化，一并失效
+  reloadLinkIndex()
+  resetItemMapCache()
+  clearMiaoParamCache()
   ensureIndex()
 }
 
