@@ -524,15 +524,24 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
   const nameOf = (x) => String(x?.name ?? x ?? '').trim()
 
   // 1. 按原始分隔符合并成「显示条目」（`+` 属于同一条目，`/` 断开）
+  //
+  // ⚠ `+` **只有两侧都是件数简写时**才算「同一组合」（用户定稿，2026-09-20）：
+  //   2+2 才凑得满 4 件，所以真正的组合只可能是 `2X + 2X`；**全套装名之间的 `+` 是同级选项**
+  //   （用户原话：「同级圣遗物套装之间依旧有部分角色为 `+` 而不是 `/`」），显示成 `/`。
+  //   例：`如雷的盛怒 + 昔日宗室之仪`      → `如雷的盛怒/昔日宗室之仪`
+  //       `2生命 + 2充能 + 角斗士的终幕礼`  → `2生命+2充能 / 角斗士的终幕礼`
+  //       `2精通 + 2精通`                  → `2精通+2精通`（仍是同一个 chip）
   const entries = []
   let cur = null
+  let prevName = ''
   for (let i = 0; i < sets.length; i++) {
     const name = nameOf(sets[i])
     if (!name) continue
     const pieces = String(sets[i]?.pieces ?? '').trim()
-    const joined = i > 0 && isPlus(seps[i - 1])
+    const joined = i > 0 && isPlus(seps[i - 1]) && isPieceShorthand(prevName) && isPieceShorthand(name)
     const after = String(seps[i] ?? '') // 这一条**后面**的分隔符（最后一条为 ''）
     if (cur && joined) { cur.parts.push(pieces ? `${name}（${pieces}）` : name); cur.gapAfter = after } else { cur = { parts: [pieces ? `${name}（${pieces}）` : name], base: sets[i], gapAfter: after }; entries.push(cur) }
+    prevName = name
   }
 
   // 2. 同名只保留一次：某条目的**全部**套装名都在更靠后的条目里出现过时，整条丢掉
@@ -770,11 +779,30 @@ function subSepBetween (sep, left, right) {
  */
 export function normalizeArtifactRows (rows) {
   return (rows ?? []).map(row => {
-    const isSub = /副词条/.test(String(row.label ?? ''))
+    const fromLabel = String(row.label ?? '')
+    const isMain = /主词条/.test(fromLabel)
+    const isSub = /副词条/.test(fromLabel)
     const src = row.items ?? []
+    // **主词条 / 副词条值末尾的括注 → 条目的 `note`（渲染成小字弱化）**
+    // （用户定稿 2026-09-20：「主词条的括注没有对所有角色生效」）
+    //   数据里有两种写法，必须收敛成同一个效果：
+    //     · `kind:'main'` 的 `note` + `noteSlot` 字段（面板本来就画成 note，网页版却画成行内括注）
+    //     · 直接写在值里的括注（`防御力（特殊）`、`暴击率（西风）`、`暴击率（携带西风秘典时）`）
+    //   在显示层统一拆出来，两条链路就都走模板的 `note`（小字）分支，文档 / JSON 一个字不改。
+    const splitNote = (t) => {
+      const m = String(t ?? '').match(/^(.*?)\s*[（(]([^（()）]+)[）)]\s*$/)
+      return m ? { text: m[1].trim(), note: m[2].trim() } : { text: String(t ?? ''), note: '' }
+    }
     // 先把每条的显示文本算出来（`暴击` → `暴击率`、`爆伤` → `暴击伤害`…），
     // 分隔符要**看着左右两边的文本**决定：只有暴击对才是 `=`，其余都是 `＞`。
-    const texts = src.map(item => isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text))
+    // 括注要在**算分隔符之前**拆掉，否则 `暴击率（西风）` 认不出是暴击对。
+    const parsed = src.map(item => {
+      const base = isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text)
+      const hasOwnNote = !!String(item.note ?? '').trim()
+      if (hasOwnNote || (!isMain && !isSub)) return { text: base, note: '' }
+      return splitNote(base)
+    })
+    const texts = parsed.map(p => p.text)
     return {
       ...row,
       label: displayLabel(row.label),
@@ -782,7 +810,8 @@ export function normalizeArtifactRows (rows) {
         ...item,
         // 副词条走 `subStatText`（把 `攻击力百分比` 收成 `大攻击`）；其它行不碰
         text: texts[i],
-        note: item.note ? displayText(item.note) : item.note,
+        // 数据自带 note 优先；否则用从值里拆出来的括注（拆出来的**不带括号**，模板自己补）
+        note: item.note ? displayText(item.note) : (parsed[i].note || item.note),
         // 副词条：**只有暴力对之间** `/` 才是同级 `=`，其余 `/` 与 `>` 都显示 `＞`（见 subSepBetween）
         sepAfter: isSub
           ? subSepBetween(item.sepAfter, texts[i], texts[i + 1])
@@ -944,11 +973,22 @@ export function normalizePanelRows (rows) {
    *     这样同一标签下的多行才能按「≤3 条合并一行」合并成 `暴击率：70%+　暴击伤害：220%+`。
    *     旧代码只判 `row.k === undefined && !row.text` → 每一行都被当成空行丢掉 →
    *     5 个有面板数据的角色（丝柯克/七七/久岐忍/九条裟罗/云堇）以及编辑器里新填的面板行全都「暂无」。
+   *
+   * ⚠ **分组键要把「空标签的键值行」算进上一行的标签**（2026-09-20 修订，用户指出的现象：
+   *   梦见月瑞希的「辅助｜精通：1000+」「辅助｜暴击率：65%」「(无标签)｜暴击伤害：120%」
+   *   被拆成两行）。源文档就是这么写的 —— 一条带档位/用途前缀，后面跟着若干**裸数值行**：
+   *     主c：攻击力：2200+ / 暴击率：70%+ / 暴击伤害：200%+   ← 温迪文档第 4 节
+   *   裸行显然属于同一个 build，所以空标签行**沿用上一个非空标签**再分组，这样
+   *   「说明行 + 裸数值行」才能合并成 `主c　攻击力：2200+　暴击率：70%+　暴击伤害：200%+`。
+   *   仅当组内行数 ≤3 时合并；>3 条仍分行，且分行时键值行**照旧留空标签**（只借标签分组）。
    */
   const groups = new Map()
   const order = []
+  let carriedLabel = ''
   for (const row of rows ?? []) {
-    const key = String(row?.label ?? '')
+    const own = String(row?.label ?? '')
+    if (own) carriedLabel = own          // 带标签的行 → 刷新「当前 build」
+    const key = own || carriedLabel      // 空标签行 → 跟随当前 build（前面没有标签时仍是 ''）
     if (!groups.has(key)) { groups.set(key, []); order.push(key) }
     groups.get(key).push(row)
   }
@@ -957,6 +997,7 @@ export function normalizePanelRows (rows) {
     const kept = []
     for (const row of rowsInGroup) {
       const note = row.note ? displayText(row.note) : row.note
+      const own = String(row?.label ?? '')   // 行**自己的**标签（键值行为空）：分行时用它，合并时用分组键
       // ① v2 原始形状 `{k, v}`：键值对 → 折成 `k：v`（label 留空，便于同组合并）
       if (row.k !== undefined) {
         const v = String(row.v ?? '').trim()
@@ -964,11 +1005,12 @@ export function normalizePanelRows (rows) {
         kept.push({ label: '', items: [{ text: `${displayText(row.k ?? '')}：${v}`, sepAfter: '' }], note })
         continue
       }
-      // ② v2 原始形状 `{text}`（说明行）
+      // ② v2 原始形状 `{text}`（带标签 = 说明行；`label` 为空 = 裸数值行）
       if (row.text !== undefined && !row.items) {
         const t = displayPanelText(row.text)
         if (!t || isZeroValue(t)) continue
-        kept.push({ label: displayText(key), items: [{ text: t, sepAfter: '' }], note })
+        // 行自己的标签（空就是空）：合并成一行时用**分组键**当标签，分行时裸数值行不带标签
+        kept.push({ label: displayText(own), items: [{ text: t, sepAfter: '' }], note })
         continue
       }
       // ③ 渲染模型形状 `{label, items}`：两条链路（build-html / parse.js）产出的就是这种。
@@ -977,7 +1019,7 @@ export function normalizePanelRows (rows) {
         .map(it => ({ ...it, text: displayText(it.text) }))
         .filter(it => String(it.text ?? '').trim())
       if (!items.length) continue
-      kept.push({ label: displayText(key), items, note })
+      kept.push({ label: displayText(own), items, note })
     }
     if (!kept.length) continue
     if (kept.length <= 3) {
