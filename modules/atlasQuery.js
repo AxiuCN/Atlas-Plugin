@@ -22,6 +22,13 @@ const PAGE_TYPE_ENTRIES = Object.entries(PAGE_TYPE_SUFFIXES)
   .sort(([a], [b]) => b.length - a.length)
 
 /**
+ * 查询异常的对外文案
+ *
+ * 异常信息里带服务器绝对路径、模块名等实现细节，只写日志；群里只给可操作的提示。
+ */
+const QUERY_ERROR_REPLY = '[Atlas] 查询出错了，请稍后再试；若一直失败请让主人查看日志'
+
+/**
  * 解析子视图/页面类型后缀
  * 页面类型后缀（圣遗物/遗器/驱动盘）优先：仅剥离关键词并把结果限定到对应页面类型
  * 泛用套装后缀「套」紧随其后，按当前游戏映射到该游戏的套装页面类型
@@ -213,8 +220,8 @@ export async function handleQuery (e, gameId, keyword) {
         return false
     }
   } catch (err) {
-    logger?.error(`[Atlas] 查询出错: ${err.message}`)
-    await e.reply(`[Atlas] 查询出错: ${err.message}`)
+    logger?.error('[Atlas] 查询出错:', err)
+    await e.reply(QUERY_ERROR_REPLY)
     return true
   }
 }
