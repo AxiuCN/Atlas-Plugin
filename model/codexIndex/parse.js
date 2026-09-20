@@ -562,9 +562,9 @@ function v2ArtifactRows (rows) {
         // 套装备注（「千岩牢固（四件套）」拆出来的部分）与武器条目同一套小字渲染，不占图标位
         note: String(entry.item?.note ?? '').trim() ? inlineLabel(entry.item.note) : '',
         ref: String(entry.item?.ref || ''),
-        // 同级（源文档 `/`）→ **空**：两个 chip 紧挨着，不画 `＞`（用户定稿）；
-        // 优先级（`>`/`≥`）→ `＞`。与网页版同口径（见 guide-display.mjs 的 gapSepOf）
-        sepAfter: entry.sepAfter ? '＞' : ''
+        // 同级（源文档 `/`）→ **`/`**（字面斜杠：`教官/勇者`）；优先级（`>`/`≥`）→ `＞`。
+        // 与网页版同口径（见 guide-display.mjs 的 SET_LEVEL_SEP / gapSepOf）
+        sepAfter: entry.sepAfter === '/' ? '/' : (entry.sepAfter ? '＞' : '')
       }))
     })
   }
@@ -635,14 +635,17 @@ function v2TalentRows (rows) {
   return out
 }
 
-/** v2.panels[] → 毕业面板行（k/v 走单值，label + text 按 / 拆条） */
+/** v2.panels[] → 毕业面板行
+ *  · 键值对（`k` 非空）→ **label 留空、把 `k：v` 放进 item** —— 这样面板模块的
+ *    `normalizePanelRows` 才能把同组 ≤3 条合并成一行（`暴击率：70%+　暴击伤害：220%+`）；
+ *  · 说明行（只有 `text`）→ label 就是标签，值按 `/` 拆条。 */
 function v2PanelRows (rows) {
   const out = []
   for (const row of Array.isArray(rows) ? rows : []) {
     const key = String(row?.k ?? '').trim()
     if (key) {
       const value = String(row?.v ?? '').trim()
-      if (value) out.push({ label: inlineLabel(key), ref: '', items: [rankItem(value)] })
+      if (value) out.push({ label: '', ref: '', items: [rankItem(`${key}：${value}`)] })
       continue
     }
     const text = String(row?.text ?? '').trim()
