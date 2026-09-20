@@ -100,12 +100,33 @@ function _cleanupStaleLock () {
 /** 模块加载时自动清理残留锁 */
 _cleanupStaleLock()
 
+/** 锁文件内容（持有进程 pid + 时间，供残留判定） */
+function _lockPayload () {
+  return JSON.stringify({ pid: process.pid, time: new Date().toISOString() })
+}
+
 /**
  * 获取抓取锁（文件锁）
+ *
+ * 用 `flag: 'wx'`（存在即失败）一步完成「检查 + 创建」：原先 `existsSync` → `writeFileSync`
+ * 是两步，两个进程可能同时通过检查、双双进入抓取（TOCTOU）。
+ * 创建失败且锁属残留（pid 已死或超过 LOCK_TTL_MS）时清掉重试一次；仍是活跃锁则拒绝。
  * @returns {boolean}
  */
 function _acquireLock () {
-  if (fs.existsSync(LOCK_FILE)) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true }) // data 目录可能尚未创建（首次初始化），确保锁文件可写
+      fs.writeFileSync(LOCK_FILE, _lockPayload(), { encoding: 'utf8', flag: 'wx' })
+      return true
+    } catch (err) {
+      if (err.code !== 'EEXIST') {
+        logger?.error('[Atlas][Updater] 无法创建锁文件:', err.message)
+        return false
+      }
+    }
+
+    // 锁已存在：解析后区分「活跃锁」与「残留锁」
     let data = null
     try {
       data = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
@@ -117,18 +138,13 @@ function _acquireLock () {
         process.kill(data?.pid, 0)
         logger?.warn('[Atlas][Updater] 抓取锁文件存在且进程活跃，拒绝重复启动')
         return false
-      } catch { /* pid 已死 → 僵尸锁，继续清理 */ }
+      } catch { /* pid 已死 → 僵尸锁，继续清理后重试 */ }
     }
     try { fs.unlinkSync(LOCK_FILE) } catch {}
   }
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true }) // data 目录可能尚未创建（首次初始化），确保锁文件可写
-    fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, time: new Date().toISOString() }), 'utf8')
-    return true
-  } catch (e) {
-    logger?.error('[Atlas][Updater] 无法创建锁文件:', e.message)
-    return false
-  }
+
+  logger?.warn('[Atlas][Updater] 抓取锁竞争失败，请稍后再试')
+  return false
 }
 
 /**
