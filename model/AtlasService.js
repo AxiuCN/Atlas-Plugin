@@ -15,7 +15,7 @@ import {
   buildKeywordVariants,
   loadAliasMap
 } from './AliasLoader.js'
-import { familyName, variantOf, variantDisplayName, variantAliases, familyGenderAliases } from '../components/protagonist.js'
+import { familyName, variantOf, variantDisplayName, variantAliases, familyGenderAliases, isProtagonistFamily } from '../components/protagonist.js'
 import {
   patchImageUrl,
   imageGameFolder,
@@ -98,6 +98,13 @@ function ensureIndex () {
         familySize.set(family, (familySize.get(family) || 0) + 1)
       }
 
+      // 是否为「可能有形态族」的页面：形态取值只有原神元素 / 星铁命途，且只出现在角色页；
+      // 另有一类带性别标记的族（奇偶·男性/女性）按名字判定。
+      // 这道闸门只决定「要不要读条目 JSON 派生变体名」——同名条目的折叠与别名合并另由 duplicated
+      // 控制（那些不需要读条目）。历史上一页上万条 JSON 被读掉，就是把「同名」当成了「多形态」
+      const canHaveForms = pageKey === 'character' && (gameId === 'gi' || gameId === 'hsr')
+      const hasGenderMark = (name) => /[·・](男性|女性)$/.test(String(name || ''))
+
       // 多形态族预扫描：派生各条目变体名，并选出「保留族名别名」的形态
       // （无属性形态优先 → 原神旅行者；否则首个形态 → 星铁开拓者取毁灭、三月七取存护）。
       // 其余形态不再挂族名，避免整族同分导致 `#旅行者` / `#开拓者` 落到排序首条
@@ -105,9 +112,14 @@ function ensureIndex () {
       const familyOwner = new Map()
       for (const [recordId, record] of records) {
         const family = familyName(gameId, record.name)
+        // 同名（同族）即需折叠为一条，并把其余条目的 id / 文件名并入别名（不读条目）
+        const duplicated = (familySize.get(family) || 0) > 1
         // 怪物不参与形态族派生：同名记录是同一图鉴条目的多个战斗变体（见下方 monsterFold）
-        if (pageKey === 'monster' || (familySize.get(family) || 0) <= 1) {
-          memberInfo.set(recordId, { family, label: '', name: record.name, multi: false })
+        // 主角族名（旅行者 / {NICKNAME}）在其他页面出现时同样要归一为族名（如星铁「货币角色」页）
+        const formCandidate = pageKey !== 'monster' &&
+          (canHaveForms || hasGenderMark(record.name) || isProtagonistFamily(gameId, family))
+        if (!formCandidate || !duplicated) {
+          memberInfo.set(recordId, { family, label: '', name: record.name, multi: false, duplicated })
           continue
         }
         const loaded = loadRecord(record.path)
@@ -116,7 +128,8 @@ function ensureIndex () {
           family,
           label: variant.label,
           name: variantDisplayName(family, variant.label),
-          multi: true
+          multi: true,
+          duplicated
         })
         const owner = familyOwner.get(family)
         const preferOwner = !owner || (memberInfo.get(owner).label !== '' && variant.label === '')
@@ -211,7 +224,9 @@ function ensureIndex () {
           // 同名折叠掉的其余记录路径（仅怪物页会出现），详情页据此拼合「变体」栏
           variantPaths: fold?.paths?.length ? fold.paths : undefined
         }
-        if (isMultiForm) variantFirst.set(dedupeKey, entry)
+        // 登记首条：形态族折叠为一条；非形态族的同名条目也在此把其余条目的 id / 文件名并入别名
+        // （怪物页走上面的 monsterFold，不在此登记）
+        if (isMultiForm || (info.duplicated && pageKey !== 'monster')) variantFirst.set(dedupeKey, entry)
         flat.push(entry)
       }
     }
