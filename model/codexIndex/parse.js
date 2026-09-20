@@ -654,7 +654,8 @@ function v2PanelRows (rows) {
     out.push({
       label: inlineLabel(row.label || ''),
       ref: '',
-      items: parts.map((part, i) => rankItem(part, i < parts.length - 1 ? escapeHtml('/') : ''))
+      // `/` 只是拆分的依据，**不画字面分隔符**（用户反馈：chip 之间不该有残留的 `/`）
+      items: parts.map(part => rankItem(part, ''))
     })
   }
   return out
