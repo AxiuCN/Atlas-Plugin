@@ -7,7 +7,7 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/hero.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
 </head>
-<body>
+<body style="zoom:{{renderScale}}">
   {{if hero}}
   <div class="hero"{{if hero.namecard && !hero.namecardImages}} style="background-image: url('{{hero.namecard}}')"{{/if}}>
     {{if hero.namecardImages}}

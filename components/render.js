@@ -1,10 +1,30 @@
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
 import { CHALLENGE_PAGE_KEYS } from './constants.js'
+import { getPluginConfig } from './config.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
+
+/** 渲染缩放取值范围与默认值（与锅巴「渲染缩放」字段一致） */
+const RENDER_SCALE_MIN = 0.5
+const RENDER_SCALE_MAX = 3
+const RENDER_SCALE_DEFAULT = 1.5
+
+/**
+ * 取渲染缩放（config.yaml → renderScale）
+ *
+ * 框架渲染后端不暴露 DPR 旋钮，故由页面自身放大：模板 body 上的 CSS `zoom`
+ * 会把布局盒整体放大，元素截图随之变大（整页等比放大，文字与图片一起变清晰）。
+ * 越界、NaN 一律按默认值处理，避免配置写错导致图糊成一片或爆内存。
+ * @returns {number}
+ */
+function renderScale () {
+  const value = Number(getPluginConfig()?.renderScale)
+  if (!Number.isFinite(value)) return RENDER_SCALE_DEFAULT
+  return Math.min(RENDER_SCALE_MAX, Math.max(RENDER_SCALE_MIN, value))
+}
 
 /**
  * 根据搜索结果选择对应模板
@@ -71,6 +91,9 @@ export async function renderAtlas (tpl, data = {}, opts = {}) {
   data.saveId = data.saveId || `${tpl}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 
   data.imgType = imgType
+
+  // 渲染缩放：模板 body 上的 CSS zoom（见 renderScale() 说明）
+  data.renderScale = renderScale()
 
   // 渲染截图
   return await puppeteer.screenshot(`Atlas-Plugin/${app}/${tpl}`, data)

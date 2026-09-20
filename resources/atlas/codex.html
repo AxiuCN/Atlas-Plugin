@@ -8,7 +8,7 @@
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/detail.css"/>
   <link rel="stylesheet" type="text/css" href="{{_res_path}}/atlas/codex.css"/>
 </head>
-<body class="codex-page">
+<body class="codex-page" style="zoom:{{renderScale}}">
   {{if hero}}
   <div class="hero"{{if hero.namecard && !hero.namecardImages}} style="background-image: url('{{hero.namecard}}')"{{/if}}>
     {{if hero.namecardImages}}
