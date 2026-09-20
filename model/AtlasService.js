@@ -61,6 +61,45 @@ const recordCache = new Map()
  */
 const RECORD_CACHE_MAX = 300
 
+/**
+ * 全文兜底用的可检索文本缓存：路径 → { sig, text, bytes }（text 为已归一内容）
+ *
+ * 兜底扫描每次要检查一整页高优先级条目的正文（实测 gi 工作集 551 条、原文约 30 MB），
+ * 「读原文 + 归一 + 子串匹配」是单次查询里最贵的一段；缓存归一结果可同时省掉读盘与归一。
+ * 预算按**正文字节**而非条数控制：全集归一后约 29 MB，按条数记会让内存随数据增长，
+ * 按字节记则在数据变大时自动退化为「部分命中」，不会无上限吃内存。
+ * 想更省内存就调小 TEXT_CACHE_BUDGET（代价是冷门关键词需要重读原文）。
+ */
+const textCache = new Map()
+
+/** @type {number} 当前缓存的正文字节数 */
+let textCacheBytes = 0
+
+/** 文本缓存预算（字节）：默认 32 MB ≈ 全量高优先级条目的归一文本（实测 29 MB），够覆盖三个游戏的工作集 */
+const TEXT_CACHE_BUDGET = 32 * 1024 * 1024
+
+/** 文本缓存条数上限（防止大量极小条目把 Map 撑大） */
+const TEXT_CACHE_MAX = 2000
+
+/** 清空文本缓存与字节计数 */
+function resetTextCache () {
+  textCache.clear()
+  textCacheBytes = 0
+}
+
+/** 写入文本缓存并按键龄淘汰，直到满足预算 */
+function cacheText (relativePath, sig, text) {
+  const bytes = Buffer.byteLength(text)
+  textCache.set(relativePath, { sig, text, bytes })
+  textCacheBytes += bytes
+  while (textCacheBytes > TEXT_CACHE_BUDGET || textCache.size > TEXT_CACHE_MAX) {
+    const oldest = textCache.keys().next().value
+    if (oldest === undefined) break
+    textCacheBytes -= textCache.get(oldest).bytes
+    textCache.delete(oldest)
+  }
+}
+
 /** 游戏中文名映射（local，避免跨模块循环引用） */
 const GAME_CN = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
 
@@ -571,6 +610,43 @@ function shouldRunDetailFallback (loaded, maxResults, variants, strict = false) 
 }
 
 /**
+ * 全文兜底用的可检索文本（已归一），命中进程内缓存
+ *
+ * 匹配必须以补丁后的内容为准：补丁会改写甚至删掉上游文本（如把源站抓成「菲谢尔专用」的部件 desc
+ * 换回官方描述），直接扫原文会命中已被改掉的字；无补丁的条目走读原文快路径，省一次 JSON 解析。
+ * @param {string} relativePath - 条目相对路径
+ * @returns {string} 归一后的可检索文本；文件不可读返回空串
+ */
+function searchableText (relativePath) {
+  const sig = recordSignature(relativePath)
+  if (!sig) return ''
+
+  const hit = textCache.get(relativePath)
+  if (hit && hit.sig === sig) {
+    textCache.delete(relativePath) // LRU：命中后挪到队尾，避免被当成最旧项淘汰
+    textCache.set(relativePath, hit)
+    return hit.text
+  }
+
+  let raw
+  if (loadDataPatch(relativePath)) {
+    const patched = loadRecord(relativePath)
+    if (!patched) return ''
+    raw = JSON.stringify(patched)
+  } else {
+    try {
+      raw = fs.readFileSync(path.join(dataDir, relativePath), 'utf8')
+    } catch {
+      return ''
+    }
+  }
+
+  const text = normalizeForMatch(raw)
+  cacheText(relativePath, sig, text)
+  return text
+}
+
+/**
  * 兜底全文扫描：对高优先级条目的 JSON 原文做子串匹配
  * 评分公式：PAGE_PRIORITY[pageTitle] + 120 + scoreLoadedItem
  */
@@ -582,21 +658,12 @@ function findDetailFallbackMatches (flat, variants, seen) {
     && !seen.has(entry.filePath))
 
   for (const entry of highPriorityEntries) {
-    // 匹配必须以补丁后的内容为准：补丁会改写甚至删掉上游文本
-    // （如把源站抓成「菲谢尔专用」的部件 desc 换回官方描述），直接扫原文会命中已被改掉的字
-    // 无补丁的条目仍走读原文的快路径，省一次 JSON 解析
-    const patched = loadDataPatch(entry.filePath) ? loadRecord(entry.filePath) : null
-    let text
-    if (patched) {
-      text = JSON.stringify(patched)
-    } else {
-      try { text = fs.readFileSync(path.join(dataDir, entry.filePath), 'utf8') } catch { continue }
-    }
-    const normalized = normalizeForMatch(text)
+    const normalized = searchableText(entry.filePath)
+    if (!normalized) continue
     if (!variants.some(variant => normalized.includes(variant.key))) continue
 
-    // 上面已取过就复用，不再读第二次
-    const record = patched || loadRecord(entry.filePath)
+    // 命中后才解析记录做二次评分；补丁条目在上面已读过（走记录缓存，不再读盘）
+    const record = loadRecord(entry.filePath)
     if (!record) continue
 
     const score = (PAGE_PRIORITY[entry.pageTitle] || 0) + 120 + scoreLoadedItem(record, variants)
@@ -842,6 +909,7 @@ export function reloadIndex () {
   mapCache = null
   indexCache = new Map()
   recordCache.clear() // 记录缓存同样按数据版本作废（补丁改动只有走到这里才会重新套用）
+  resetTextCache() // 兜底扫描用的归一文本同样作废
   clearPatchCache() // 补丁文件可能随更新变化，一并失效
   reloadLinkIndex()
   resetItemMapCache()
