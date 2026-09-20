@@ -930,8 +930,10 @@ export function normalizeConstellationRows (rows) {
       ...item,
       text: item.text ? displayItemText(item.text) : item.text
     }))
-    // 一条说明里用 `/` 并列多个候选（`提升攻击力 / 精通`）时，拆成多条目、用 `/` 连接 ——
-    // 与网页版（build-html 的 splitRankParts）形状一致
+    // 一条说明里用 `/` 并列多个候选（`提升攻击力 / 精通`）时，拆成多条目 —— 与网页版
+    // （build-html 的 splitRankParts）形状一致。
+    // ⚠ **不再画字面 `/`**（用户反馈：「chip 之间存在 `/` 等残留数据」）：`/` 只是拆分的依据，
+    //   拆出来的 chip 之间靠间距区分就够了；字面 `/` 只保留给**圣遗物同级套装**那一条规则。
     const items = []
     rawItems.forEach((it, idx) => {
       const parts = String(it.text ?? '').split(/\s*[/／]\s*/).map(s => s.trim()).filter(Boolean)
@@ -939,7 +941,7 @@ export function normalizeConstellationRows (rows) {
       parts.forEach((p, i) => items.push({
         ...it,
         text: p,
-        sepAfter: i < parts.length - 1 ? '/' : (it.sepAfter || '')
+        sepAfter: i < parts.length - 1 ? '' : (it.sepAfter || '')
       }))
       void idx
     })
