@@ -565,7 +565,14 @@
   line-height: 1;
   color: #b3a89c;
 }
-/* 同一格里的**可替换候选**（`迪奥娜 / 阿罗夏`）：头像之间画 `/`，与格子之间的 `+` 区分开 */
+/* 同一格里的**可替换候选**（`迪奥娜 / 阿罗夏`）：**并列横排**（用户定稿：不要上下堆叠），
+ * 头像之间画 `/`，与格子之间的 `+` 区分开。外层 .team-alts 负责横向，所以 .team-unit
+ * 的 column 方向只影响"头像行 + 备注行"两行。 */
+.codex-team .team-alts {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
 .codex-team .team-slash {
   display: inline-flex;
   align-items: center;

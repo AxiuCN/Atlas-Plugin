@@ -720,7 +720,11 @@ function isCritDmgText (text) {
 }
 
 /**
- * 这一档分隔符该显示成什么：**只有暴击对（暴击率 ↔ 暴击伤害）才是 `=`**，其余一律 `＞`。
+ * 这一档分隔符该显示成什么：
+ *   · **暴击对（暴击率 ↔ 暴击伤害）恒为同级 `=`** —— 源文档里写 `/` 还是 `>` 都一样
+ *     （用户口径：「只有暴击和爆伤是等价的」，这一对不存在优先级写法）；
+ *   · **其余一律 `＞`** —— 就算源文档写了同级 `/`，也照样显示 `＞`
+ *     （用户口径：「其他都是大于」）；`≥` 是显式写法，原样保留。
  * 判据用**显示文本**（`暴击` / `暴伤` 已经展开成 `暴击率` / `暴击伤害` 后再比）。
  * @param {string} sep
  * @param {string} left 左侧条目的显示文本
@@ -729,9 +733,9 @@ function isCritDmgText (text) {
  */
 function subSepBetween (sep, left, right) {
   const shown = subSep(sep)
-  if (shown !== '=') return shown
   const pair = (isCritRateText(left) && isCritDmgText(right)) || (isCritDmgText(left) && isCritRateText(right))
-  return pair ? '=' : '＞'
+  if (pair) return shown === '≥' ? '≥' : '='
+  return shown === '=' ? '＞' : shown
 }
 
 /**
