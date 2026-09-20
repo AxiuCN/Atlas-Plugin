@@ -911,6 +911,15 @@ export function normalizePanelRows (rows) {
    *   · `text` 型（`辅助向：暴击率70%+ / 充能240%+`）：整行是说明文本 → 用 `　`（全角空格）连接
    *   · `k/v` 型（`暴击率：70%+`）：键值对 → 合并成 `暴击率：70%+　暴击伤害：200%+`
    * 合并只发生在**同一 label 分组内且条目 ≤ 3** 时；>3 条维持分行（保持可读性）。
+   *
+   * ⚠ 入参有**两种形状**，必须都认（曾经只认 `k/v`，于是面板模块永远「暂无」）：
+   *   · `{ label, k, v }` / `{ label, text }`   —— v2 原始形状（`data/gi/*.json` 的 `v2.panels`）
+   *   · `{ label, items: [{ text }] }`          —— 渲染模型形状，**网页版 build-html 与面板 parse.js
+   *     实际传进来的就是这种**。
+   *     两条链路都按「键值对 → `label` 留空、把 `k：v` 放进 item；说明行 → `label` 就是标签」的约定产出行，
+   *     这样同一标签下的多行才能按「≤3 条合并一行」合并成 `暴击率：70%+　暴击伤害：220%+`。
+   *     旧代码只判 `row.k === undefined && !row.text` → 每一行都被当成空行丢掉 →
+   *     5 个有面板数据的角色（丝柯克/七七/久岐忍/九条裟罗/云堇）以及编辑器里新填的面板行全都「暂无」。
    */
   const groups = new Map()
   const order = []
@@ -923,25 +932,48 @@ export function normalizePanelRows (rows) {
     const rowsInGroup = groups.get(key) ?? []
     const kept = []
     for (const row of rowsInGroup) {
-      const text = displayPanelText(row.text)
-      if (row.k === undefined && (!text || isZeroValue(text))) continue
-      kept.push({ ...row, text, note: row.note ? displayText(row.note) : row.note })
+      const note = row.note ? displayText(row.note) : row.note
+      // ① v2 原始形状 `{k, v}`：键值对 → 折成 `k：v`（label 留空，便于同组合并）
+      if (row.k !== undefined) {
+        const v = String(row.v ?? '').trim()
+        if (isBlankDisplay(v)) continue            // 只有键没值（编辑器里刚敲了键）→ 不渲染
+        kept.push({ label: '', items: [{ text: `${displayText(row.k ?? '')}：${v}`, sepAfter: '' }], note })
+        continue
+      }
+      // ② v2 原始形状 `{text}`（说明行）
+      if (row.text !== undefined && !row.items) {
+        const t = displayPanelText(row.text)
+        if (!t || isZeroValue(t)) continue
+        kept.push({ label: displayText(key), items: [{ text: t, sepAfter: '' }], note })
+        continue
+      }
+      // ③ 渲染模型形状 `{label, items}`：两条链路（build-html / parse.js）产出的就是这种。
+      //    label 为空 = 键值对（`暴击率：70%+` 已经在 item 文本里）；label 非空 = 说明行。
+      const items = (row.items ?? [])
+        .map(it => ({ ...it, text: displayText(it.text) }))
+        .filter(it => String(it.text ?? '').trim())
+      if (!items.length) continue
+      kept.push({ label: displayText(key), items, note })
     }
     if (!kept.length) continue
     if (kept.length <= 3) {
-      // 合并成一行：k/v 型拼 `k：v`，text 型直接用文本；**仍保留 items 形态**（下游按 items 渲染）
-      const items = kept.map(row => ({
-        text: row.k !== undefined ? `${displayText(row.k ?? '')}：${row.v ?? ''}` : String(row.text ?? ''),
-        sepAfter: ''
-      })).filter(it => it.text)
+      // **≤3 条合并成一行**（用户要求：面板内容不多，合并后变矮，给天赋 / 配队留空间）：
+      // 把各行的 items 依次拼进同一行；**行与行之间**用 `　`（全角空格：既是间距也是分隔），
+      // 行**内部**的分隔符（说明行里 `/` 拆出来的候选）原样保留，不要被 `　` 顶掉。
+      const items = []
+      kept.forEach((row, i) => {
+        row.items.forEach((it, j) => {
+          const lastOfRow = j === row.items.length - 1
+          const lastOverall = i === kept.length - 1
+          items.push({ ...it, sepAfter: lastOfRow ? (lastOverall ? '' : PANEL_MERGE_SEP) : (it.sepAfter || '') })
+        })
+      })
       if (!items.length) continue
       out.push({ label: displayText(key ?? ''), items, mergedFrom: kept.length })
       continue
     }
-    for (const row of kept) {
-      const text = row.k !== undefined ? `${displayText(row.k ?? '')}：${row.v ?? ''}` : String(row.text ?? '')
-      out.push({ ...row, label: displayText(row.label ?? ''), items: [{ text, sepAfter: '' }] })
-    }
+    // >3 条维持分行（保持可读性）
+    for (const row of kept) out.push({ ...row, label: displayText(row.label ?? key ?? '') })
   }
   return out
 }

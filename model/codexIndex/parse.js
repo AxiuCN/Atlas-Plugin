@@ -635,14 +635,17 @@ function v2TalentRows (rows) {
   return out
 }
 
-/** v2.panels[] → 毕业面板行（k/v 走单值，label + text 按 / 拆条） */
+/** v2.panels[] → 毕业面板行
+ *  · 键值对（`k` 非空）→ **label 留空、把 `k：v` 放进 item** —— 这样面板模块的
+ *    `normalizePanelRows` 才能把同组 ≤3 条合并成一行（`暴击率：70%+　暴击伤害：220%+`）；
+ *  · 说明行（只有 `text`）→ label 就是标签，值按 `/` 拆条。 */
 function v2PanelRows (rows) {
   const out = []
   for (const row of Array.isArray(rows) ? rows : []) {
     const key = String(row?.k ?? '').trim()
     if (key) {
       const value = String(row?.v ?? '').trim()
-      if (value) out.push({ label: inlineLabel(key), ref: '', items: [rankItem(value)] })
+      if (value) out.push({ label: '', ref: '', items: [rankItem(`${key}：${value}`)] })
       continue
     }
     const text = String(row?.text ?? '').trim()
