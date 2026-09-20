@@ -632,11 +632,53 @@ function subStatText (text) {
  * @param {string} sep
  * @returns {string}
  */
+/**
+ * 副词条分隔符的**显示口径**（用户定稿）：
+ *   · **只有「暴击率 ↔ 暴击伤害」是同级** → 显示 `=`（`双爆` 也是这一对）；
+ *   · **其余一律是优先级** → 显示 `＞`（源文档里不管是 `/` 还是 `>` 写的）。
+ *
+ * ⚠ 这里曾经把副词条的 `/` **全部**折成 `=`，于是
+ * `暴击率 / 暴击伤害 / 元素充能效率 / 元素精通` 被渲染成
+ * `暴击率 = 暴击伤害 = 元素充能效率 = 元素精通` —— 用户明确指出：
+ * **「只有暴击和爆伤是等价的，其他都是大于」**。所以现在 `/` 只有在暴击对之间才是 `=`。
+ *
+ * `&gt;` 也一起归一：面板侧 `parse.js` 在交给本模块之前已经把分隔符 HTML 转义
+ * （`escapeHtml(sep)`），所以这里必须同时认转义形态，否则会出现
+ * "网页版 `＞` / 面板 `&gt;`"的两端漂移（`audit-web-vs-panel` 的 canon 会把它当等价而漏掉）。
+ * @param {string} sep
+ * @returns {string}
+ */
 function subSep (sep) {
   const s = String(sep ?? '').trim()
   if (s === '/' || s === '／') return '='
   if (s === '>' || s === '＞' || s === '&gt;') return '＞'
   return s
+}
+
+/** 显示文本是不是「暴击率」这一侧（`暴击` / `暴击率` 都算） */
+function isCritRateText (text) {
+  const t = String(text ?? '').replace(/<[^>]*>/g, '').trim()
+  return t === '暴击率' || t === '暴击'
+}
+
+/** 显示文本是不是「暴击伤害」这一侧（`暴伤` / `爆伤` 展开后也算） */
+function isCritDmgText (text) {
+  return String(text ?? '').replace(/<[^>]*>/g, '').trim() === '暴击伤害'
+}
+
+/**
+ * 这一档分隔符该显示成什么：**只有暴击对（暴击率 ↔ 暴击伤害）才是 `=`**，其余一律 `＞`。
+ * 判据用**显示文本**（`暴击` / `暴伤` 已经展开成 `暴击率` / `暴击伤害` 后再比）。
+ * @param {string} sep
+ * @param {string} left 左侧条目的显示文本
+ * @param {string} right 右侧条目的显示文本
+ * @returns {string}
+ */
+function subSepBetween (sep, left, right) {
+  const shown = subSep(sep)
+  if (shown !== '=') return shown
+  const pair = (isCritRateText(left) && isCritDmgText(right)) || (isCritDmgText(left) && isCritRateText(right))
+  return pair ? '=' : '＞'
 }
 
 /**
@@ -648,17 +690,22 @@ function subSep (sep) {
 export function normalizeArtifactRows (rows) {
   return (rows ?? []).map(row => {
     const isSub = /副词条/.test(String(row.label ?? ''))
+    const src = row.items ?? []
+    // 先把每条的显示文本算出来（`暴击` → `暴击率`、`爆伤` → `暴击伤害`…），
+    // 分隔符要**看着左右两边的文本**决定：只有暴击对才是 `=`，其余都是 `＞`。
+    const texts = src.map(item => isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text))
     return {
       ...row,
       label: displayLabel(row.label),
-      items: (row.items ?? []).map(item => ({
+      items: src.map((item, i) => ({
         ...item,
         // 副词条走 `subStatText`（把 `攻击力百分比` 收成 `大攻击`）；其它行不碰
-        text: isSub ? subStatText(displayItemText(item.text)) : displayItemText(item.text),
+        text: texts[i],
         note: item.note ? displayText(item.note) : item.note,
-        // 副词条：`/` 同级 → `=`；`>` 优先级 → `＞`；`≥` 原样。**不再把 `/` 折成 `＞`** ——
-        // 那会把"同级"说成"优先级"，正是「暴击率＞暴击伤害 应为 暴击率=暴击伤害」那个 bug。
-        sepAfter: isSub ? subSep(item.sepAfter) : displaySep(item.sepAfter)
+        // 副词条：**只有暴力对之间** `/` 才是同级 `=`，其余 `/` 与 `>` 都显示 `＞`（见 subSepBetween）
+        sepAfter: isSub
+          ? subSepBetween(item.sepAfter, texts[i], texts[i + 1])
+          : displaySep(item.sepAfter)
       }))
     }
   })
