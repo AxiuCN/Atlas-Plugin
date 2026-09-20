@@ -427,7 +427,9 @@ export function isZeroValue (text) {
 export function displaySep (sep) {
   const s = String(sep ?? '').trim()
   if (!s) return ''
-  if (/^[/／]$/.test(s)) return '＞'
+  // `/`（或者 / 可替换 / 同级）→ **原样 `/`**（用户定稿：`教官/勇者`）。
+  // 以前这里折成 `＞`，会把"同级"说成"优先级"，而且和武器行、套装行的口径都不一致。
+  if (/^[/／]$/.test(s)) return '/'
   return s
 }
 
@@ -451,10 +453,12 @@ export const SET_COMBO_SEP = '+'
  * 两个 chip 紧挨着，不画 `＞`（用户定稿：「同级的圣遗物套装之间不要用 ＞ 区分」）。
  * 只有**优先级**（`>` / `≥`）才保留分隔符。
  */
-export const SET_LEVEL_SEP = ''
+export const SET_LEVEL_SEP = '/'
 
 /**
- * 两条套装之间的显示分隔符：同级 → `''`（紧挨着）、优先级 → 原样（渲染成 `＞`）。
+ * 两条套装之间的显示分隔符：
+ *   · **同级**（源文档 `/`，"这套或那套都行"）→ `/`（字面斜杠，用户定稿：`教官/勇者`）；
+ *   · **优先级**（`>` / `≥`）→ 原样（由 displaySep 渲染成 `＞`）。
  * @param {string} raw 源文档里的分隔符
  * @param {string} fallback 认不出时的兜底
  * @returns {string}
@@ -542,8 +546,8 @@ export function resolveSetItems (sets, seps = [], opts = {}) {
       name: parts.join(SET_COMBO_SEP),
       // 名字里已经拼过括注，这里把原字段清掉，避免模板再补一次
       pieces: '',
-      // **同级**（源文档写 `/`）→ 两个 chip **紧挨着**，不画 `＞`（用户定稿）；
-      // 优先级（`>` / `≥`）才保留分隔符（由 displaySep 渲染成 `＞`）。见 SET_LEVEL_SEP。
+      // **同级**（源文档写 `/`，"这套或那套都行"）→ 画 `/`（用户定稿：`教官/勇者`）；
+      // 优先级（`>` / `≥`）保留分隔符（由 displaySep 渲染成 `＞`）。见 SET_LEVEL_SEP。
       sepAfter: i === kept.length - 1 ? '' : gapSepOf(e.gapAfter, outSep),
       item: e.base
     }
@@ -647,6 +651,26 @@ function normalizeItem (item) {
 }
 
 /**
+ * 武器行的档位分隔符**显示口径**（用户定稿：**正常武器用 `＞`**）：
+ *   · `/`、`>`、`＞` → 一律 `＞` —— 武器档位是**优先级链**（第 1 把最推荐），
+ *     作者在文档里怎么写（`/` 或 `>`）都按优先级显示；
+ *   · `≥` 原样（显式写法）；`+` 原样（同一条目内的组合）。
+ *
+ * ⚠ “同级且毫无区别”的写法**不在这里**：那是对**条目文字本身**的写法
+ *   （例如 `88爆伤/44暴击武器` 是一个条目名），名字原样保留、不会被当分隔符。
+ * ⚠ 以前这里一个字都不动，于是 v2 写 ` / ` 的武器行会把字面斜杠画出来（`苍古自由之誓 / 圣显之钥`），
+ *   而走文档行的同型行画的是 `＞` —— 同一个模块两种画法。
+ * @param {string} sep
+ * @returns {string}
+ */
+function weaponSep (sep) {
+  const s = String(sep ?? '').trim()
+  if (s === '/' || s === '／') return '＞'
+  if (s === '>' || s === '＞' || s === '&gt;') return '＞'
+  return s
+}
+
+/**
  * 武器行：档位标签 → 推荐 / 可选 / 过渡；`首选` → 推荐、`其他` → 可选。
  * 描述性标签（辅助向 / 输出向 …）保持不变，并列在档位标签之后。
  * @param {object[]} rows
@@ -656,7 +680,7 @@ export function normalizeWeaponRows (rows) {
   return (rows ?? []).map(row => ({
     ...row,
     label: row.label ? displayLabel(row.label) : displayLabel('', row.tier),
-    items: (row.items ?? []).map(normalizeItem)
+    items: (row.items ?? []).map(it => ({ ...normalizeItem(it), sepAfter: weaponSep(it.sepAfter) }))
   }))
 }
 

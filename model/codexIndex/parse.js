@@ -562,9 +562,9 @@ function v2ArtifactRows (rows) {
         // 套装备注（「千岩牢固（四件套）」拆出来的部分）与武器条目同一套小字渲染，不占图标位
         note: String(entry.item?.note ?? '').trim() ? inlineLabel(entry.item.note) : '',
         ref: String(entry.item?.ref || ''),
-        // 同级（源文档 `/`）→ **空**：两个 chip 紧挨着，不画 `＞`（用户定稿）；
-        // 优先级（`>`/`≥`）→ `＞`。与网页版同口径（见 guide-display.mjs 的 gapSepOf）
-        sepAfter: entry.sepAfter ? '＞' : ''
+        // 同级（源文档 `/`）→ **`/`**（字面斜杠：`教官/勇者`）；优先级（`>`/`≥`）→ `＞`。
+        // 与网页版同口径（见 guide-display.mjs 的 SET_LEVEL_SEP / gapSepOf）
+        sepAfter: entry.sepAfter === '/' ? '/' : (entry.sepAfter ? '＞' : '')
       }))
     })
   }
