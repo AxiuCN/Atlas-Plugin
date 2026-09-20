@@ -43,6 +43,24 @@ let mapCache = null
 /** @type {Map<string, Array>} gameId → flatRecords */
 let indexCache = new Map()
 
+/**
+ * 记录缓存：相对路径 → { sig, record }（LRU，上限见 RECORD_CACHE_MAX）
+ *
+ * 一次查询会反复取同一条目（全文兜底的二次评分、详情页 + 兄弟形态、攻略页 hero 与图标），
+ * 而 loadRecord 每次都要读盘 + JSON.parse；缓存按「路径 + 文件签名」判活，数据文件被替换即自愈。
+ * 注意：缓存的是**套过补丁**的实例，补丁文件本身的改动仍需 reloadIndex() 才生效（与补丁缓存同口径）。
+ * @type {Map<string, {sig: string, record: object}>}
+ */
+const recordCache = new Map()
+
+/**
+ * 记录缓存条数上限
+ *
+ * 单次全文兜底会遍历 500+ 条高优先级条目、怪物深索引一次读 600+ 条，
+ * 无上限缓存会把整个图鉴（十万级条目）都留在内存里；300 条够覆盖热门角色及其武器/圣遗物。
+ */
+const RECORD_CACHE_MAX = 300
+
 /** 游戏中文名映射（local，避免跨模块循环引用） */
 const GAME_CN = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
 
@@ -567,10 +585,9 @@ function findDetailFallbackMatches (flat, variants, seen) {
     // 匹配必须以补丁后的内容为准：补丁会改写甚至删掉上游文本
     // （如把源站抓成「菲谢尔专用」的部件 desc 换回官方描述），直接扫原文会命中已被改掉的字
     // 无补丁的条目仍走读原文的快路径，省一次 JSON 解析
+    const patched = loadDataPatch(entry.filePath) ? loadRecord(entry.filePath) : null
     let text
-    if (loadDataPatch(entry.filePath)) {
-      const patched = loadRecord(entry.filePath)
-      if (!patched) continue
+    if (patched) {
       text = JSON.stringify(patched)
     } else {
       try { text = fs.readFileSync(path.join(dataDir, entry.filePath), 'utf8') } catch { continue }
@@ -578,7 +595,8 @@ function findDetailFallbackMatches (flat, variants, seen) {
     const normalized = normalizeForMatch(text)
     if (!variants.some(variant => normalized.includes(variant.key))) continue
 
-    const record = loadRecord(entry.filePath)
+    // 上面已取过就复用，不再读第二次
+    const record = patched || loadRecord(entry.filePath)
     if (!record) continue
 
     const score = (PAGE_PRIORITY[entry.pageTitle] || 0) + 120 + scoreLoadedItem(record, variants)
@@ -671,14 +689,59 @@ export function loadRawRecord (relativePath) {
 }
 
 /**
- * 加载单条记录 JSON（套用 resources/patch/data 下的补丁）
+ * 记录文件签名（大小 + 修改时间）：数据文件被替换后签名变化，缓存自愈
+ * @param {string} relativePath
+ * @returns {string} 文件不可读时返回空串
+ */
+function recordSignature (relativePath) {
+  try {
+    const stat = fs.statSync(path.join(dataDir, relativePath))
+    return `${stat.size}|${Math.round(stat.mtimeMs)}`
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * 深冻结记录（诊断用，默认关闭）
+ *
+ * 置 `ATLAS_SCAN_FREEZE=1` 后，缓存里的记录实例会被冻结：ESM 严格模式下任何调用方写回
+ * 都会立刻抛 TypeError。用于验证「记录实例可共享」这一前提，防止后续新增代码原地改 record
+ * 而污染其他请求（复现脚本见 .dsh/explore/scan-record-freeze.mjs）
+ * @param {*} obj
+ * @returns {*} 同一对象
+ */
+function freezeForScan (obj) {
+  if (!obj || typeof obj !== 'object' || Object.isFrozen(obj)) return obj
+  Object.freeze(obj)
+  for (const value of Object.values(obj)) freezeForScan(value)
+  return obj
+}
+
+/**
+ * 加载单条记录 JSON（套用 resources/patch/data 下的补丁，命中进程内缓存）
  * @param {string} relativePath - map.json 中的相对路径
  * @returns {object|null}
  */
 export function loadRecord (relativePath) {
+  const sig = recordSignature(relativePath)
+  if (!sig) return null // 文件不存在（与 loadRawRecord 同口径返回 null）
+
+  const hit = recordCache.get(relativePath)
+  if (hit && hit.sig === sig) {
+    // LRU：Map 迭代序即插入序，命中后挪到队尾
+    recordCache.delete(relativePath)
+    recordCache.set(relativePath, hit)
+    return hit.record
+  }
+
   const record = loadRawRecord(relativePath)
   if (!record) return null
   applyDataPatch(record, relativePath)
+  if (process.env.ATLAS_SCAN_FREEZE) freezeForScan(record)
+
+  recordCache.set(relativePath, { sig, record })
+  if (recordCache.size > RECORD_CACHE_MAX) recordCache.delete(recordCache.keys().next().value)
   return record
 }
 
@@ -778,6 +841,7 @@ export function resolveEntryPageKey (gameId, keyword) {
 export function reloadIndex () {
   mapCache = null
   indexCache = new Map()
+  recordCache.clear() // 记录缓存同样按数据版本作废（补丁改动只有走到这里才会重新套用）
   clearPatchCache() // 补丁文件可能随更新变化，一并失效
   reloadLinkIndex()
   resetItemMapCache()
