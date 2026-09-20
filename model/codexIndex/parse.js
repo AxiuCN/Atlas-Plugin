@@ -579,9 +579,9 @@ function resolveArtifactSetItems (sets, seps) {
   try {
     return resolveSetItems(sets, seps, { sep: '/' })
   } catch {
-    // 兜底：规则模块出问题时退化成原样渲染，不丢内容
+    // 兜底：规则模块出问题时退化成原样渲染，不丢内容（件数已定稿不显示，见下）
     return sets.map((item, i) => ({
-      name: String(item?.name ?? item ?? '').trim() + (String(item?.pieces ?? '').trim() ? `（${String(item.pieces).trim()}）` : ''),
+      name: String(item?.name ?? item ?? '').trim(),
       sepAfter: i < sets.length - 1 ? '/' : '',
       item
     }))
