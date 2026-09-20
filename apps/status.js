@@ -1,11 +1,24 @@
 import plugin from '../../../lib/plugins/plugin.js'
-import { getPluginConfig } from '../components/config.js'
+import path from 'node:path'
+import { getPluginConfig, pluginRoot } from '../components/config.js'
 import { buildStatusData, renderStatusImage } from '../components/status.js'
 import { getPatchOverview } from '../model/AtlasService.js'
 import { PATCH_DATA_DIR, PATCH_GALLERY_DIR, PATCH_MAP_FILE } from '../components/patch.js'
 
 const config = getPluginConfig()
 const GAME_CN = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
+
+/**
+ * 补丁路径转为插件内相对路径
+ *
+ * `#图鉴补丁` 是公开命令，展示绝对路径等于把服务器目录结构发给群里；补丁位置在插件内是固定的，
+ * 展示 `resources/patch/...` 已足够定位（实际读写仍用 components/patch.js 的绝对路径）
+ * @param {string} absPath
+ * @returns {string} POSIX 风格的相对路径
+ */
+function relPatchPath (absPath) {
+  return path.relative(pluginRoot, absPath).split(path.sep).join('/')
+}
 
 export class AtlasStatus extends plugin {
   constructor () {
@@ -100,9 +113,9 @@ export class AtlasStatus extends plugin {
       }
     }
 
-    if (mapPatch) lines.push('', `【索引补丁】${PATCH_MAP_FILE}`)
+    if (mapPatch) lines.push('', `【索引补丁】${relPatchPath(PATCH_MAP_FILE)}`)
 
-    lines.push('', `目录：${PATCH_DATA_DIR}｜${PATCH_GALLERY_DIR}`)
+    lines.push('', `目录：${relPatchPath(PATCH_DATA_DIR)}｜${relPatchPath(PATCH_GALLERY_DIR)}`)
     await e.reply(lines.join('\n'))
     return true
   }
