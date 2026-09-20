@@ -5,6 +5,9 @@
   "author": "阿修Axiu",
   "license": "GPL-3.0-only",
   "type": "module",
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
   "dependencies": {
     "yaml": "^2.4.5"
   }

@@ -23,3 +23,6 @@ AGENTS.md
 # 角色攻略数据仓库（git clone 拉取，非子模块，由 #图鉴初始化 / #图鉴更新 末尾同步）
 # 只忽略克隆出来的仓库本体，外层目录保留（可放 README 说明）
 tool/Character-Codex-Data/Character-Codex-Data/
+
+# 套件临时产物（git 替身的编译产物、渲染样例图等）
+test/.test-tmp/
