@@ -75,10 +75,8 @@
     <div class="codex-cell codex-{{section.type}}{{if section.displayTitle === '天赋'}} codex-talent{{/if}}{{if section.displayTitle === '配队'}} codex-team{{/if}}{{if section.empty}} codex-cell-empty{{/if}}">
       <div class="codex-cell-title">
         {{if section.badge}}<span class="codex-badge">{{section.badge}}</span>{{/if}}
-        {{if section.icon}}
-          {{if section.iconLine}}<img class="codex-cell-icon codex-icon-line" src="{{section.icon}}"/>
-          {{else}}<img class="codex-cell-icon" src="{{section.icon}}"/>{{/if}}
-        {{/if}}
+        {{* 段落标题左边的类型图标（武器 / 圣遗物 / 天赋 / 命座线稿）**不画了**（用户定稿）：
+            编号徽标 + 标题文字已经够识别，图标只是噪声；图标资源仍在解析（行内 rank-icon 照常用）。 *}}
         <span class="codex-cell-name">{{section.title}}</span>
       </div>
 
