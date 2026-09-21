@@ -78,7 +78,7 @@ export class AtlasAdmin extends plugin {
 
     if (!fs.existsSync(gitFile)) {
       await e.reply('[Atlas] 正在拉取子模块，请稍候...', true)
-      const gitRet = initSubmodule()
+      const gitRet = await initSubmodule()
       if (!gitRet.ok) {
         await e.reply(`[Atlas] 子模块拉取失败：${gitRet.error}`, true)
         return true

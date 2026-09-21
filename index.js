@@ -1,8 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { reloadIndex } from './model/AtlasService.js'
-import { syncSubmodule } from './model/AtlasUpdater.js'
+import { initAtlas } from './model/startup.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -27,16 +26,9 @@ if (!fs.existsSync(blacklistFile) && fs.existsSync(blacklistExample)) {
 logger?.info('----Atlas-Plugin----')
 logger?.info('[Atlas] 初始化中...')
 
-// ---- 子模块自动同步（异步，不阻塞加载；内部已捕获错误，失败仅日志） ----
-syncSubmodule().catch(() => {})
-
-// ---- 预加载索引 ----
-try {
-  reloadIndex()
-} catch (err) {
-  logger?.warn(`[Atlas] 索引加载失败: ${err.message}`)
-  logger?.warn('[Atlas] 请确保已执行 nanoka-atlas-backend 数据抓取')
-}
+// ---- 子模块同步 + 预加载索引（顺序与重建时机见 model/startup.js）----
+// 不 await：git 可能拉到 120 s，而框架 plugin_load_timeout 只有 60 s
+initAtlas().catch((err) => logger?.error('[Atlas] 启动编排异常:', err))
 
 // ---- 加载 apps ----
 const appsDir = path.join(__dirname, 'apps')

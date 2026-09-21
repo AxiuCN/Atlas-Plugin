@@ -829,23 +829,25 @@ export function isDataIntact () {
 
 /**
  * 初始化子模块（git submodule update --init）
- * @returns {{ ok: boolean, error?: string }}
+ *
+ * 用 runSpawn 而非 execSync：插件载入时也会走到这里，而框架 plugin_load_timeout 只有 60 s，
+ * 同步阻塞拉取会让「首次安装」被判插件加载超时。
+ * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-export function initSubmodule () {
-  try {
-    logger?.info('[Atlas][Updater] 正在拉取子模块...')
-    execSync('git submodule update --init -- tool/nanoka-atlas-backend/nanoka-atlas-backend', {
-      cwd: pluginRoot,
-      encoding: 'utf8',
-      timeout: 120000
-    })
-    logger?.info('[Atlas][Updater] 子模块拉取完成')
-    return { ok: true }
-  } catch (err) {
-    const msg = err.stderr || err.message || String(err)
+export async function initSubmodule () {
+  logger?.info('[Atlas][Updater] 正在拉取子模块...')
+  const result = await runSpawn('git', ['submodule', 'update', '--init', '--', SUBMODULE_PATH], {
+    cwd: pluginRoot,
+    timeoutMs: 120000,
+    label: '子模块拉取'
+  })
+  if (!result.ok) {
+    const msg = result.stderr || result.reason || `exit=${result.code}`
     logger?.error('[Atlas][Updater] 子模块拉取失败:', msg)
     return { ok: false, error: msg }
   }
+  logger?.info('[Atlas][Updater] 子模块拉取完成')
+  return { ok: true }
 }
 
 /**
