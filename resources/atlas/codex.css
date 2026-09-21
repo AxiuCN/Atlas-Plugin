@@ -152,7 +152,10 @@
 /* ===== 单行：左列固定宽度，右列整体换行 ===== */
 .grow {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  /* 行首标签列：字号 +2px 后 96px 装不下 `命之座2`（3 汉字 + 1 数字 ≈ 94–104px）会折行，
+     所以放宽到 112px —— 4 个汉字的标签（主词条 / 副词条 / 危战首选…）也正好一行放下。
+     ⚠ 必须保持**固定宽度**（不用 auto / max-content）：同一段里各行的值列要左边缘对齐。 */
+  grid-template-columns: 112px minmax(0, 1fr);
   column-gap: 14px;
   align-items: start;
   font-size: 24px;
@@ -240,8 +243,15 @@
  * 网格多出一列专门放图标：`[图标] [命之座N] [说明]`，三列垂直居中。
  * 图标由模板在行首渲染（`.grow-icon`），值那一列不再重复画图标。 */
 .grow.grow-constellation {
-  grid-template-columns: auto 96px minmax(0, 1fr);
+  /* 命座行的标签恒为等宽的 `命之座N`：让这一列按内容展开（max-content）+ 标签不折行，
+     既保证 `命之座2` 这类标签完整显示，各行的值列也天然对齐。
+     （普通行仍用固定 112px 标签列，见上。） */
+  grid-template-columns: auto max-content minmax(0, 1fr);
   align-items: center;
+}
+.grow.grow-constellation .grow-label {
+  white-space: nowrap;
+  padding: 0 10px;
 }
 .grow-icon {
   display: inline-flex;
