@@ -542,10 +542,11 @@
   line-height: 1.6;
 }
 
-/* ===== 配队成员单元：头像（或名字标签）+ 其下的小字括注 =====
+/* ===== 配队成员槽位 .team-slot（模板里是 `+` + 头像 + 括注，见 codex.html） =====
  * 备注不占头像位——头像照常渲染，**备注排在头像右边**（用户定稿：以前排在头像下方，
- * 会让这一格变高、行距被撑开） */
-.team-unit {
+ * 会让这一格变高、行距被撑开）。
+ * 槽位是 flex 里的**不可断开单元**：换行只发生在槽位之间，`+` 永远跟着它后面的成员。 */
+.team-slot {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
@@ -582,15 +583,17 @@
 
 .codex-team .grows { gap: 16px; }
 .codex-team .grow { font-size: 23px; }
+/* 配队行：**队伍名单占一整行**，队伍名（左列 chip）移到它上方（用户定稿）。
+ * 原来 112px 的标签列会把成员挤到第二行，而第二行开头是孤立的头像（或孤立的 `+`）；
+ * 改成上下排后成员可用宽度从 630px 增到 784px，实测各队伍都能排成一行。 */
+.codex-team .grow-stacked { grid-template-columns: minmax(0, 1fr); row-gap: 10px; }
 
-/* 队伍名（首选 / 其他 / 平民…）：加粗 + 主题色底，比其它模块的行首标签更醒目 */
+/* 队伍名（首选 / 其他 / 平民…）：加粗 + 主题色底，比其它模块的行首标签更醒目。
+ * 位置：**在成员上方单独一行**（用户定稿：原来占左列，会把成员挤到第二行），
+ * 所以不再需要垂直居中的特例——跟其它模块一样贴顶左对齐。 */
 .codex-team .grow-label {
-  /* 与右边的角色头像**垂直居中**对齐（用户反馈：贴在行顶时看着偏上）。
-     基础规则是 `align-self: start`（所有模块行首标签贴顶、内容左边缘对齐），
-     但配队行的 value 是 76px 高的头像，小胶囊贴顶就显得偏上，所以这里单独改成居中。
-     配队行里没有「有成员 + 行尾备注」的组合（备注都是独立一行、没有头像），
-     所以居中就是与头像对齐，不用担心被备注撑高。 */
-  align-self: center;
+  align-self: start;
+  justify-self: start;
   padding: 3px 10px;
   border-radius: 6px;
   background: rgba(43, 108, 176, .14);
@@ -605,7 +608,14 @@
 
 /* 成员排布：头像更大、间距更松 */
 .codex-team .team-members { gap: 14px; }
-.codex-team .team-unit { gap: 4px; }
+/* 成员槽位：`+` 与**它后面那个成员**绑成一个不可断开的整体（用户反馈：以前 `+` 会被留在行尾，
+ * 第二行开头孤零零一个头像）。换行只发生在槽位之间 → 行尾永远是头像，下一行以 `+` 开头，
+ * 读起来就是「+ 下一个成员」。 */
+.codex-team .team-slot {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+}
 .codex-team .team-avatar {
   width: 76px;
   height: 76px;
@@ -615,7 +625,7 @@
 }
 .codex-team .team-member { font-size: 22px; padding: 3px 16px; }
 .codex-team .team-member-note { font-size: 19px; }
-/* 成员**头像之间**的 `+`（同级可替换的角色在**同一格**里用 ` / `，见 .team-unit） */
+/* 成员**头像之间**的 `+`（同级可替换的角色在**同一格**里用 ` / `，见 .team-slot） */
 .codex-team .team-plus {
   display: inline-flex;
   align-items: center;
@@ -628,8 +638,8 @@
   color: #b3a89c;
 }
 /* 同一格里的**可替换候选**（`迪奥娜 / 阿罗夏`）：**并列横排**（用户定稿：不要上下堆叠），
- * 头像之间画 `/`，与格子之间的 `+` 区分开。外层 .team-alts 负责横向，所以 .team-unit
- * 的 column 方向只影响"头像行 + 备注行"两行。 */
+ * 头像之间画 `/`，与格子之间的 `+` 区分开。外层 .team-alts 负责横向，所以 .team-slot
+ * 只负责"头像 + 备注"横向排列。 */
 .codex-team .team-alts {
   display: inline-flex;
   align-items: center;
