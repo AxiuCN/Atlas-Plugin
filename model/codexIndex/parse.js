@@ -616,8 +616,10 @@ function v2TalentRows (rows) {
   }
   if (byName.size) {
     out.push({
-      // 行首标签用**显示词汇** `推荐`（与武器 / 圣遗物行一致；文档里仍写 `天赋：…`，网页版同口径）
-      label: '推荐',
+      // 行首**不写标签**（用户定稿 2026-09-21：天赋那行的「推荐」chip 去掉）——
+      // 天赋只有 A / E / Q 三格，图标本身已经说明一切，标签是噪声。
+      // 空标签 ⇒ 模板给这一行 `grow-nolabel`，值列占满整行（与「暂无」行同一处理）。
+      label: '',
       kind: 'talents',
       ref: String((byName.get('A') || byName.values().next().value || {}).ref || ''),
       items: ['A', 'E', 'Q'].map(name => {
