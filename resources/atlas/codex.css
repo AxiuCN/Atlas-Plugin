@@ -55,7 +55,7 @@
   background: #fdf6e9;
   border: 1px solid #ecdfc4;
   border-radius: 8px;
-  font-size: 20px;
+  font-size: 22px;
   color: #6f5a1c;
 }
 
@@ -65,7 +65,7 @@
   border-radius: 4px;
   background: #d69e2e;
   color: #fffdf7;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
 }
 
@@ -111,7 +111,7 @@
   border-radius: 50%;
   background: #4a4a4a;
   color: #f6f4f1;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 30px;
   text-align: center;
@@ -133,7 +133,7 @@
 
 /* ===== 段落名 ===== */
 .codex-cell-name {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   color: #333333;
   letter-spacing: 1px;
@@ -155,7 +155,7 @@
   grid-template-columns: 96px minmax(0, 1fr);
   column-gap: 14px;
   align-items: start;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.75;
   color: #555555;
 }
@@ -172,7 +172,7 @@
   border-radius: 4px;
   background: rgba(110, 110, 110, 0.11);
   color: #2f2f2f;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.8;
   text-align: center;
@@ -199,7 +199,7 @@
 .row-note {
   min-width: 0;
   color: #8a8378;
-  font-size: 19px;
+  font-size: 21px;
   font-style: italic;
   overflow-wrap: break-word;
 }
@@ -209,7 +209,7 @@
 .codex-cell-empty .codex-cell-title { border-bottom-color: #f0ede9; }
 .codex-cell-empty .empty-text {
   color: #b3ada4;
-  font-size: 20px;
+  font-size: 22px;
   font-style: italic;
   letter-spacing: 1px;
 }
@@ -257,7 +257,7 @@
 
 /* ===== 数值段（毕业面板）：数值放大、标签弱化，两列对齐 ===== */
 .codex-stats .grow-value {
-  font-size: 25px;
+  font-size: 27px;
   font-weight: 700;
   color: #2f2f2f;
 }
@@ -269,7 +269,7 @@
 
 /* ===== 数值段里的档位条目（一条面板写出多个数值时）：与单值同样放大加粗 ===== */
 .codex-stats .rank-item {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: #2f2f2f;
 }
@@ -301,7 +301,7 @@
   border-radius: 6px;
   background: #f6f4f1;
   color: #3d3d3d;
-  font-size: 21px;
+  font-size: 23px;
   line-height: 1.6;
   white-space: nowrap;
 }
@@ -329,7 +329,7 @@
 
 .codex-talent .rank-item {
   padding: 4px 12px;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.7;
 }
 
@@ -415,11 +415,18 @@
 
 /* 技能字母（A / E / Q）：图标下方的小标签 */
 .rank-item.talent-item .talent-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: #6b6357;
   line-height: 1.2;
 }
+
+/* 天赋三格：**图标取得到时不再显示 A/E/Q 字母**（用户定稿）。
+ * 三格的图标本来就各不相同，下面还有等级数字，字母是冗余的；只有取不到图标时才用字母兜底。
+ * （`:has` 判据；本文件已在用 `:has(.rank-list)`，渲染器是 Chromium 内核。）
+ * ⚠ 纯视觉隐藏，模型里的 `it.text` 一个字没动 —— 面板与网页版的行模型必须逐字一致
+ *   （网页版没有图标资源、只能显示字母），删掉文字会让 `audit-web-vs-panel` 立刻报漂移。 */
+.codex-talent .rank-item.talent-item .talent-icon-wrap:has(img) + .talent-name { display: none; }
 
 /* 等级数字：**图标正下方**居中（与 miao 的「深底金字数字条」同一视觉语言） */
 .rank-item.talent-item .talent-level {
@@ -428,7 +435,7 @@
   border-radius: 5px;
   background: #2e353e;
   color: #ffdfa0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.6;
   text-align: center;
@@ -474,7 +481,7 @@
 .rank-note {
   margin-left: 4px;
   color: #8a8378;
-  font-size: 19px;
+  font-size: 21px;
   font-style: italic;
   font-weight: 400;
 }
@@ -482,7 +489,7 @@
 /* ===== 档位分隔符（数据里的「>」「≥」） ===== */
 .sep {
   color: #b0aaa1;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
 }
 
@@ -508,7 +515,7 @@
   border-radius: 16px;
   background: #f4f2ef;
   color: #383838;
-  font-size: 21px;
+  font-size: 23px;
   line-height: 1.6;
   white-space: nowrap;
 }
@@ -520,7 +527,7 @@
   border-radius: 16px;
   background: #f4f2ef;
   color: #7a736a;
-  font-size: 20px;
+  font-size: 22px;
   font-style: italic;
   line-height: 1.6;
 }
@@ -539,7 +546,7 @@
  * 有头像时缀在头像下方，取不到头像时跟在名字后面作括注；与条目备注 .rank-note 同一套弱化样式 */
 .team-member-note {
   color: #8a8378;
-  font-size: 18px;
+  font-size: 20px;
   font-style: italic;
   font-weight: 400;
   line-height: 1.2;
@@ -576,7 +583,7 @@
   border-radius: 6px;
   background: rgba(43, 108, 176, .14);
   color: #1f4e86;
-  font-size: 21px;
+  font-size: 23px;
   font-weight: 800;
   letter-spacing: .5px;
 }
@@ -603,7 +610,7 @@
   justify-content: center;
   align-self: center;
   padding: 0 4px;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1;
   color: #b3a89c;
@@ -621,13 +628,13 @@
   align-items: center;
   align-self: center;
   padding: 0 3px;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1;
   color: #c0b6aa;
 }
 .codex-team .team-line { gap: 12px; }
-.codex-team .team-note { font-size: 21px; padding: 3px 16px; }
+.codex-team .team-note { font-size: 23px; padding: 3px 16px; }
 .codex-team .codex-cell-title { padding-bottom: 12px; margin-bottom: 16px; }
 
 /* ============================================================
@@ -635,13 +642,13 @@
  * ============================================================ */
 
 .gitem {
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.75;
   color: #555555;
 }
 
 .gitem-name {
-  font-size: 23px;
+  font-size: 25px;
   font-weight: 700;
   color: #2f2f2f;
 }
@@ -658,7 +665,7 @@
   border-radius: 4px;
   background: #fdeaea;
   color: #c62828;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 700;
   font-style: normal;
   line-height: 1.7;
@@ -683,7 +690,44 @@
 /* ===== 页脚：单列后宽度充裕，字号回正并保持一行 ===== */
 .codex-copyright {
   margin-top: 14px;
-  font-size: 19px;
+  font-size: 21px;
   line-height: 1.6;
   white-space: nowrap;
+}
+
+/* ============================================================
+ *  Hero 区**小字**：放大 + 提高对比度（用户定稿）
+ *
+ *  `common/hero.css` 是与角色页共用的框架，本文件不修改它；
+ *  这里只做**攻略页范围内**的覆盖：
+ *    · `.hero-game`（`原神 · 角色攻略 · 五星`）：23 → 26px，字更深，白描边加厚加亮
+ *    · `.hero-subtitle`（攻略副标题）：26 → 28px，字更深
+ *    · `.hero-info-item`（建议等级 / 定位 / 元素 / 武器 标签）：18 → 22px，字更深、
+ *      底色改成近白（原来只有 10% 灰，压在名刺图上对比不够）
+ * ============================================================ */
+
+.codex-page .hero .hero-game {
+  font-size: 26px;
+  color: #23221e;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, .98),
+    0 -1px 0 rgba(255, 255, 255, .92),
+    1px 0 0 rgba(255, 255, 255, .92),
+    -1px 0 0 rgba(255, 255, 255, .92),
+    0 0 14px rgba(255, 255, 255, .98);
+}
+
+.codex-page .hero .hero-subtitle {
+  font-size: 28px;
+  color: #2b2a26;
+}
+
+.codex-page .hero-info-item {
+  padding: 4px 14px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #23221e;
+  background: rgba(255, 255, 255, .74);
+  border: 1px solid rgba(86, 80, 70, .42);
+  text-shadow: 0 0 4px rgba(255, 255, 255, .9);
 }
