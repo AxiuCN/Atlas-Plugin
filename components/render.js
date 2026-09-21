@@ -91,10 +91,14 @@ export async function renderAtlas (tpl, data = {}, opts = {}) {
   data.saveId = data.saveId || `${tpl}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 
   data.imgType = imgType
+  if (opts.multiPage) {
+    data.multiPage = true
+    data.multiPageHeight = opts.multiPageHeight || 4000
+  }
 
   // 渲染缩放：模板 body 上的 CSS zoom（见 renderScale() 说明）
   data.renderScale = renderScale()
 
-  // 渲染截图
-  return await puppeteer.screenshot(`Atlas-Plugin/${app}/${tpl}`, data)
+  const name = `Atlas-Plugin/${app}/${tpl}`
+  return opts.multiPage ? await puppeteer.screenshots(name, data) : await puppeteer.screenshot(name, data)
 }
