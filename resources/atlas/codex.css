@@ -421,6 +421,13 @@
   line-height: 1.2;
 }
 
+/* 天赋三格：**图标取得到时不再显示 A/E/Q 字母**（用户定稿）。
+ * 三格的图标本来就各不相同，下面还有等级数字，字母是冗余的；只有取不到图标时才用字母兜底。
+ * （`:has` 判据；本文件已在用 `:has(.rank-list)`，渲染器是 Chromium 内核。）
+ * ⚠ 纯视觉隐藏，模型里的 `it.text` 一个字没动 —— 面板与网页版的行模型必须逐字一致
+ *   （网页版没有图标资源、只能显示字母），删掉文字会让 `audit-web-vs-panel` 立刻报漂移。 */
+.codex-talent .rank-item.talent-item .talent-icon-wrap:has(img) + .talent-name { display: none; }
+
 /* 等级数字：**图标正下方**居中（与 miao 的「深底金字数字条」同一视觉语言） */
 .rank-item.talent-item .talent-level {
   min-width: 26px;
