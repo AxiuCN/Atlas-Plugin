@@ -74,7 +74,7 @@ export function selectTemplate (result) {
  * @param {string} tpl - 模板名（对应 resources/atlas/<tpl>.html）
  * @param {object} data - 模板数据
  * @param {object} opts - 可选参数
- * @returns {Promise<object>} segment.image 可用的图片对象
+ * @returns {Promise<Buffer|Buffer[]|false>} 单页返回图片 Buffer，多页返回图片 Buffer 数组，失败返回 false
  */
 export async function renderAtlas (tpl, data = {}, opts = {}) {
   const app = 'atlas'
