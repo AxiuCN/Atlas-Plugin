@@ -75,8 +75,10 @@
     <div class="codex-cell codex-{{section.type}}{{if section.displayTitle === '天赋'}} codex-talent{{/if}}{{if section.displayTitle === '配队'}} codex-team{{/if}}{{if section.empty}} codex-cell-empty{{/if}}">
       <div class="codex-cell-title">
         {{if section.badge}}<span class="codex-badge">{{section.badge}}</span>{{/if}}
-        {{* 段落标题左边的类型图标（武器 / 圣遗物 / 天赋 / 命座线稿）**不画了**（用户定稿）：
-            编号徽标 + 标题文字已经够识别，图标只是噪声；图标资源仍在解析（行内 rank-icon 照常用）。 *}}
+        <!-- 段落标题左边的类型图标（武器 / 圣遗物 / 天赋 / 命座线稿）不画了（用户定稿）：
+             编号徽标 + 标题文字已经够识别，图标只是噪声；图标资源仍在解析（行内 rank-icon 照常用）。
+             ⚠ 说明只能写 HTML 注释：art-template 4.x 没有注释标签，双花括号开头的说明会让整页编译失败
+             （症状就是 bot 回「攻略渲染失败」）。 -->
         <span class="codex-cell-name">{{section.title}}</span>
       </div>
 
