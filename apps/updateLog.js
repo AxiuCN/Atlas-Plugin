@@ -8,6 +8,7 @@
  *     #星铁版本更新记录 / #绝区零版本更新记录（前缀路由）
  */
 import plugin from '../../../lib/plugins/plugin.js'
+import common from '../../../lib/common/common.js'
 import { renderAtlas } from '../components/render.js'
 import { loadVersionDiff } from '../model/VersionDiff.js'
 
@@ -40,9 +41,19 @@ export class AtlasUpdateLog extends plugin {
       return true
     }
 
-    const img = await renderAtlas('update-log', data, { imgType: 'jpeg' })
-    if (img) {
-      await e.reply(img)
+    const images = await renderAtlas('update-log', data, {
+      imgType: 'jpeg',
+      multiPage: true,
+      multiPageHeight: 4000
+    })
+    if (images?.length === 1) {
+      await e.reply(images[0])
+    } else if (images?.length > 1) {
+      const pages = images.map((img, index) => [
+        `${gameNameOf(gameId)}版本更新记录 · ${index + 1}/${images.length}`,
+        img
+      ])
+      await e.reply(await common.makeForwardMsg(e, pages))
     } else {
       await e.reply('[Atlas] 版本更新记录渲染失败')
     }
