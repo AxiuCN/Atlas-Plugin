@@ -606,8 +606,10 @@
 .codex-team .grow-label.label-可选 { background: rgba(110, 110, 110, .12); color: #454545; }
 .codex-team .grow-label.label-过渡 { background: rgba(160, 130, 70, .16); color: #6f5b24; }
 
-/* 成员排布：头像更大、间距更松 */
-.codex-team .team-members { gap: 14px; }
+/* 成员排布：头像更大；`+` 与两侧头像**等距**（用户反馈：加号左右间隔不均匀）。
+ * `+` 现在和它后面的成员同属一个 `.team-slot`，所以间距只能由 `+` 自己给 ——
+ * 容器 gap 必须归零，否则左边是 gap、右边是 padding，看着就是"左宽右窄"。 */
+.codex-team .team-members { gap: 0; }
 /* 成员槽位：`+` 与**它后面那个成员**绑成一个不可断开的整体（用户反馈：以前 `+` 会被留在行尾，
  * 第二行开头孤零零一个头像）。换行只发生在槽位之间 → 行尾永远是头像，下一行以 `+` 开头，
  * 读起来就是「+ 下一个成员」。 */
@@ -631,7 +633,7 @@
   align-items: center;
   justify-content: center;
   align-self: center;
-  padding: 0 4px;
+  padding: 0 12px;
   font-size: 32px;
   font-weight: 700;
   line-height: 1;
