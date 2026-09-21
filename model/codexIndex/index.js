@@ -9,9 +9,9 @@
  * 攻略仓库的目录结构、字段名、多语言与图片路径解析全部收敛在本文件，
  * 后续适配（含仓库结构变更）只需改这里，不动 apps / modules 层。
  *
- * 数据格式（JSON 优先，HTML 兼容旧克隆）：
+ * 数据格式（只认 JSON）：
  * - 仓库根目录存在 `data/` 时只扫它（约定：`data/<gameId>/<角色名>.json`，解析见 ./parse.js）；
- *   没有 `data/` 时扫整个仓库的 *.json 与 *.html，其中 JSON 存在就不再解析 HTML
+ *   没有 `data/` 时扫整个仓库的 *.json（旧格式 HTML 页面的解析已于 2026-09-22 删除）
  * - 卡片内的行内强调、段落配图等由 parse.js 归一，本层只负责索引与匹配
  *
  * 索引策略（惰性构建 + 进程内缓存）：
@@ -28,7 +28,7 @@ import { CODEX_DIR } from '../AtlasUpdater.js'
 import { search, loadMap } from '../AtlasService.js'
 import { loadAliasMap, normalizeForMatch, buildKeywordVariants } from '../AliasLoader.js'
 import { GAME_NAMES } from '../../components/constants.js'
-import { parseGuideJson, parseGuideHtml } from './parse.js'
+import { parseGuideJson } from './parse.js'
 
 /** 扫描时跳过的子目录 */
 const SKIP_DIRS = new Set(['.git', 'node_modules'])
@@ -49,21 +49,6 @@ export function isCodexReady () {
 }
 
 /**
- * 列出攻略仓库根目录条目（不含 .git），供调试与仓库结构探查
- * @returns {Array<{name: string, isDirectory: boolean}>} 仓库未拉取时返回空数组
- */
-export function listCodexEntries () {
-  if (!isCodexReady()) return []
-  try {
-    return fs.readdirSync(CODEX_DIR, { withFileTypes: true })
-      .filter(e => e.name !== '.git')
-      .map(e => ({ name: e.name, isDirectory: e.isDirectory() }))
-  } catch {
-    return []
-  }
-}
-
-/**
  * 丢弃索引缓存（下次取用时重建；`#图鉴更新` 后由签名自动触发，此接口供调试与手动刷新）
  */
 export function reloadCodexIndex () {
@@ -75,12 +60,12 @@ export function reloadCodexIndex () {
  *
  * 优先只扫 `<仓库>/data/`（约定布局）；没有该目录时扫整个仓库。
  * `_` 开头的文件按约定视为元数据，跳过。
- * @returns {{json: Array, html: Array}} 数据文件与旧格式页面文件
+ * @returns {Array<{rel: string, full: string, size: number, mtimeMs: number}>} 按相对路径排序
  */
 function scanGuideFiles () {
   const dataRoot = path.join(CODEX_DIR, 'data')
   const scanRoot = fs.existsSync(dataRoot) ? dataRoot : CODEX_DIR
-  const out = { json: [], html: [] }
+  const out = []
 
   const walk = (dir) => {
     let entries
@@ -96,16 +81,14 @@ function scanGuideFiles () {
         if (!SKIP_DIRS.has(entry.name)) walk(full)
         continue
       }
-      const ext = path.extname(entry.name).toLowerCase()
-      const bucket = ext === '.json' ? out.json : (ext === '.html' || ext === '.htm' ? out.html : null)
-      if (!bucket) continue
+      if (path.extname(entry.name).toLowerCase() !== '.json') continue
       let stat
       try {
         stat = fs.statSync(full)
       } catch {
         continue
       }
-      bucket.push({
+      out.push({
         rel: path.relative(CODEX_DIR, full).split(path.sep).join('/'),
         full,
         size: stat.size,
@@ -115,19 +98,17 @@ function scanGuideFiles () {
   }
 
   walk(scanRoot)
-  out.json.sort((a, b) => a.rel.localeCompare(b.rel))
-  out.html.sort((a, b) => a.rel.localeCompare(b.rel))
+  out.sort((a, b) => a.rel.localeCompare(b.rel))
   return out
 }
 
 /**
  * 文件清单签名（拉取/改动后与缓存不一致即重建）
- * @param {Array} json
- * @param {Array} html
+ * @param {Array} files - scanGuideFiles() 结果
  * @returns {string}
  */
-function fileSignature (json, html) {
-  return [...json, ...html].map(f => `${f.rel}|${f.size}|${Math.round(f.mtimeMs)}`).join(';')
+function fileSignature (files) {
+  return files.map(f => `${f.rel}|${f.size}|${Math.round(f.mtimeMs)}`).join(';')
 }
 
 /**
@@ -170,20 +151,6 @@ function readJsonCards (file) {
 }
 
 /**
- * 读取并解析一个旧格式 HTML 页面
- * @param {object} file - scanGuideFiles() 条目
- * @returns {{docTitle: string, cards: Array}}
- */
-function readHtmlCards (file) {
-  try {
-    return parseGuideHtml(fs.readFileSync(file.full, 'utf8'), file.full)
-  } catch (err) {
-    logger?.warn(`[Atlas] 攻略页面解析失败 ${file.rel}: ${err.message}`)
-    return { docTitle: '', cards: [] }
-  }
-}
-
-/**
  * 当前图鉴索引代际（map 对象；图鉴数据不可读时返回 null，此时无从重解析，按同代处理）
  * @returns {object|null}
  */
@@ -197,11 +164,11 @@ function atlasGeneration () {
 
 /**
  * 构建（或复用）攻略索引
- * @returns {{files: object, cards: Array, byKey: Map<string, Array>, resolved: Map, warned: Set}}
+ * @returns {{files: Array, cards: Array, byKey: Map<string, Array>, resolved: Map, warned: Set}}
  */
 function buildIndex () {
   const files = scanGuideFiles()
-  const sig = fileSignature(files.json, files.html)
+  const sig = fileSignature(files)
   const gen = atlasGeneration()
   if (cache && cache.sig === sig) {
     // 卡片本身只依赖攻略仓库，但 resolved / warned 是拿卡片名 search() 反查**图鉴索引**得到的：
@@ -215,29 +182,20 @@ function buildIndex () {
   }
 
   const cards = []
-  const push = (card, file, game, docTitle) => {
+  const push = (card, file, game) => {
     // 无标签、无高亮行、无正文的条目视为空壳（如仓库里的 package.json），直接跳过
     if (!card.tags.length && !card.desc && !card.sections.length) return
     cards.push({
       ...card,
       game: game || card.game || '',
       source: file.rel,
-      docTitle: card.docTitle || docTitle || ''
+      docTitle: card.docTitle || ''
     })
   }
 
-  // JSON 优先：存在 JSON 数据就不再解析旧 HTML 页面
-  if (files.json.length) {
-    for (const file of files.json) {
-      const game = gameFromRelPath(file.rel)
-      for (const card of readJsonCards(file)) push(card, file, game, '')
-    }
-  } else {
-    for (const file of files.html) {
-      const game = gameFromRelPath(file.rel)
-      const { docTitle, cards: parsed } = readHtmlCards(file)
-      for (const card of parsed) push(card, file, game, docTitle)
-    }
+  for (const file of files) {
+    const game = gameFromRelPath(file.rel)
+    for (const card of readJsonCards(file)) push(card, file, game)
   }
 
   const byKey = new Map()
@@ -249,7 +207,7 @@ function buildIndex () {
   }
 
   cache = { sig, gen, files, cards, byKey, resolved: new Map(), warned: new Set() }
-  logger?.info(`[Atlas] 攻略索引已构建：${cards.length} 个角色（${files.json.length} 个 JSON / ${files.html.length} 个页面）`)
+  logger?.info(`[Atlas] 攻略索引已构建：${cards.length} 个角色（${files.length} 个 JSON）`)
   return cache
 }
 

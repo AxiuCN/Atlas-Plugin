@@ -1,9 +1,15 @@
 /* Atlas-Plugin 样式 — 角色攻略页专用（resources/atlas/codex.html）
  *
  * 单列长图版式：从上到下依次 Hero → 参考 → 各段落 → 页脚，段落宽度一律 100%。
- * 本文件所有规则都挂在 .codex-page 下，只作用于攻略页；common/ 下的共用样式一律不改。
- * Hero 区与角色页共用 common/hero.css 的框架（背景大图 / 立绘层 / 遮罩 / 头像 / 文字三段），
- * 本文件不覆盖其中任何一条。
+ * 作用域：本文件只被 resources/atlas/codex.html 一个模板 <link>，所以不必给每条规则都套
+ * 作用域前缀（页面正文的类名用领域词直写：.grow* / .rank-* / .team-* / .talent*）。
+ * 隔离完全靠「只此一处引用」，因此**新增规则不得定义共享 CSS 里已有的类**——共享词汇见
+ * common/ 的 base.css · components.css · detail.css · hero.css，边界由 test/style-scope.test.mjs 守住。
+ *
+ * Hero 区复用 common/hero.css 的框架（背景大图 / 立绘层 / 遮罩 / 头像 / 文字三段）；
+ * 本文件只对 hero 做 3 条**定向覆盖**（名刺图上小字对比度不足，2026-09-20 定稿，见文件末段）：
+ * .hero-game / .hero-subtitle / .hero-info-item —— 已在 CONTRIBUTING「样式与组件准入」白名单登记，
+ * 待换成共享件后删除。
  * v2 结构化数据另有两处小样式：档位条目里的小图标 .rank-icon（武器/圣遗物/天赋/命座）
  * 与备注 .rank-note（叠影、皇冠等级）、配队说明 .team-note 与成员备注 .team-member-note；
  * 取不到图标时这些元素不渲染，布局不变。没有标签的行（.grow-nolabel）内容铺满整行，

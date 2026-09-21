@@ -20,6 +20,7 @@
 import { loadMap, loadRecord, search } from '../AtlasService.js'
 import { normalizeForMatch, loadAliasMap } from '../AliasLoader.js'
 import { imgUrl } from '../../components/sections/util.js'
+import { plainText } from './parse.js'
 
 /** 套装名 → 图标 URL（按游戏缓存；只构建一次） */
 const setIconCache = new Map()
@@ -49,17 +50,6 @@ function ensureCacheMap () {
   charPathCache.clear()
   charIconCache.clear()
   weaponIconCache.clear()
-}
-
-/** 剥掉行内标签与实体，得到纯文本（用于从模板数据里取名称） */
-function plainText (html) {
-  return String(html || '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .trim()
 }
 
 /** 拆 ref（`weapon:西风剑` → { type: 'weapon', name: '西风剑' }） */

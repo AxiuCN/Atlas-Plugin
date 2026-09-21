@@ -23,21 +23,18 @@
  *     行为与改造前完全一致；两代数据的输出结构同一个形状，模板与编排层无需分支
  *   - `data.unparsed` 里未结构化的文本行按普通行追加到对应段落末尾
  *
- * 同时保留旧版 HTML 页面的解析（parseGuideHtml），供尚未拉取到 JSON 数据的旧克隆兜底；
- * 仓库里一旦存在 JSON 数据，索引层就只认 JSON（见 index.js）。
+ * 数据只认 JSON：仓库根存在 `data/` 时按 `data/<gameId>/<角色名>.json` 扫描并解析（见 index.js）。
+ * 旧格式 HTML 页面的解析已于 2026-09-22 删除——攻略仓库固定以 JSON 发布，那条兜底通路永不触发。
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { DISPLAY_SECTIONS, normalizeGuideSections, resolveSetItems, displayItemText, displayLabel, ARTIFACT_KIND_LABEL } from './display.js'
 
-/** 正文中允许保留的内联类名（样式见 resources/common/codex.css） */
-const ALLOWED_SPAN_CLASS = new Set(['must', 'highlight'])
-
 /** v2 引用标记（`[[w:西风剑]]`）：结构化数据由 ref 字段承载，正文若混写标记也按纯文本展示 */
 const REF_MARK_RE = /\[\[[a-z][:：]([^[\]]+?)\]\]/g
 
-/** 纯文本字段需要解码的 HTML 实体（仅 HTML 旧格式用） */
+/** 纯文本字段需要解码的 HTML 实体（plainText 用：数据里偶尔混写 `&amp;` 这类写法） */
 const ENTITY_MAP = {
   amp: '&',
   lt: '<',
@@ -54,14 +51,7 @@ const ENTITY_MAP = {
  *  通用工具
  * ============================================================ */
 
-/** 取出标签属性值（兼容单/双引号），返回首个非空捕获 */
-function attrOf (tag, name) {
-  const m = String(tag).match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'))
-  if (!m) return ''
-  return m[1] ?? m[2] ?? ''
-}
-
-/** 属性值转义（用于本模块自行写出的 alt） */
+/** 属性值转义（纯文本 → HTML 属性；inlineHtml 的转义也走它） */
 function escapeAttr (text) {
   return String(text || '')
     .replace(/&/g, '&amp;')
@@ -850,7 +840,7 @@ export function parseGuideJson (data, meta = {}) {
 }
 
 /* ============================================================
- *  HTML 页面（旧格式，兼容尚未更新数据的克隆）
+ *  纯文本工具（名称 / 标签 / 空值判定用）
  * ============================================================ */
 
 /**
@@ -888,117 +878,10 @@ function compact (text) {
 }
 
 /**
- * 剥除全部标签并解码实体（用于标题、标签等纯文本字段）
+ * 剥除全部标签并解码实体（用于标题、标签等纯文本字段；icons.js 取名称也用它）
  * @param {string} html
  * @returns {string}
  */
-function plainText (html) {
+export function plainText (html) {
   return compact(decodeEntities(String(html || '').replace(/<[^>]*>/g, '')))
-}
-
-/**
- * 内联 HTML 清洗：放行 br / span.must / span.highlight / img，其余标签与属性剥除
- * @param {string} html - 段正文或高亮行
- * @param {string} fileDir - 攻略文件所在目录
- * @returns {string}
- */
-export function sanitizeInline (html, fileDir) {
-  let out = String(html || '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-
-  // 图片：仅保留仓库内真实存在的文件
-  out = out.replace(/<img\b[^>]*\/?>/gi, (tag) => {
-    const url = resolveImage(fileDir, decodeEntities(attrOf(tag, 'src')))
-    if (!url) return ''
-    const alt = decodeEntities(attrOf(tag, 'alt'))
-    return `<img class="codex-img" src="${url}"${alt ? ` alt="${escapeAttr(alt)}"` : ''}/>`
-  })
-
-  // 行内强调：must / highlight 保留类名，其余 span 只去壳（嵌套残留由末尾白名单兜底）
-  out = out.replace(/<span\b[^>]*>([\s\S]*?)<\/span>/gi, (tag, inner) => {
-    const keep = attrOf(tag, 'class').split(/\s+/).find(c => ALLOWED_SPAN_CLASS.has(c))
-    return keep ? `<span class="${keep}">${inner}</span>` : inner
-  })
-
-  out = out.replace(/<br\b[^>]*\/?>/gi, '<br/>')
-
-  // 白名单过滤：清洗后只应存在下列标签，其余一律丢弃（模板用 {{@}} 注入，必须收敛）
-  const allowed = /^(?:<br\/>|<\/span>|<span class="(?:must|highlight)">|<img class="codex-img" src="[^"]*"(?: alt="[^"]*")?\/>)$/
-  out = out.split(/(<[^>]*>)/).map(part => {
-    if (!/^<[^>]*>$/.test(part)) return part
-    return allowed.test(part) ? part : ''
-  }).join('')
-
-  return compact(out)
-}
-
-/**
- * 旧格式 HTML 正文 → 纯文本行（`<br/>` 分行；must/highlight 还原成 **…** / ==…==，实体解码）
- * 旧克隆也走同一套「结构化数组」管线，不把长文本直接丢给模板
- * @param {string} html
- * @param {string} fileDir - 攻略文件所在目录（相对图片按此解析）
- * @returns {string[]}
- */
-function htmlToLines (html, fileDir) {
-  return sanitizeInline(html, fileDir)
-    .split(/<br\/>/i)
-    .map(line => line
-      .replace(/<span class="must">([\s\S]*?)<\/span>/g, '**$1**')
-      .replace(/<span class="highlight">([\s\S]*?)<\/span>/g, '==$1==')
-      .replace(/<[^>]*>/g, ''))
-    .map(line => decodeEntities(line).trim())
-    .filter(Boolean)
-}
-
-/**
- * 解析一个攻略 HTML 页面为角色卡片数组（旧格式：每角色一张 .guide-card）
- * @param {string} html - 文件文本
- * @param {string} filePath - 文件绝对路径
- * @returns {{docTitle: string, cards: Array}}
- */
-export function parseGuideHtml (html, filePath) {
-  const text = String(html || '')
-  const fileDir = path.dirname(filePath)
-  const docTitle = plainText((text.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '')
-
-  const starts = []
-  const startRe = /<div\b[^>]*\bclass\s*=\s*"[^"]*\bguide-card\b[^"]*"[^>]*>/gi
-  let m
-  while ((m = startRe.exec(text)) !== null) {
-    starts.push({ tagStart: m.index, bodyStart: m.index + m[0].length, tag: m[0] })
-  }
-
-  const cards = []
-  for (let i = 0; i < starts.length; i++) {
-    const chunk = text.slice(starts[i].bodyStart, i + 1 < starts.length ? starts[i + 1].tagStart : text.length)
-
-    const name = plainText(attrOf(starts[i].tag, 'data-name'))
-    if (!name) continue
-
-    const tags = [...chunk.matchAll(/<span\b[^>]*\bclass\s*=\s*"[^"]*\btag\b[^"]*"[^>]*>([\s\S]*?)<\/span>/gi)]
-      .map(t => plainText(t[1]))
-      .filter(Boolean)
-
-    const highlight = chunk.match(/<div\b[^>]*\bclass\s*=\s*"[^"]*\btext-block\b[^"]*"[^>]*\bstyle\s*=\s*"[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-
-    // 旧格式正文同样走结构化管线：先还原成纯文本行，再按标题分行分档
-    const sections = []
-    const sectionRe = /<div\b[^>]*\bclass\s*=\s*"[^"]*\bsection-title\b[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<div\b[^>]*\bclass\s*=\s*"[^"]*\btext-block\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi
-    for (const s of chunk.matchAll(sectionRe)) {
-      const title = plainText(s[1])
-      const section = toSection({ title: plainText(s[1]), lines: htmlToLines(s[2], fileDir) }, fileDir)
-      if (section) sections.push(section)
-    }
-
-    const highlightLines = highlight ? htmlToLines(highlight[1], fileDir) : []
-    cards.push({
-      name,
-      tags,
-      desc: highlightLines.length ? inlineHtml(highlightLines.join(' ')) : '',
-      sections
-    })
-  }
-
-  return { docTitle, cards }
 }

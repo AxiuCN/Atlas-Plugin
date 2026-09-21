@@ -50,7 +50,8 @@ Atlas-Plugin/
 │                     # itemIndex/ · monsterIndex/ · codexIndex/
 ├── components/       # 可复用件：config · constants · render · queryUtils · protagonist · patch · util
 │   └── sections/     # 页面数据构建器：character | weapon | relic | monster | bangboo | item
-├── resources/        # 模板与静态资源：atlas/*.html（15 个模板）· common/*.css + font/ · alias/ · patch/
+├── resources/        # 模板与静态资源：atlas/*.html（15 个模板）· common/*.css + font/ + image/
+│                     #   · alias/ · patch/ · data/ · help/
 ├── config/           # config.yaml.example（入库）+ config.yaml / alias/（运行时，git-ignored）
 ├── defSet/ + guoba/  # 锅巴配置模板与 schema
 ├── test/             # 回归套件（入库）
@@ -69,6 +70,31 @@ Atlas-Plugin/
 - `apps/` 每个文件导出**一个** class（注册命令/定时任务），业务逻辑不写在这里
 - `components/` 是给各层共用的（渲染、配置读取、常量、工具）；页面段构建器一律放 `components/sections/`
 - **import 路径**：同目录 `./`、同层 `../`、跨层 `../../<dir>/`
+
+### 样式与组件准入（先查共享词汇，再决定是否新造）
+
+页面里"再新造一套"的成本远高于复用，留下的平行件又很难再收口。动手前做三件事：
+
+1. **先查共享词汇表**——下面这些各页面已经在用，能套就别新写（完整清单直接搜那四个共享 CSS 文件）：
+
+   | 需求 | 用哪个 | 定义处 |
+   |------|--------|--------|
+   | 标签 + 值两列 | `.detail-table`（`.label` / `.value`） | `components.css` |
+   | 数值格（属性 / 等级面板） | `.stat-grid` / `.stat-cell`（`.stat-label` / `.stat-value`） | `components.css` |
+   | 键值元信息行 | `.meta-row` / `.meta-item`（`.mlabel`） | `components.css` |
+   | 段落标题 | `.section-title`（`.section-title-text`） | `components.css` |
+   | 白底卡片容器 | `.white-card` | `components.css` |
+   | 技能卡与参数表 | `.skill-card` / `.skill-header` / `.skill-tag` / `.skill-params` | `components.css` |
+   | 描述正文块 | `.desc-block` | `components.css` |
+   | 数据标注（`<u>` / `<i>`） | `.kw` / `.note` | `components.css` |
+   | 素材格 | `.material-grid` / `.material-card` | `detail.css` |
+   | 页头（大图 / 立绘 / 遮罩 / 标题 / 小方框） | `.hero` 框架 | `hero.css` |
+
+2. **页面专属样式只进该页的 CSS**：`resources/common/<页面>.css`，且**只被该页模板 `<link>`**（模板与样式一对一，不要交叉引用）。这类文件**不得定义共享 CSS 已有的类**——同一个类名在两处各有一套值，谁生效只看模板引用的顺序，排查起来毫无线索。
+   - 现有白名单（唯一例外）：`codex.css` 对 `.hero-game` / `.hero-subtitle` / `.hero-info-item` 的 **3 条定向覆盖**（名刺图上小字对比度不足，2026-09-20 定稿）；**待换成共享件后从白名单删除**。
+   - 边界由 `test/style-scope.test.mjs` 守住：页面 CSS 定义共享类即失败（白名单除外），被非同名前缀的模板引用也失败，引用的 CSS 与 `url()` 资源不存在同样失败。
+
+3. **外部仓库的镜像文件要登记来源，且不得手改**：`model/codexIndex/display.js` 是攻略仓库 [Character-Codex-Data](https://github.com/Hyposelenia-Moon/Character-Codex-Data) 里 `scripts/lib/guide-display.mjs` 的**逐字节副本**（面板与网页版的措辞靠两份一致）。改规则去上游改，再用上游 `node scripts/check-display-sync.mjs --write` 同步；本地手改会同时挂掉上游校验与 `test/codex-display-sync.test.mjs`。
 
 ### 配置三层（自研插件统一模式）
 
@@ -153,7 +179,7 @@ pnpm test -- --list       # 只列套件
 pnpm test -- --filter=cache   # 只跑文件名含 cache 的
 ```
 
-- 当前 **19 个套件**；每套末尾输出 `结果：通过 N / 失败 N`，运行器最后给汇总
+- 当前 **21 个套件**；每套末尾输出 `结果：通过 N / 失败 N`，运行器最后给汇总
 - **缺前置打印「跳过」并 exit 0**：图鉴数据 / 攻略仓库 / 浏览器 / git 替身四类
 - 需要浏览器时用系统 Edge/Chrome（可用 `ATLAS_TEST_BROWSER` 指定）；Windows 下 git 替身会编译成真 `.exe`（`.cmd`/`.ps1` 不行）
 
