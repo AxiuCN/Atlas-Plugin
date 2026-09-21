@@ -36,7 +36,7 @@
     /* 斜向微光（材质感来源） */
     linear-gradient(155deg, rgba(255, 255, 255, .6) 0%, rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, .26) 100%),
     /* 颗粒噪点（云母的标志性质感） */
-    url("mica-noise.svg");
+    url("./image/mica-noise.svg");
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
   /* 上沿一道内高光 + 极淡的外投影：像一块**嵌进去的材质**，而不是一张白卡 */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 1px 3px rgba(90, 78, 62, .07);
