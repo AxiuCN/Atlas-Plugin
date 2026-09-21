@@ -1,6 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   GAME_NAMES,
   PAGE_LABELS,
@@ -20,9 +19,6 @@ import { reloadLinkIndex } from './LinkResolver.js'
 import { clearMiaoParamCache } from './MiaoParams.js'
 import { resetItemMapCache } from './itemIndex/mapLoader.js'
 import {
-  patchImageUrl,
-  imageGameFolder,
-  applyDataPatch,
   loadMapPatch,
   mergePatch,
   clearPatchCache,
@@ -31,35 +27,25 @@ import {
   listImagePatches,
   getByPath
 } from '../components/patch.js'
+import {
+  loadRecord,
+  loadRawRecord,
+  resolveRecordImage,
+  recordSignature,
+  resetRecordCache,
+  dataDir,
+  backendRoot
+} from './AtlasRepository.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const pluginRoot = path.resolve(__dirname, '..')
-const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
-const dataDir = path.join(backendRoot, 'data')
+// 兼容层：记录读取与路径常量已迁到 AtlasRepository，这里保留原调用路径
+// （外部 13 个 import 方无需改动；re-export 保持函数对象同一，不是包装）
+export { loadRecord, loadRawRecord, resolveRecordImage, dataDir, backendRoot }
 
 /** @type {object|null} map.json 内容 */
 let mapCache = null
 
 /** @type {Map<string, Array>} gameId → flatRecords */
 let indexCache = new Map()
-
-/**
- * 记录缓存：相对路径 → { sig, record }（LRU，上限见 RECORD_CACHE_MAX）
- *
- * 一次查询会反复取同一条目（全文兜底的二次评分、详情页 + 兄弟形态、攻略页 hero 与图标），
- * 而 loadRecord 每次都要读盘 + JSON.parse；缓存按「路径 + 文件签名」判活，数据文件被替换即自愈。
- * 注意：缓存的是**套过补丁**的实例，补丁文件本身的改动仍需 reloadIndex() 才生效（与补丁缓存同口径）。
- * @type {Map<string, {sig: string, record: object}>}
- */
-const recordCache = new Map()
-
-/**
- * 记录缓存条数上限
- *
- * 单次全文兜底会遍历 500+ 条高优先级条目、怪物深索引一次读 600+ 条，
- * 无上限缓存会把整个图鉴（十万级条目）都留在内存里；300 条够覆盖热门角色及其武器/圣遗物。
- */
-const RECORD_CACHE_MAX = 300
 
 /**
  * 全文兜底用的可检索文本缓存：路径 → { sig, text, bytes }（text 为已归一内容）
@@ -721,98 +707,6 @@ function scoreCandidateFile (candidate, keyword) {
 }
 
 /**
- * 从记录 JSON 的 meta.images 中解析主图 file:// URL
- * 优先选 downloaded 非 placeholder，兜底任意有 localPath 的
- * @param {object} record — 完整记录 JSON
- * @returns {string} file:// URL，无图片时返回空串
- */
-export function resolveRecordImage (record) {
-  const images = record?.meta?.images
-  if (!images || !Array.isArray(images) || !images.length) return ''
-  const picked = images.find(item => item?.localPath && item.status === 'downloaded' && !item.placeholder)
-    || images.find(item => item?.localPath)
-  if (!picked) return ''
-  // 插件图片补丁优先（补缺图 / 覆盖错图）；游戏目录优先取记录自身的 meta.gameId
-  const patch = patchImageUrl(record?.meta?.gameId || imageGameFolder(picked, images), picked.originalValue)
-  if (patch) return patch
-  if (!picked.localPath) return ''
-  const fullPath = path.join(backendRoot, picked.localPath)
-  return pathToFileURL(fullPath).href
-}
-
-/**
- * 加载单条记录 JSON 文件（原始内容，不套补丁；供补丁层做上游值比对）
- * @param {string} relativePath - map.json 中的相对路径
- * @returns {object|null}
- */
-export function loadRawRecord (relativePath) {
-  try {
-    const fullPath = path.join(dataDir, relativePath)
-    if (!fs.existsSync(fullPath)) return null
-    return JSON.parse(fs.readFileSync(fullPath, 'utf8'))
-  } catch {
-    return null
-  }
-}
-
-/**
- * 记录文件签名（大小 + 修改时间）：数据文件被替换后签名变化，缓存自愈
- * @param {string} relativePath
- * @returns {string} 文件不可读时返回空串
- */
-function recordSignature (relativePath) {
-  try {
-    const stat = fs.statSync(path.join(dataDir, relativePath))
-    return `${stat.size}|${Math.round(stat.mtimeMs)}`
-  } catch {
-    return ''
-  }
-}
-
-/**
- * 深冻结记录（诊断用，默认关闭）
- *
- * 置 `ATLAS_SCAN_FREEZE=1` 后，缓存里的记录实例会被冻结：ESM 严格模式下任何调用方写回
- * 都会立刻抛 TypeError。用于验证「记录实例可共享」这一前提，防止后续新增代码原地改 record
- * 而污染其他请求（复现脚本见 .dsh/explore/scan-record-freeze.mjs）
- * @param {*} obj
- * @returns {*} 同一对象
- */
-function freezeForScan (obj) {
-  if (!obj || typeof obj !== 'object' || Object.isFrozen(obj)) return obj
-  Object.freeze(obj)
-  for (const value of Object.values(obj)) freezeForScan(value)
-  return obj
-}
-
-/**
- * 加载单条记录 JSON（套用 resources/patch/data 下的补丁，命中进程内缓存）
- * @param {string} relativePath - map.json 中的相对路径
- * @returns {object|null}
- */
-export function loadRecord (relativePath) {
-  const sig = recordSignature(relativePath)
-  if (!sig) return null // 文件不存在（与 loadRawRecord 同口径返回 null）
-
-  const hit = recordCache.get(relativePath)
-  if (hit && hit.sig === sig) {
-    // LRU：Map 迭代序即插入序，命中后挪到队尾
-    recordCache.delete(relativePath)
-    recordCache.set(relativePath, hit)
-    return hit.record
-  }
-
-  const record = loadRawRecord(relativePath)
-  if (!record) return null
-  applyDataPatch(record, relativePath)
-  if (process.env.ATLAS_SCAN_FREEZE) freezeForScan(record)
-
-  recordCache.set(relativePath, { sig, record })
-  if (recordCache.size > RECORD_CACHE_MAX) recordCache.delete(recordCache.keys().next().value)
-  return record
-}
-
-/**
  * 补丁概览（供 #图鉴补丁 展示）
  * 数据补丁按 `_patch.upstream` 快照与上游当前值比对，不一致即提示复核（补丁仍会生效）
  * @returns {{ dataPatches: Array, images: Array, mapPatch: boolean }}
@@ -920,7 +814,7 @@ export function resolveEntryPageKey (gameId, keyword) {
 export function reloadIndex () {
   mapCache = null
   indexCache = new Map()
-  recordCache.clear() // 记录缓存同样按数据版本作废（补丁改动只有走到这里才会重新套用）
+  resetRecordCache() // 记录缓存同样按数据版本作废（补丁改动只有走到这里才会重新套用）
   resetTextCache() // 兜底扫描用的归一文本同样作废
   clearPatchCache() // 补丁文件可能随更新变化，一并失效
   reloadLinkIndex()
@@ -937,5 +831,3 @@ export function loadMap () {
   ensureIndex()
   return mapCache
 }
-
-export { dataDir, backendRoot }

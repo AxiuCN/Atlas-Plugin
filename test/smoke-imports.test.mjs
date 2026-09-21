@@ -13,6 +13,7 @@ const check = (name, ok, extra = '') => {
 
 const targets = [
   ['model/AtlasService.js', null],
+  ['model/AtlasRepository.js', 'loadRecord'],
   ['model/AtlasUpdater.js', null],
   ['model/LinkResolver.js', null],
   ['model/MiaoParams.js', null],
