@@ -25,7 +25,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { CODEX_DIR } from '../AtlasUpdater.js'
-import { search } from '../AtlasService.js'
+import { search, loadMap } from '../AtlasService.js'
 import { loadAliasMap, normalizeForMatch, buildKeywordVariants } from '../AliasLoader.js'
 import { GAME_NAMES } from '../../components/constants.js'
 import { parseGuideJson, parseGuideHtml } from './parse.js'
@@ -184,13 +184,35 @@ function readHtmlCards (file) {
 }
 
 /**
+ * 当前图鉴索引代际（map 对象；图鉴数据不可读时返回 null，此时无从重解析，按同代处理）
+ * @returns {object|null}
+ */
+function atlasGeneration () {
+  try {
+    return loadMap()
+  } catch {
+    return null
+  }
+}
+
+/**
  * 构建（或复用）攻略索引
  * @returns {{files: object, cards: Array, byKey: Map<string, Array>, resolved: Map, warned: Set}}
  */
 function buildIndex () {
   const files = scanGuideFiles()
   const sig = fileSignature(files.json, files.html)
-  if (cache && cache.sig === sig) return cache
+  const gen = atlasGeneration()
+  if (cache && cache.sig === sig) {
+    // 卡片本身只依赖攻略仓库，但 resolved / warned 是拿卡片名 search() 反查**图鉴索引**得到的：
+    // 图鉴数据换新后必须重解析，否则更新后仍沿用旧索引的解析结果（含"解析不到"的负结果，
+    // 表现为图鉴里已有该角色、攻略页却一直回「暂无攻略数据」）
+    if (cache.gen === gen) return cache
+    cache.gen = gen
+    cache.resolved = new Map()
+    cache.warned = new Set()
+    return cache
+  }
 
   const cards = []
   const push = (card, file, game, docTitle) => {
@@ -226,7 +248,7 @@ function buildIndex () {
     byKey.get(key).push(card)
   }
 
-  cache = { sig, files, cards, byKey, resolved: new Map(), warned: new Set() }
+  cache = { sig, gen, files, cards, byKey, resolved: new Map(), warned: new Set() }
   logger?.info(`[Atlas] 攻略索引已构建：${cards.length} 个角色（${files.json.length} 个 JSON / ${files.html.length} 个页面）`)
   return cache
 }

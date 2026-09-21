@@ -86,7 +86,7 @@ export function matchParamNames (charName, byLevel) {
 }
 
 /**
- * 清空缓存（miao 数据更新后由调用方按需触发；当前仅在测试中使用）
+ * 清空参数名缓存（图鉴数据更新后由 AtlasService.reloadIndex 调用）
  */
 export function clearMiaoParamCache () {
   TABLE_CACHE.clear()

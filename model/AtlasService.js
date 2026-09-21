@@ -901,9 +901,21 @@ export function resolveEntryPageKey (gameId, keyword) {
 /**
  * 重载索引（数据更新后调用）
  *
- * 除了本模块的 map / 索引 / 补丁缓存，还要一并清掉各模块自持的派生缓存：
- * 它们各自读同一份图鉴数据，漏掉任何一个都会出现「更新成功但该模块仍按旧数据渲染」
- * （LINK 参数解析、素材名/图标、怪物索引与等级表、miao 参数名；其余派生缓存按 map 对象身份自失效）
+ * **reload 契约**：函数返回后，所有「随图鉴数据变化」的进程内缓存都已作废，后续读取必然拿到新数据
+ * （含补丁层——改 `resources/patch/**` 同样只有走到这里才生效，即「改补丁 → #图鉴更新 / 重启」）。
+ *
+ * 失效分四类，**新增缓存必须归入其中一类**，否则会出现「更新成功但该模块仍按旧数据渲染」：
+ * ① 显式失效（本函数直接清）：本模块 map / index / record / text 四份、补丁缓存（clearPatchCache）、
+ *    LINK 索引与参数表（reloadLinkIndex）、物品页投影（resetItemMapCache）、miao 参数名（clearMiaoParamCache）
+ * ② map 对象身份失效：持有 map 引用并判 `cacheMap === map` 的模块（itemIndex/gi·hsr·zzz、
+ *    monsterIndex/index·levelTable、codexIndex/icons）——下面换新 map 对象即自动作废
+ * ③ 内容签名 + 图鉴代际：codexIndex/index（攻略仓库签名 rel|size|mtimeMs，外加图鉴 map 代际——
+ *    它的 resolved 是拿攻略卡片名 `search()` 反查图鉴索引得到的，图鉴换新必须重解析）
+ * ④ 无需失效（有意为之，不要顺手加进来）：monsterIndex/curve 读的是插件自有资源
+ *    `resources/data/gi-monster-curve.json`；AtlasUpdater 的版本 / 完整性检查每次现读不缓存；
+ *    blacklist 读的 `blacklist.yaml` 与图鉴数据无关
+ *
+ * @throws map.json 缺失或损坏时抛错（调用方自行兜底：启动编排与 #图鉴初始化 都已 try/catch）
  */
 export function reloadIndex () {
   mapCache = null
