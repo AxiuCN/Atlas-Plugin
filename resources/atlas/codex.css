@@ -543,17 +543,19 @@
 }
 
 /* ===== 配队成员单元：头像（或名字标签）+ 其下的小字括注 =====
- * 备注不占头像位——头像照常渲染，备注排在头像下方一行小字 */
+ * 备注不占头像位——头像照常渲染，**备注排在头像右边**（用户定稿：以前排在头像下方，
+ * 会让这一格变高、行距被撑开） */
 .team-unit {
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: 2px;
   min-width: 0;
 }
 
 /* ===== 配队成员备注 .team-member-note（「希诺宁（二命）」里的「二命」） =====
- * 有头像时缀在头像下方，取不到头像时跟在名字后面作括注；与条目备注 .rank-note 同一套弱化样式 */
+ * 有头像时**紧跟头像右边**（与头像垂直居中），取不到头像时跟在名字后面作括注；
+ * 与条目备注 .rank-note 同一套弱化样式 */
 .team-member-note {
   color: #8a8378;
   font-size: 20px;
