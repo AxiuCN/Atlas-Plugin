@@ -617,6 +617,16 @@ function v2TalentRows (rows) {
         return rankItem(hit, '')
       })
     })
+  } else {
+    // 没填天赋也照画三格（用户定稿 2026-09-24：按 111 正常显示，不再显示「暂无」）——
+    // 与网页版 build-html 的 defaultTalentRow 同一口径；正常数据里 build-docx 会补上 `天赋：A1 E1 Q1`。
+    out.push({
+      label: '',
+      kind: 'talents',
+      ref: '',
+      items: ['A', 'E', 'Q'].map(name =>
+        rankItem({ name, level: 1, crown: false, talentLevel: 1, ref: `talent:${name}` }, ''))
+    })
   }
   for (const row of talents) {
     const kind = String(row?.kind || '').trim()
