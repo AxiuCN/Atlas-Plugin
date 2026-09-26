@@ -56,6 +56,7 @@ if (!codex) {
           badge: '1',
           title: '武器',
           displayTitle: '武器',
+          hint: '（四星/三星武器默认为精5）',
           rows: [{ label: '推荐', items: [{ text: '西风剑', sepAfter: '' }] }]
         },
         { type: 'team', badge: '6', title: '配队', displayTitle: '配队', empty: true }
@@ -70,6 +71,14 @@ if (!codex) {
     err = String(e.message).split('\n')[0]
   }
   check('渲染成功且无残留模板标记', !err && html.includes('武器') && !html.includes('{{'), err || '')
+  // 段落固定小字说明（武器段：三星/四星武器默认为精5）必须落在标题之下、正文之上
+  const hintAt = html.indexOf('codex-hint')
+  const nameAt = html.indexOf('codex-cell-name')
+  const growsAt = html.indexOf('grows')
+  check('武器段的「三星/四星默认精5」说明渲染出来了',
+    hintAt > -1 && html.includes('（四星/三星武器默认为精5）'), html.slice(Math.max(0, hintAt - 40), hintAt + 60))
+  check('说明排在标题之后、正文之前',
+    hintAt > nameAt && (growsAt === -1 || hintAt < growsAt), `name=${nameAt} hint=${hintAt} grows=${growsAt}`)
 }
 
 finish()

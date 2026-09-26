@@ -82,6 +82,9 @@
         <span class="codex-cell-name">{{section.title}}</span>
       </div>
 
+      <!-- 段落固定小字说明（武器段：三星/四星武器默认为精5，来自 display.js 的 WEAPON_REFINE_HINT） -->
+      {{if section.hint}}<div class="codex-hint">{{section.hint}}</div>{{/if}}
+
       {{if section.empty}}
         <div class="grows">
           <div class="grow grow-nolabel"><span class="empty-text">暂无</span></div>
