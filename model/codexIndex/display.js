@@ -79,6 +79,16 @@ const TITLE_BY_KEYWORD = [
 /** 空模块占位文案 */
 export const EMPTY_TEXT = '暂无'
 
+/**
+ * 武器段的固定小字说明（用户定稿 2026-09-26）。
+ *
+ * 三星 / 四星武器默认按满精（精5）推荐，所以条目里**不再逐个写「（精5）」**；
+ * 五星武器默认精1，真要指定满精时仍写在条目的 `note` 上（如 `波乱月白经津（精5）`）。
+ * 文案在显示层写死、不进数据：文档 / JSON / 编辑器都不需要维护这句话。
+ * （口径上是原神攻略的说法；面板的攻略页目前只由本仓库 data/gi 供给。）
+ */
+export const WEAPON_REFINE_HINT = '（四星/三星武器默认为精5）'
+
 /** 行内备注前缀（配队括注统一成 `注：`，与段末「注：」备注行同一套写法） */export const NOTE_PREFIX = '注：'
 
 /** 行内备注分隔符（同一行多条备注合并） */
@@ -1275,9 +1285,20 @@ export function normalizeSection (section) {
  * @param {{keepEmpty?: boolean}} [opts] keepEmpty=false 时丢弃空段（旧行为）
  * @returns {object[]}
  */
+/**
+ * 段落固定小字说明（显示层写死，不来自数据）：武器段有内容时挂上「三星/四星默认精5」。
+ * 空段（显示「暂无」）没有条目，不挂。
+ * @param {object} section 已归一的段落
+ * @returns {object}
+ */
+function attachSectionHint (section) {
+  if (!section || section.empty || section.title !== '武器') return section
+  return { ...section, hint: WEAPON_REFINE_HINT }
+}
+
 export function normalizeSections (sections, opts = {}) {
   const keepEmpty = opts.keepEmpty !== false
-  const out = (sections ?? []).map(normalizeSection)
+  const out = (sections ?? []).map(normalizeSection).map(attachSectionHint)
   return keepEmpty ? out : out.filter(section => !section.empty)
 }
 
