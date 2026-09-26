@@ -89,6 +89,22 @@ export const EMPTY_TEXT = '暂无'
  */
 export const WEAPON_REFINE_HINT = '（四星/三星武器默认为精5）'
 
+/**
+ * 模块级「无需填写」时攻略页显示的自由说明（用户定稿 2026-09-26）。
+ *
+ * 角色 JSON 顶层 `freeModules: ['talents']` 表示**这个角色这个模块本身就无需填写**：
+ * 编辑器左栏不再显示它的「未填」，攻略页在**空模块**处显示下面这一行（替代「暂无」）。
+ * 文案只在显示层写死（网页版与面板共用这一份，见 `normalizeGuideSections` 的 `opts.free`）。
+ */
+export const FREE_MODULE_HINTS = {
+  weapons: '自由选择',
+  artifacts: '自由搭配',
+  talents: '无需加点',
+  panels: '无硬性要求',
+  constellations: '无关键命座',
+  teams: '自由配队'
+}
+
 /** 行内备注前缀（配队括注统一成 `注：`，与段末「注：」备注行同一套写法） */export const NOTE_PREFIX = '注：'
 
 /** 行内备注分隔符（同一行多条备注合并） */
@@ -1303,13 +1319,38 @@ export function normalizeSections (sections, opts = {}) {
 }
 
 /**
+ * 把「该模块无需填写」落到显示模型上：**空模块**换成一行自由说明（替代「暂无」）。
+ *
+ * 有内容的模块原样返回 —— 渲染层唯一的判据就是「空不空」，
+ * 所以「标记之后又填了内容」的旧标记不会和内容打架（内容优先）。
+ * 网页版（`build-html.mjs`）与面板（`parse.js`）都调这一份，两侧自然同文案同位置。
+ * @param {object[]} sections 已归一的段落
+ * @param {string[]} [free] 角色 JSON 的 `freeModules`（v2 键：weapons / artifacts / …）
+ * @returns {object[]}
+ */
+export function applyFreeHints (sections, free) {
+  const list = new Set(Array.isArray(free) ? free : [])
+  if (!list.size) return sections
+  const keyByTitle = new Map(DISPLAY_SECTIONS.map(d => [d.title, d.key]))
+  return (sections ?? []).map(section => {
+    const key = keyByTitle.get(section?.title)
+    if (!key || !list.has(key) || !section.empty) return section
+    return { ...section, empty: false, rows: [], hint: FREE_MODULE_HINTS[key] }
+  })
+}
+
+/**
  * 六个模块的显示级归一（面板侧入口）：按固定顺序补齐缺失模块（补成「暂无」），
  * 保证「武器 / 圣遗物 / 天赋 / 命座 / 面板 / 配队」六块永远都在；
  * 六块之外的段落（仓库以后新加的段）排在后面，原样保留。
+ *
+ * `opts.free`（角色 JSON 的 `freeModules`）：列出的模块**空着时**显示一行自由说明
+ * （见 `applyFreeHints`），不再显示「暂无」。
  * @param {object[]} sections
+ * @param {{free?: string[]}} [opts]
  * @returns {object[]}
  */
-export function normalizeGuideSections (sections) {
+export function normalizeGuideSections (sections, opts = {}) {
   const normalized = normalizeSections(sections)
   const used = new Set()
   const core = DISPLAY_SECTIONS.map(({ title, kind }) => {
@@ -1320,7 +1361,7 @@ export function normalizeGuideSections (sections) {
     return emptySection(title, kind)
   })
   const extras = normalized.filter(section => !used.has(section))
-  return [...core, ...extras]
+  return applyFreeHints([...core, ...extras], opts.free)
 }
 
 /* ------------------------------------------------------------------ *

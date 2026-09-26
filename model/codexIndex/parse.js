@@ -581,9 +581,12 @@ function resolveArtifactSetItems (sets, seps) {
 }
 
 /** v2.talents[] → 优先级 / 皇冠行（天赋图标按 ref 的 talent:A/E/Q 解析） */
-function v2TalentRows (rows) {
+function v2TalentRows (rows, opts = {}) {
   const out = []
   const talents = Array.isArray(rows) ? rows : []
+  // 「该模块无需填写」（角色 JSON 的 freeModules）：数据里本来就没有天赋行时**不画**那三格 111 兜底，
+  // 让这一段空着、交给共享显示层的 applyFreeHints 显示「无需加点」（避免兜底把空模块填成有内容）。
+  if (opts.free === true && !talents.length) return out
   // 天赋：**固定三格 A → E → Q**（不再按优先级排序，也不画「优先级」行）。
   // 等级取 priority.order[].level（缺省 1），皇冠由 crown:true / level===10 决定。
   const byName = new Map()
@@ -730,6 +733,8 @@ const V2_ROW_BUILDERS = {
 function buildV2Sections (data, fileDir) {
   const v2 = data.v2 || {}
   const unparsed = data.unparsed && typeof data.unparsed === 'object' ? data.unparsed : {}
+  /** 「该模块无需填写」的模块键（角色 JSON 顶层 freeModules，见攻略仓库的 schema.normalizeFreeModules） */
+  const freeModules = new Set(Array.isArray(data.freeModules) ? data.freeModules : [])
 
   /** v2 该段为空时的兜底：同标题的旧版文本行段落 */
   const fallback = keyword => {
@@ -746,20 +751,29 @@ function buildV2Sections (data, fileDir) {
   }
 
   const parts = []
-  /** 构造「标签 + 内容 / 数值」段落；v2 无内容则回退文本行段落，再不行标空（模块显示「暂无」） */
-  const addRows = (keyword, renderType, rows) => {
-    const lines = extraLines(keyword)
+  /**
+   * 构造「标签 + 内容 / 数值」段落；v2 无内容则回退文本行段落，再不行标空（模块显示「暂无」）。
+   * @param {string} keyword 段落关键词
+   * @param {string} renderType 渲染类型
+   * @param {object[]} rows 已构造的行
+   * @param {boolean} [skipFallback] 「无需填写」的空模块：**不要**用旧文本行兜底（否则又不空了）
+   */
+  const addRows = (keyword, renderType, rows, skipFallback = false) => {
+    const lines = skipFallback ? [] : extraLines(keyword)
     const kept = (rows || []).filter(rowHasContent).concat(lines.length ? textLinesToRows(lines) : [])
     if (kept.length) {
       parts.push({ keyword, parsed: { type: renderType, rows: kept, iconRef: firstRef(kept), image: '' } })
       return
     }
-    const fb = fallback(keyword)
+    const fb = skipFallback ? null : fallback(keyword)
     parts.push(fb ? { keyword, parsed: fb } : { keyword, parsed: null })
   }
 
   for (const [key, , keyword, type] of V2_ROW_SECTIONS) {
-    addRows(keyword, type, V2_ROW_BUILDERS[key](v2[key]))
+    // 该模块被标记「无需填写」且数据里本来就是空的 → 不注入兜底内容（天赋那三格 111、旧文本行），
+    // 让它保持空段，由共享显示层显示「无需加点 / 自由选择 …」
+    const freeEmpty = freeModules.has(key) && !(Array.isArray(v2[key]) && v2[key].length)
+    addRows(keyword, type, freeEmpty ? [] : V2_ROW_BUILDERS[key](v2[key], { free: freeModules.has(key) }), freeEmpty)
   }
 
   // 配队：成员是对象数组，与「标签 + 内容」行不同形，单独处理
@@ -796,7 +810,7 @@ function buildV2Sections (data, fileDir) {
   // ---- 纯显示级归一（与网页版 build-html.mjs 同一份规则，见 ./display.js）----
   // 标题简称、档位标签（推荐/可选/过渡）、副词条 ＞、简写展开、皇冠并入天赋、
   // 命座「命之座X」、配队括注移行尾「注：」全部在这里做；JSON 原文一个字都不改。
-  const displayed = normalizeGuideSections(out)
+  const displayed = normalizeGuideSections(out, { free: data.freeModules })
   displayed.sort((a, b) => (a.__order ?? 100) - (b.__order ?? 100))
   return displayed.map(section => {
     const { __order, ...rest } = section
