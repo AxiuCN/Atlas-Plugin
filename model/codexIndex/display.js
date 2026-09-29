@@ -1328,13 +1328,32 @@ export function normalizeSections (sections, opts = {}) {
  * @param {string[]} [free] 角色 JSON 的 `freeModules`（v2 键：weapons / artifacts / …）
  * @returns {object[]}
  */
+/**
+ * 天赋段是不是「一点都没投」：A/E/Q 三格等级全 ≤ 1 且没有皇冠。
+ *
+ * 数据里天赋是固定三格（`A1 E1 Q1` 的占位写法），显示层原本把这三格当成有内容，
+ * 于是「无需填写」标记对天赋**不生效**（攻略页会顶着三枚 A1/E1/Q1 的空 chip，而不是「无需加点」）。
+ * 判据与数据层 `editor.mjs` 的 `filledModules()` 对齐：等级 > 1 或带皇冠才算填。
+ * @param {object} section 已归一的段落
+ * @returns {boolean}
+ */
+function talentsUninvested (section) {
+  const rows = (section?.rows ?? []).filter(row =>
+    row?.kind === 'talents' || (row?.items ?? []).every(it => /^[AEQ]$/.test(String(it?.text ?? '').trim())))
+  const items = rows.flatMap(row => row.items ?? [])
+  if (!items.length) return false
+  return items.every(it => !(Number(it?.level) > 1) && it?.crown !== true)
+}
+
 export function applyFreeHints (sections, free) {
   const list = new Set(Array.isArray(free) ? free : [])
   if (!list.size) return sections
   const keyByTitle = new Map(DISPLAY_SECTIONS.map(d => [d.title, d.key]))
   return (sections ?? []).map(section => {
     const key = keyByTitle.get(section?.title)
-    if (!key || !list.has(key) || !section.empty) return section
+    if (!key || !list.has(key)) return section
+    const empty = section.empty || (key === 'talents' && talentsUninvested(section))
+    if (!empty) return section
     return { ...section, empty: false, rows: [], hint: FREE_MODULE_HINTS[key] }
   })
 }
