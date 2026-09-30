@@ -1275,8 +1275,14 @@ export function normalizeSection (section) {
     }
     // 空档位行整行不渲染：「过渡：」这类只有标签、条目全空白的行一律丢掉。
     // 判据与面板侧完全一致（同一份 rowIsEmpty），所以两端不会各有各的空行。
-    const kept = rows.filter(row => !rowIsEmpty(row))
-    return { ...out, rows: kept, empty: !kept.length }
+    let kept = rows.filter(row => !rowIsEmpty(row))
+    // 天赋「三格全 1」（占位）+ 有备注 → 只留那行 `注：…`，不再画 A/E/Q 空 chip（用户 2026-09-30 定稿 1A）
+    if (/天赋/.test(title) && kept.some(r => r.kind === 'note')) {
+      const invested = kept.some(r => r.kind !== 'note' && (r.items ?? []).some(it => Number(it?.level) > 1 || it?.crown === true))
+      if (!invested) kept = kept.filter(r => r.kind === 'note')
+    }
+    const content = kept.filter(r => r.kind !== 'note')
+    return { ...out, rows: kept, empty: !content.length }
   }
   if (kind === 'list') {
     const items = (section.items ?? [])
@@ -1354,7 +1360,9 @@ export function applyFreeHints (sections, free) {
     if (!key || !list.has(key)) return section
     const empty = section.empty || (key === 'talents' && talentsUninvested(section))
     if (!empty) return section
-    return { ...section, empty: false, rows: [], hint: FREE_MODULE_HINTS[key] }
+    // 空模块换成一行自由说明：**保留已有的备注行**（备注不算内容，标记与备注可同时存在）
+    const noteRows = (section.rows ?? []).filter(r => r.kind === 'note')
+    return { ...section, empty: false, rows: noteRows, hint: FREE_MODULE_HINTS[key] }
   })
 }
 

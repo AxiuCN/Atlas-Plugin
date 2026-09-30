@@ -666,8 +666,16 @@ function v2PanelRows (rows) {
   return out
 }
 
-/** v2.constellations[] → 命座行（index 供命座图标解析；无说明时整行就是命座名） */
-function v2ConstellationRows (rows) {
+/**
+ * v2.constellations[] → 命座行（index 供命座图标解析；无说明时整行就是命座名）
+ * @param {object[]} rows
+ * @param {{top?: number[]}} [opts] 命座「强烈推荐」的序号（角色 JSON 顶层 `topConstellations`）
+ */
+function v2ConstellationRows (rows, opts = {}) {
+  // 「强烈推荐」是**顶层序号数组**（`topConstellations: [2, 6]`，与网页版 build-html 同一份口径）：
+  // docx 不表达它，由 parse-docx 按 index 保留；命中的行带 `top: true`，显示层据此把
+  // 「命之座x」标红加粗（用户 2026-09-30 定稿）
+  const topIndexes = new Set((Array.isArray(opts.top) ? opts.top : []).map(Number))
   const out = []
   for (const row of Array.isArray(rows) ? rows : []) {
     const name = String(row?.name ?? '').trim()
@@ -675,8 +683,9 @@ function v2ConstellationRows (rows) {
     if (!name && !text) continue
     const index = Number(row?.index)
     const ref = Number.isInteger(index) && index > 0 ? `constellation:${index}` : ''
-    if (text) out.push({ label: inlineLabel(name), ref, items: [rankItem(text, '', ref)] })
-    else out.push({ label: '', ref, items: [rankItem(name, '', ref)] })
+    const top = topIndexes.has(index) ? { top: true } : {}
+    if (text) out.push({ label: inlineLabel(name), ref, ...top, items: [rankItem(text, '', ref)] })
+    else out.push({ label: '', ref, ...top, items: [rankItem(name, '', ref)] })
   }
   return out
 }
@@ -773,7 +782,9 @@ function buildV2Sections (data, fileDir) {
     // 该模块被标记「无需填写」且数据里本来就是空的 → 不注入兜底内容（天赋那三格 111、旧文本行），
     // 让它保持空段，由共享显示层显示「无需加点 / 自由选择 …」
     const freeEmpty = freeModules.has(key) && !(Array.isArray(v2[key]) && v2[key].length)
-    addRows(keyword, type, freeEmpty ? [] : V2_ROW_BUILDERS[key](v2[key], { free: freeModules.has(key) }), freeEmpty)
+    // 命座行还需要顶层 `topConstellations`（「强烈推荐」序号），其余构造器只认 `free`
+    const opts = { free: freeModules.has(key), top: key === 'constellations' ? data.topConstellations : null }
+    addRows(keyword, type, freeEmpty ? [] : V2_ROW_BUILDERS[key](v2[key], opts), freeEmpty)
   }
 
   // 配队：成员是对象数组，与「标签 + 内容」行不同形，单独处理

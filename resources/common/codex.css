@@ -148,7 +148,7 @@
 /* ===== 段落小字说明（武器段：三星/四星武器默认为精5），与条目备注同一套弱化样式 ===== */
 .codex-hint {
   margin: -4px 0 12px;
-  color: #8a8378;
+  color: #6b6459;
   font-size: 20px;
   font-style: italic;
 }
@@ -215,7 +215,7 @@
 }
 .row-note {
   min-width: 0;
-  color: #8a8378;
+  color: #6b6459;
   font-size: 21px;
   font-style: italic;
   overflow-wrap: break-word;
@@ -458,13 +458,17 @@
   padding: 0 6px;
   border-radius: 5px;
   background: #2e353e;
-  color: #ffdfa0;
+  /* 黑底上的数字提亮（原来 #ffdfa0 偏灰，深色底上对比不足）——用户 2026-09-30 */
+  color: #ffffff;
   font-size: 17px;
   font-weight: 700;
   line-height: 1.6;
   text-align: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
 }
+
+/* 天赋满级（10 = 皇冠）：标红加粗，和 1–9 一眼区分（黑底上用偏亮的红保证对比） */
+.rank-item.talent-item .talent-level.level-max { color: #ff6b5b; font-weight: 800; }
 
 /* 皇冠（已投）：叠在图标顶边居中（内联 SVG，不用 emoji） */
 .rank-item.talent-item .crown-badge {
@@ -504,7 +508,7 @@
 /* ===== 条目备注 .rank-note（武器叠影「精五」、皇冠等级「建议」等），斜体弱化 ===== */
 .rank-note {
   margin-left: 4px;
-  color: #8a8378;
+  color: #6b6459;
   font-size: 21px;
   font-style: italic;
   font-weight: 400;
@@ -572,7 +576,7 @@
  * 有头像时**紧跟头像右边**（与头像垂直居中），取不到头像时跟在名字后面作括注；
  * 与条目备注 .rank-note 同一套弱化样式 */
 .team-member-note {
-  color: #8a8378;
+  color: #6b6459;
   font-size: 20px;
   font-style: italic;
   font-weight: 400;
@@ -769,3 +773,6 @@
   border: 1px solid rgba(86, 80, 70, .42);
   text-shadow: 0 0 4px rgba(255, 255, 255, .9);
 }
+
+/* Top-recommended constellation: bold the label (editor toggled, docx carries nothing) */
+.grow-label.label-top { color: #c0392b; font-weight: 800; }
