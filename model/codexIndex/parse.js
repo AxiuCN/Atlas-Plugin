@@ -666,8 +666,16 @@ function v2PanelRows (rows) {
   return out
 }
 
-/** v2.constellations[] → 命座行（index 供命座图标解析；无说明时整行就是命座名） */
-function v2ConstellationRows (rows) {
+/**
+ * v2.constellations[] → 命座行（index 供命座图标解析；无说明时整行就是命座名）
+ * @param {object[]} rows
+ * @param {{top?: number[]}} [opts] 命座「强烈推荐」的序号（角色 JSON 顶层 `topConstellations`）
+ */
+function v2ConstellationRows (rows, opts = {}) {
+  // 「强烈推荐」是**顶层序号数组**（`topConstellations: [2, 6]`，与网页版 build-html 同一份口径）：
+  // docx 不表达它，由 parse-docx 按 index 保留；命中的行带 `top: true`，显示层据此把
+  // 「命之座x」标红加粗（用户 2026-09-30 定稿）
+  const topIndexes = new Set((Array.isArray(opts.top) ? opts.top : []).map(Number))
   const out = []
   for (const row of Array.isArray(rows) ? rows : []) {
     const name = String(row?.name ?? '').trim()
@@ -675,8 +683,9 @@ function v2ConstellationRows (rows) {
     if (!name && !text) continue
     const index = Number(row?.index)
     const ref = Number.isInteger(index) && index > 0 ? `constellation:${index}` : ''
-    if (text) out.push({ label: inlineLabel(name), ref, items: [rankItem(text, '', ref)] })
-    else out.push({ label: '', ref, items: [rankItem(name, '', ref)] })
+    const top = topIndexes.has(index) ? { top: true } : {}
+    if (text) out.push({ label: inlineLabel(name), ref, ...top, items: [rankItem(text, '', ref)] })
+    else out.push({ label: '', ref, ...top, items: [rankItem(name, '', ref)] })
   }
   return out
 }
@@ -712,8 +721,48 @@ function v2TeamRows (rows) {
   return out
 }
 
-/** v2 字段 → 行构造器 */
-const V2_ROW_BUILDERS = {
+/**
+ * 角色 → 专属武器（`data/gi/_signature.json`，与 `_order.json` 同目录）：
+ * `{ 专武, 实际 }`（兼容旧的纯字符串写法）。只用于显示 —— 武器段里那一把**标色**
+ * （红 = 严格专武、绿 = 实际专属，用户定稿 2026-09-30，与档位无关）。
+ * 表里没有的角色（四星 / 旅行者 / 琴·七七·莫娜…）**不标**；读不到文件也不影响其它渲染。
+ * @param {string} fileDir 角色数据目录
+ * @param {string} name 角色名
+ * @returns {string|object}
+ */
+let _signatureCache = null
+function signatureWeaponOf (fileDir, name) {
+  try {
+    if (!_signatureCache || _signatureCache.dir !== fileDir) {
+      const file = path.join(fileDir, '_signature.json')
+      _signatureCache = { dir: fileDir, map: JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) }
+    }
+    return _signatureCache.map?.[name] ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * 武器标签表（`data/gi/_weapon-tags.json`）：`{ "活动": ["嘟嘟可故事集", …] }`。
+ * 命中的武器条目在显示层加一行内备注（`活动`），面板渲染成名字后的小字。
+ * @param {string} fileDir 角色数据目录
+ * @returns {object}
+ */
+let _weaponTagCache = null
+function weaponTagsOf (fileDir) {
+  try {
+    if (!_weaponTagCache || _weaponTagCache.dir !== fileDir) {
+      const file = path.join(fileDir, '_weapon-tags.json')
+      _weaponTagCache = { dir: fileDir, map: JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) }
+    }
+    return _weaponTagCache.map ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/** v2 字段 → 行构造器 */const V2_ROW_BUILDERS = {
   weapons: v2WeaponRows,
   artifacts: v2ArtifactRows,
   talents: v2TalentRows,
@@ -773,7 +822,9 @@ function buildV2Sections (data, fileDir) {
     // 该模块被标记「无需填写」且数据里本来就是空的 → 不注入兜底内容（天赋那三格 111、旧文本行），
     // 让它保持空段，由共享显示层显示「无需加点 / 自由选择 …」
     const freeEmpty = freeModules.has(key) && !(Array.isArray(v2[key]) && v2[key].length)
-    addRows(keyword, type, freeEmpty ? [] : V2_ROW_BUILDERS[key](v2[key], { free: freeModules.has(key) }), freeEmpty)
+    // 命座行还需要顶层 `topConstellations`（「强烈推荐」序号），其余构造器只认 `free`
+    const opts = { free: freeModules.has(key), top: key === 'constellations' ? data.topConstellations : null }
+    addRows(keyword, type, freeEmpty ? [] : V2_ROW_BUILDERS[key](v2[key], opts), freeEmpty)
   }
 
   // 配队：成员是对象数组，与「标签 + 内容」行不同形，单独处理
@@ -810,7 +861,11 @@ function buildV2Sections (data, fileDir) {
   // ---- 纯显示级归一（与网页版 build-html.mjs 同一份规则，见 ./display.js）----
   // 标题简称、档位标签（推荐/可选/过渡）、副词条 ＞、简写展开、皇冠并入天赋、
   // 命座「命之座X」、配队括注移行尾「注：」全部在这里做；JSON 原文一个字都不改。
-  const displayed = normalizeGuideSections(out, { free: data.freeModules })
+  const displayed = normalizeGuideSections(out, {
+    free: data.freeModules,
+    signature: signatureWeaponOf(fileDir, data.name),
+    weaponTags: weaponTagsOf(fileDir)
+  })
   displayed.sort((a, b) => (a.__order ?? 100) - (b.__order ?? 100))
   return displayed.map(section => {
     const { __order, ...rest } = section

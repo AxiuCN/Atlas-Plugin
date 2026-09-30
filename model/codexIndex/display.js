@@ -706,6 +706,93 @@ function weaponSep (sep) {
 }
 
 /**
+ * 专属武器标色（用户定稿 2026-09-30）：武器段里命中的条目**与排在第几档无关**地染色。
+ *
+ *   · `sig`（**红**）= 严格意义上的专武（`_signature.json` 的 `专武`）
+ *   · `sigAlt`（**绿**）= 实际上的专属武器（`实际`）—— 例如刻晴实际是雾切之回光、可莉是嘟嘟可故事集
+ *
+ * 表在 `data/gi/_signature.json`（角色 → `{专武, 实际}`，也兼容旧的纯字符串写法）：
+ * 由调用方读进来、经 `opts.signature` 传下去；没有条目的角色（琴 / 七七 / 莫娜 / 四星…）**不标**。
+ * @param {object[]} sections 已归一的段落
+ * @param {string|{专武?: string, 实际?: string}} [signature]
+ * @returns {object[]}
+ */
+/**
+ * 武器条目名 → 逐段拆分（剥掉括注、按 `\` / `/` 拆并列多把）。
+ * @param {{text?: string}} it
+ * @returns {string[]}
+ */
+function weaponNameParts (it) {
+  return String(it?.text ?? '').replace(/[（(][^）)]*[）)]/g, '')
+    .split(/[\\／/]/).map(s => s.trim()).filter(Boolean)
+}
+
+export function markSignatureWeapon (sections, signature) {
+  const table = typeof signature === 'string' ? { 专武: signature } : (signature && typeof signature === 'object' ? signature : {})
+  // 一把角色可能有多把（温迪：终末嗟叹之诗 + 黎明破晓之史，两把都算专武）→ 允许字符串或数组
+  const asList = (v) => (Array.isArray(v) ? v : [v]).map(x => String(x ?? '').trim()).filter(Boolean)
+  const strict = asList(table['专武'])
+  const actual = asList(table['实际'])
+  if (!strict.length && !actual.length) return sections
+  return (sections ?? []).map(section => {
+    if (section?.title !== '武器' || !Array.isArray(section.rows)) return section
+    let hit = false
+    const rows = section.rows.map(row => {
+      const src = row?.items ?? []
+      const items = src.map(it => {
+        if (!it) return it
+        const parts = weaponNameParts(it)
+        const isStrict = parts.some(p => strict.includes(p))
+        const isActual = parts.some(p => actual.includes(p))
+        if (!isStrict && !isActual) return it
+        hit = true
+        return { ...it, ...(isStrict ? { sig: true } : {}), ...(isActual ? { sigAlt: true } : {}) }
+      })
+      return items.some((it, i) => it !== src[i]) ? { ...row, items } : row
+    })
+    return hit ? { ...section, rows } : section
+  })
+}
+
+/**
+ * 武器条目加备注标签（用户定稿 2026-09-30）：表在 `data/gi/_weapon-tags.json`
+ * （`{ "活动": ["嘟嘟可故事集", …] }`），命中的条目把标签**接到行内备注后面**
+ * （`note` 字段：面板渲染成名字后的小字、网页版渲染成 `（活动）`）。
+ *
+ * 例：可莉的嘟嘟可故事集、阿贝多的辰砂之纺锤、埃洛伊的掠食者（都是活动武器）。
+ * 已有备注的条目用 `·` 连接（`精5·活动`）。
+ * @param {object[]} sections 已归一的段落
+ * @param {Record<string, string[]|string>} [tagMap]
+ * @returns {object[]}
+ */
+export function markWeaponTags (sections, tagMap) {
+  const pairs = Object.entries(tagMap && typeof tagMap === 'object' ? tagMap : {})
+    .flatMap(([tag, list]) => (Array.isArray(list) ? list : [list])
+      .map(w => [String(w ?? '').trim(), String(tag ?? '').trim()]))
+    .filter(([w, t]) => w && t)
+  if (!pairs.length) return sections
+  return (sections ?? []).map(section => {
+    if (section?.title !== '武器' || !Array.isArray(section.rows)) return section
+    let hit = false
+    const rows = section.rows.map(row => {
+      const src = row?.items ?? []
+      const items = src.map(it => {
+        if (!it) return it
+        const parts = weaponNameParts(it)
+        const tag = pairs.find(([w]) => parts.includes(w))?.[1]
+        if (!tag) return it
+        const note = String(it.note ?? '').trim()
+        if (note.split('·').includes(tag)) return it
+        hit = true
+        return { ...it, note: note ? `${note}·${tag}` : tag }
+      })
+      return items.some((it, i) => it !== src[i]) ? { ...row, items } : row
+    })
+    return hit ? { ...section, rows } : section
+  })
+}
+
+/**
  * 武器行：档位标签 → 推荐 / 可选 / 过渡；`首选` → 推荐、`其他` → 可选。
  * 描述性标签（辅助向 / 输出向 …）保持不变，并列在档位标签之后。
  * @param {object[]} rows
@@ -1275,8 +1362,14 @@ export function normalizeSection (section) {
     }
     // 空档位行整行不渲染：「过渡：」这类只有标签、条目全空白的行一律丢掉。
     // 判据与面板侧完全一致（同一份 rowIsEmpty），所以两端不会各有各的空行。
-    const kept = rows.filter(row => !rowIsEmpty(row))
-    return { ...out, rows: kept, empty: !kept.length }
+    let kept = rows.filter(row => !rowIsEmpty(row))
+    // 天赋「三格全 1」（占位）+ 有备注 → 只留那行 `注：…`，不再画 A/E/Q 空 chip（用户 2026-09-30 定稿 1A）
+    if (/天赋/.test(title) && kept.some(r => r.kind === 'note')) {
+      const invested = kept.some(r => r.kind !== 'note' && (r.items ?? []).some(it => Number(it?.level) > 1 || it?.crown === true))
+      if (!invested) kept = kept.filter(r => r.kind === 'note')
+    }
+    const content = kept.filter(r => r.kind !== 'note')
+    return { ...out, rows: kept, empty: !content.length }
   }
   if (kind === 'list') {
     const items = (section.items ?? [])
@@ -1354,7 +1447,9 @@ export function applyFreeHints (sections, free) {
     if (!key || !list.has(key)) return section
     const empty = section.empty || (key === 'talents' && talentsUninvested(section))
     if (!empty) return section
-    return { ...section, empty: false, rows: [], hint: FREE_MODULE_HINTS[key] }
+    // 空模块换成一行自由说明：**保留已有的备注行**（备注不算内容，标记与备注可同时存在）
+    const noteRows = (section.rows ?? []).filter(r => r.kind === 'note')
+    return { ...section, empty: false, rows: noteRows, hint: FREE_MODULE_HINTS[key] }
   })
 }
 
@@ -1365,8 +1460,12 @@ export function applyFreeHints (sections, free) {
  *
  * `opts.free`（角色 JSON 的 `freeModules`）：列出的模块**空着时**显示一行自由说明
  * （见 `applyFreeHints`），不再显示「暂无」。
+ * `opts.signature`（角色 JSON 的专武名，表在 `data/gi/_signature.json`）：
+ * 武器段里那一把的**名字标红**（见 `markSignatureWeapon`），与档位无关。
+ * `opts.weaponTags`（武器标签表 `data/gi/_weapon-tags.json`）：命中的条目加行内备注
+ * （如活动武器的 `活动`，见 `markWeaponTags`）。
  * @param {object[]} sections
- * @param {{free?: string[]}} [opts]
+ * @param {{free?: string[], signature?: string|object, weaponTags?: object}} [opts]
  * @returns {object[]}
  */
 export function normalizeGuideSections (sections, opts = {}) {
@@ -1380,7 +1479,8 @@ export function normalizeGuideSections (sections, opts = {}) {
     return emptySection(title, kind)
   })
   const extras = normalized.filter(section => !used.has(section))
-  return applyFreeHints([...core, ...extras], opts.free)
+  const marked = markSignatureWeapon(applyFreeHints([...core, ...extras], opts.free), opts.signature)
+  return markWeaponTags(marked, opts.weaponTags)
 }
 
 /* ------------------------------------------------------------------ *
