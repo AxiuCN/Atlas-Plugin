@@ -717,6 +717,16 @@ function weaponSep (sep) {
  * @param {string|{专武?: string, 实际?: string}} [signature]
  * @returns {object[]}
  */
+/**
+ * 武器条目名 → 逐段拆分（剥掉括注、按 `\` / `/` 拆并列多把）。
+ * @param {{text?: string}} it
+ * @returns {string[]}
+ */
+function weaponNameParts (it) {
+  return String(it?.text ?? '').replace(/[（(][^）)]*[）)]/g, '')
+    .split(/[\\／/]/).map(s => s.trim()).filter(Boolean)
+}
+
 export function markSignatureWeapon (sections, signature) {
   const table = typeof signature === 'string' ? { 专武: signature } : (signature && typeof signature === 'object' ? signature : {})
   // 一把角色可能有多把（温迪：终末嗟叹之诗 + 黎明破晓之史，两把都算专武）→ 允许字符串或数组
@@ -724,9 +734,6 @@ export function markSignatureWeapon (sections, signature) {
   const strict = asList(table['专武'])
   const actual = asList(table['实际'])
   if (!strict.length && !actual.length) return sections
-  // 条目名可能带括注（`雾切之回光（精5）`）或用 `\` / `/` 并列多把：剥掉括注再逐段比
-  const namesOf = (it) => String(it?.text ?? '').replace(/[（(][^）)]*[）)]/g, '')
-    .split(/[\\／/]/).map(s => s.trim()).filter(Boolean)
   return (sections ?? []).map(section => {
     if (section?.title !== '武器' || !Array.isArray(section.rows)) return section
     let hit = false
@@ -734,12 +741,50 @@ export function markSignatureWeapon (sections, signature) {
       const src = row?.items ?? []
       const items = src.map(it => {
         if (!it) return it
-        const parts = namesOf(it)
+        const parts = weaponNameParts(it)
         const isStrict = parts.some(p => strict.includes(p))
         const isActual = parts.some(p => actual.includes(p))
         if (!isStrict && !isActual) return it
         hit = true
         return { ...it, ...(isStrict ? { sig: true } : {}), ...(isActual ? { sigAlt: true } : {}) }
+      })
+      return items.some((it, i) => it !== src[i]) ? { ...row, items } : row
+    })
+    return hit ? { ...section, rows } : section
+  })
+}
+
+/**
+ * 武器条目加备注标签（用户定稿 2026-09-30）：表在 `data/gi/_weapon-tags.json`
+ * （`{ "活动": ["嘟嘟可故事集", …] }`），命中的条目把标签**接到行内备注后面**
+ * （`note` 字段：面板渲染成名字后的小字、网页版渲染成 `（活动）`）。
+ *
+ * 例：可莉的嘟嘟可故事集、阿贝多的辰砂之纺锤、埃洛伊的掠食者（都是活动武器）。
+ * 已有备注的条目用 `·` 连接（`精5·活动`）。
+ * @param {object[]} sections 已归一的段落
+ * @param {Record<string, string[]|string>} [tagMap]
+ * @returns {object[]}
+ */
+export function markWeaponTags (sections, tagMap) {
+  const pairs = Object.entries(tagMap && typeof tagMap === 'object' ? tagMap : {})
+    .flatMap(([tag, list]) => (Array.isArray(list) ? list : [list])
+      .map(w => [String(w ?? '').trim(), String(tag ?? '').trim()]))
+    .filter(([w, t]) => w && t)
+  if (!pairs.length) return sections
+  return (sections ?? []).map(section => {
+    if (section?.title !== '武器' || !Array.isArray(section.rows)) return section
+    let hit = false
+    const rows = section.rows.map(row => {
+      const src = row?.items ?? []
+      const items = src.map(it => {
+        if (!it) return it
+        const parts = weaponNameParts(it)
+        const tag = pairs.find(([w]) => parts.includes(w))?.[1]
+        if (!tag) return it
+        const note = String(it.note ?? '').trim()
+        if (note.split('·').includes(tag)) return it
+        hit = true
+        return { ...it, note: note ? `${note}·${tag}` : tag }
       })
       return items.some((it, i) => it !== src[i]) ? { ...row, items } : row
     })
@@ -1417,8 +1462,10 @@ export function applyFreeHints (sections, free) {
  * （见 `applyFreeHints`），不再显示「暂无」。
  * `opts.signature`（角色 JSON 的专武名，表在 `data/gi/_signature.json`）：
  * 武器段里那一把的**名字标红**（见 `markSignatureWeapon`），与档位无关。
+ * `opts.weaponTags`（武器标签表 `data/gi/_weapon-tags.json`）：命中的条目加行内备注
+ * （如活动武器的 `活动`，见 `markWeaponTags`）。
  * @param {object[]} sections
- * @param {{free?: string[], signature?: string}} [opts]
+ * @param {{free?: string[], signature?: string|object, weaponTags?: object}} [opts]
  * @returns {object[]}
  */
 export function normalizeGuideSections (sections, opts = {}) {
@@ -1432,7 +1479,8 @@ export function normalizeGuideSections (sections, opts = {}) {
     return emptySection(title, kind)
   })
   const extras = normalized.filter(section => !used.has(section))
-  return markSignatureWeapon(applyFreeHints([...core, ...extras], opts.free), opts.signature)
+  const marked = markSignatureWeapon(applyFreeHints([...core, ...extras], opts.free), opts.signature)
+  return markWeaponTags(marked, opts.weaponTags)
 }
 
 /* ------------------------------------------------------------------ *

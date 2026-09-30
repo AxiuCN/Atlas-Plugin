@@ -743,6 +743,25 @@ function signatureWeaponOf (fileDir, name) {
   }
 }
 
+/**
+ * 武器标签表（`data/gi/_weapon-tags.json`）：`{ "活动": ["嘟嘟可故事集", …] }`。
+ * 命中的武器条目在显示层加一行内备注（`活动`），面板渲染成名字后的小字。
+ * @param {string} fileDir 角色数据目录
+ * @returns {object}
+ */
+let _weaponTagCache = null
+function weaponTagsOf (fileDir) {
+  try {
+    if (!_weaponTagCache || _weaponTagCache.dir !== fileDir) {
+      const file = path.join(fileDir, '_weapon-tags.json')
+      _weaponTagCache = { dir: fileDir, map: JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) }
+    }
+    return _weaponTagCache.map ?? {}
+  } catch {
+    return {}
+  }
+}
+
 /** v2 字段 → 行构造器 */const V2_ROW_BUILDERS = {
   weapons: v2WeaponRows,
   artifacts: v2ArtifactRows,
@@ -842,7 +861,11 @@ function buildV2Sections (data, fileDir) {
   // ---- 纯显示级归一（与网页版 build-html.mjs 同一份规则，见 ./display.js）----
   // 标题简称、档位标签（推荐/可选/过渡）、副词条 ＞、简写展开、皇冠并入天赋、
   // 命座「命之座X」、配队括注移行尾「注：」全部在这里做；JSON 原文一个字都不改。
-  const displayed = normalizeGuideSections(out, { free: data.freeModules, signature: signatureWeaponOf(fileDir, data.name) })
+  const displayed = normalizeGuideSections(out, {
+    free: data.freeModules,
+    signature: signatureWeaponOf(fileDir, data.name),
+    weaponTags: weaponTagsOf(fileDir)
+  })
   displayed.sort((a, b) => (a.__order ?? 100) - (b.__order ?? 100))
   return displayed.map(section => {
     const { __order, ...rest } = section
