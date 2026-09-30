@@ -721,8 +721,29 @@ function v2TeamRows (rows) {
   return out
 }
 
-/** v2 字段 → 行构造器 */
-const V2_ROW_BUILDERS = {
+/**
+ * 角色 → 专属武器（`data/gi/_signature.json`，与 `_order.json` 同目录）：
+ * `{ 专武, 实际 }`（兼容旧的纯字符串写法）。只用于显示 —— 武器段里那一把**标色**
+ * （红 = 严格专武、绿 = 实际专属，用户定稿 2026-09-30，与档位无关）。
+ * 表里没有的角色（四星 / 旅行者 / 琴·七七·莫娜…）**不标**；读不到文件也不影响其它渲染。
+ * @param {string} fileDir 角色数据目录
+ * @param {string} name 角色名
+ * @returns {string|object}
+ */
+let _signatureCache = null
+function signatureWeaponOf (fileDir, name) {
+  try {
+    if (!_signatureCache || _signatureCache.dir !== fileDir) {
+      const file = path.join(fileDir, '_signature.json')
+      _signatureCache = { dir: fileDir, map: JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) }
+    }
+    return _signatureCache.map?.[name] ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/** v2 字段 → 行构造器 */const V2_ROW_BUILDERS = {
   weapons: v2WeaponRows,
   artifacts: v2ArtifactRows,
   talents: v2TalentRows,
@@ -821,7 +842,7 @@ function buildV2Sections (data, fileDir) {
   // ---- 纯显示级归一（与网页版 build-html.mjs 同一份规则，见 ./display.js）----
   // 标题简称、档位标签（推荐/可选/过渡）、副词条 ＞、简写展开、皇冠并入天赋、
   // 命座「命之座X」、配队括注移行尾「注：」全部在这里做；JSON 原文一个字都不改。
-  const displayed = normalizeGuideSections(out, { free: data.freeModules })
+  const displayed = normalizeGuideSections(out, { free: data.freeModules, signature: signatureWeaponOf(fileDir, data.name) })
   displayed.sort((a, b) => (a.__order ?? 100) - (b.__order ?? 100))
   return displayed.map(section => {
     const { __order, ...rest } = section

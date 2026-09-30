@@ -706,6 +706,48 @@ function weaponSep (sep) {
 }
 
 /**
+ * 专属武器标色（用户定稿 2026-09-30）：武器段里命中的条目**与排在第几档无关**地染色。
+ *
+ *   · `sig`（**红**）= 严格意义上的专武（`_signature.json` 的 `专武`）
+ *   · `sigAlt`（**绿**）= 实际上的专属武器（`实际`）—— 例如刻晴实际是雾切之回光、可莉是嘟嘟可故事集
+ *
+ * 表在 `data/gi/_signature.json`（角色 → `{专武, 实际}`，也兼容旧的纯字符串写法）：
+ * 由调用方读进来、经 `opts.signature` 传下去；没有条目的角色（琴 / 七七 / 莫娜 / 四星…）**不标**。
+ * @param {object[]} sections 已归一的段落
+ * @param {string|{专武?: string, 实际?: string}} [signature]
+ * @returns {object[]}
+ */
+export function markSignatureWeapon (sections, signature) {
+  const table = typeof signature === 'string' ? { 专武: signature } : (signature && typeof signature === 'object' ? signature : {})
+  // 一把角色可能有多把（温迪：终末嗟叹之诗 + 黎明破晓之史，两把都算专武）→ 允许字符串或数组
+  const asList = (v) => (Array.isArray(v) ? v : [v]).map(x => String(x ?? '').trim()).filter(Boolean)
+  const strict = asList(table['专武'])
+  const actual = asList(table['实际'])
+  if (!strict.length && !actual.length) return sections
+  // 条目名可能带括注（`雾切之回光（精5）`）或用 `\` / `/` 并列多把：剥掉括注再逐段比
+  const namesOf = (it) => String(it?.text ?? '').replace(/[（(][^）)]*[）)]/g, '')
+    .split(/[\\／/]/).map(s => s.trim()).filter(Boolean)
+  return (sections ?? []).map(section => {
+    if (section?.title !== '武器' || !Array.isArray(section.rows)) return section
+    let hit = false
+    const rows = section.rows.map(row => {
+      const src = row?.items ?? []
+      const items = src.map(it => {
+        if (!it) return it
+        const parts = namesOf(it)
+        const isStrict = parts.some(p => strict.includes(p))
+        const isActual = parts.some(p => actual.includes(p))
+        if (!isStrict && !isActual) return it
+        hit = true
+        return { ...it, ...(isStrict ? { sig: true } : {}), ...(isActual ? { sigAlt: true } : {}) }
+      })
+      return items.some((it, i) => it !== src[i]) ? { ...row, items } : row
+    })
+    return hit ? { ...section, rows } : section
+  })
+}
+
+/**
  * 武器行：档位标签 → 推荐 / 可选 / 过渡；`首选` → 推荐、`其他` → 可选。
  * 描述性标签（辅助向 / 输出向 …）保持不变，并列在档位标签之后。
  * @param {object[]} rows
@@ -1373,8 +1415,10 @@ export function applyFreeHints (sections, free) {
  *
  * `opts.free`（角色 JSON 的 `freeModules`）：列出的模块**空着时**显示一行自由说明
  * （见 `applyFreeHints`），不再显示「暂无」。
+ * `opts.signature`（角色 JSON 的专武名，表在 `data/gi/_signature.json`）：
+ * 武器段里那一把的**名字标红**（见 `markSignatureWeapon`），与档位无关。
  * @param {object[]} sections
- * @param {{free?: string[]}} [opts]
+ * @param {{free?: string[], signature?: string}} [opts]
  * @returns {object[]}
  */
 export function normalizeGuideSections (sections, opts = {}) {
@@ -1388,7 +1432,7 @@ export function normalizeGuideSections (sections, opts = {}) {
     return emptySection(title, kind)
   })
   const extras = normalized.filter(section => !used.has(section))
-  return applyFreeHints([...core, ...extras], opts.free)
+  return markSignatureWeapon(applyFreeHints([...core, ...extras], opts.free), opts.signature)
 }
 
 /* ------------------------------------------------------------------ *

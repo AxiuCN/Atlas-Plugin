@@ -195,7 +195,8 @@
   text-align: center;
 }
 
-/* ===== 档位标签（推荐 / 可选 / 过渡）：三档配色，越靠前越"实" ===== */
+/* ===== 档位标签（推荐 / 可选 / 过渡）：只有"推荐"上色，其余用中性灰（用户定稿 2026-09-30：
+ *       核对面板截图后，`过渡` 不再标颜色 —— 删掉它自己的配色规则，回落到 `.grow-label` 的中性灰） ===== */
 .grow-label.label-推荐 {
   background: rgba(46, 125, 50, 0.14);
   color: #2e6b34;
@@ -203,10 +204,6 @@
 .grow-label.label-可选 {
   background: rgba(110, 110, 110, 0.11);
   color: #4a4a4a;
-}
-.grow-label.label-过渡 {
-  background: rgba(160, 130, 70, 0.14);
-  color: #7a6428;
 }
 
 /* ===== 行内备注（`注：…` 段末备注行）：小一号灰字，不占档位位置 ===== */
@@ -622,7 +619,6 @@
 }
 .codex-team .grow-label.label-推荐 { background: rgba(46, 125, 50, .16); color: #276b2d; }
 .codex-team .grow-label.label-可选 { background: rgba(110, 110, 110, .12); color: #454545; }
-.codex-team .grow-label.label-过渡 { background: rgba(160, 130, 70, .16); color: #6f5b24; }
 
 /* 成员排布：头像更大；`+` 与两侧头像**等距**（用户反馈：加号左右间隔不均匀）。
  * `+` 现在和它后面的成员同属一个 `.team-slot`，所以间距只能由 `+` 自己给 ——
@@ -776,3 +772,9 @@
 
 /* Top-recommended constellation: bold the label (editor toggled, docx carries nothing) */
 .grow-label.label-top { color: #c0392b; font-weight: 800; }
+
+/* ===== 专属武器（与排在第几档无关，用户定稿 2026-09-30）=====
+ * `sig`     = 严格意义上的专武 → 红
+ * `sig-alt` = 实际上的专属武器（如刻晴实际雾切、可莉嘟嘟可）→ 绿 */
+.rank-text.sig { color: #c0392b; font-weight: 800; }
+.rank-text.sig-alt { color: #1f7a3d; font-weight: 800; }
