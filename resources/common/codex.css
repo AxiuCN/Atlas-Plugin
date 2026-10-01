@@ -464,8 +464,13 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
 }
 
-/* 天赋满级（10 = 皇冠）：标红加粗，和 1–9 一眼区分（黑底上用偏亮的红保证对比） */
-.rank-item.talent-item .talent-level.level-max { color: #ff6b5b; font-weight: 800; }
+/* 天赋满级（10 = 皇冠）：**整颗药丸反相成红底白字** —— 用户 2026-09-30 反馈
+ * 「黑底红字还是不直观」：只在深底上换字色不够显眼，改成红色徽标（白字对比度 5.4:1，AA 通过） */
+.rank-item.talent-item .talent-level.level-max {
+  background: #c0392b;
+  color: #ffffff;
+  font-weight: 800;
+}
 
 /* 皇冠（已投）：叠在图标顶边居中（内联 SVG，不用 emoji） */
 .rank-item.talent-item .crown-badge {
