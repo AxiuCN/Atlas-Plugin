@@ -6,6 +6,7 @@
 - 移除内容：`#角色攻略` / `#<角色>攻略` 页面类型与后缀、`model/codexIndex/` 数据层、`modules/codexQuery.js` 编排、`resources/atlas/codex.html` 与 `resources/common/codex.css`、`config.yaml → codex.enabled`、`#图鉴状态` 与每日通知图中的「角色攻略」卡，以及 `tool/Character-Codex-Data/` 攻略仓库的克隆目录与同步函数。
 - 行为变化：`#图鉴初始化` / `#图鉴更新` / 每日定时任务不再同步攻略仓库、不再回复同步结果；`#图鉴状态` 只反映图鉴数据与图片统计。未安装 Meta-Plugin 时，`#<角色>攻略` 会被当作普通关键词处理（通常落到该角色的图鉴页）。
 - 内部整理：回归套件由 21 个收敛至 16 个（删除 5 个攻略专用套件），样式归属守卫里随 codex.css 一同消失的覆盖白名单已清空。
+- 兼容处理：启动时会检测并清除遗留的 `tool/Character-Codex-Data/` 目录（旧攻略 clone 不在版本控制内，`git pull` 删不掉）；该清理为**临时机制**，保留两个月，计划 2026-12-14 后移除。
 
 ## 1.0.0
 

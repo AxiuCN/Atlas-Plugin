@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { initAtlas } from './model/startup.js'
+import { initAtlas, cleanupLegacyCodexDir } from './model/startup.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,6 +25,9 @@ if (!fs.existsSync(blacklistFile) && fs.existsSync(blacklistExample)) {
 
 logger?.info('----Atlas-Plugin----')
 logger?.info('[Atlas] 初始化中...')
+
+// ---- 清除攻略模块剥离前的遗留目录（临时机制，1.1.0 引入，计划 2026-12-14 后连同调用点删除）----
+cleanupLegacyCodexDir()
 
 // ---- 子模块同步 + 预加载索引（顺序与重建时机见 model/startup.js）----
 // 不 await：git 可能拉到 120 s，而框架 plugin_load_timeout 只有 60 s

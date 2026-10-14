@@ -3,10 +3,13 @@
 //     ① sync 先起、立即 reload —— 第一次查询就有索引
 //     ② sync 报告「确实切换了子模块」→ 再 reload 一次（否则可能把同步前的 map.json 固化到进程结束）
 //     ③ sync 失败 / 抛异常 / reload 抛异常，都不得让 initAtlas 抛出，也不得丢掉首次 reload
-import { mod, checker, installFrameworkStubs, logs } from './_helper.mjs'
+//     ④ 启动清理清除遗留的 tool/Character-Codex-Data/（临时机制，2026-12-14 后随清理函数一起删）
+import fs from 'node:fs'
+import path from 'node:path'
+import { mod, tmpDir, ensureTmpDir, checker, installFrameworkStubs, logs } from './_helper.mjs'
 
 installFrameworkStubs()
-const { initAtlas } = await import(mod('model/startup.js'))
+const { initAtlas, cleanupLegacyCodexDir } = await import(mod('model/startup.js'))
 const { check, finish } = checker()
 
 /**
@@ -120,6 +123,43 @@ console.log('\n=== F. 连续两次启动互不串扰 ===')
   check('第一次（切换）reload 2 次', a.reloadCount() === 2, String(a.reloadCount()))
   check('第二次（skipped）reload 1 次', b.reloadCount() === 1, String(b.reloadCount()))
   check('两次的调用序列独立', a.order.join('>') !== b.order.join('>'))
+}
+
+console.log('\n=== G. 启动清理：清除遗留的 tool/Character-Codex-Data/（临时机制）===')
+{
+  // 注入 root，避免动真实插件目录；只在本套件临时目录里造一份"遗留目录"
+  const root = ensureTmpDir()
+  const legacy = path.join(root, 'tool', 'Character-Codex-Data')
+  const sibling = path.join(root, 'tool', 'nanoka-atlas-backend')
+  fs.mkdirSync(path.join(legacy, 'Character-Codex-Data', '.git'), { recursive: true })
+  fs.writeFileSync(path.join(legacy, 'README.md'), 'legacy')
+  fs.mkdirSync(sibling, { recursive: true })
+  fs.writeFileSync(path.join(sibling, 'keep.txt'), 'keep')
+
+  const before = logs.length
+  const first = cleanupLegacyCodexDir({ root })
+  check('检测到遗留目录即整目录删除', first.removed === true && !fs.existsSync(legacy))
+  check('已记 info 日志', logs.length > before)
+  check('同级目录不受影响', fs.existsSync(path.join(sibling, 'keep.txt')))
+
+  const second = cleanupLegacyCodexDir({ root })
+  check('再次调用为空操作（absent，不打日志）', second.removed === false && second.reason === 'absent')
+
+  // 符号链接只摘链接本身，不跟进目标
+  const outside = path.join(tmpDir, 'outside-target')
+  fs.mkdirSync(outside, { recursive: true })
+  fs.writeFileSync(path.join(outside, 'must-stay.txt'), 'x')
+  try {
+    fs.symlinkSync(outside, legacy, 'junction')
+    const third = cleanupLegacyCodexDir({ root })
+    check('符号链接/联接只摘链接，目标内容保留', third.removed === true && fs.existsSync(path.join(outside, 'must-stay.txt')))
+    check('链接本身已移除', !fs.existsSync(legacy))
+  } catch (err) {
+    console.log(`  （本机无法创建链接，跳过符号链接用例：${err.message}）`)
+  }
+
+  fs.rmSync(path.join(root, 'tool'), { recursive: true, force: true })
+  fs.rmSync(outside, { recursive: true, force: true })
 }
 
 finish()
