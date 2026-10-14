@@ -248,7 +248,7 @@ Review 会关注：是否放行了本不该接管的查询、是否破坏既有�
 | 图鉴抓取逻辑、条目 JSON 结构（引擎侧） | [`nanoka-atlas-backend`](https://github.com/AxiuCN/nanoka-atlas-backend)（本插件的子模块） |
 | 图鉴数据本身抓错了 | 先用本仓库的 `resources/patch/**` 打补丁；数据源问题可反馈给上游 [nanoka.cc](https://nanoka.cc/) |
 
-> 维护者本地还有 `CLAUDE.md`、`AGENTS.md`、`.dsh/` 等**不入库**的开发笔记；贡献者不需要创建或提交它们。
+> 仓库里的 `AGENTS.md` 与 `docs/`（除 `docs/private/`）是**入库**的维护者文档，贡献者可按需阅读、也欢迎随改动同步；`CLAUDE.md`、`.claude/`、`.dsh/`、`docs/private/` 是本地工作区，**不入库**，不需要创建或提交。
 
 ---
 
