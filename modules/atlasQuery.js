@@ -7,6 +7,7 @@ import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME } from '../components/constants.js'
+import { loadAliasMap, normalizeForMatch } from '../model/AliasLoader.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
 /** 子视图后缀列表（长→短，图鉴、页面类型与泛用套装后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
@@ -30,26 +31,45 @@ const QUERY_ERROR_REPLY = '[Atlas] 查询出错了，请稍后再试；若一直
  * 解析子视图/页面类型后缀
  * 页面类型后缀（圣遗物/遗器/驱动盘）优先：仅剥离关键词并把结果限定到对应页面类型
  * 泛用套装后缀「套」紧随其后，按当前游戏映射到该游戏的套装页面类型
+ *
+ * **原词是别名时不剥离**：别名层里存在「本身带后缀」的名字——`风套`（翠绿之影）、
+ * `奶套`、`水套`、`虹的行迹`（原神武器，而「行迹」是星铁的角色子视图后缀）等。
+ * 无条件剥离会把它们打散：`#风套` → 搜 `风` → 落到旅行者·风，收敛后要么擦边命中
+ * 别的圣遗物（渲染出错图）、要么直接放行；`#奶套` 则是放行。故剥前先查别名表
+ * （按游戏过滤，含用户自定义层）：命中即按原词检索，后缀语义照旧保留。
  * @param {string} keyword
  * @param {string} gameId - gi/hsr/zzz（「套」后缀需要）
  * @returns {{ searchKeyword: string, subView: string|null, pageType: string|null }}
  */
 function parseSubView (keyword, gameId) {
+  // 惰性求值：只有真的命中某个后缀时才查别名表，普通关键词零开销
+  let rawIsAlias = null
+  const isRawAlias = () => {
+    if (rawIsAlias === null) {
+      const aliases = loadAliasMap(gameId)
+      rawIsAlias = (aliases.get(normalizeForMatch(keyword)) || [])
+        .some(item => !item.game || item.game === GAME_NAMES[gameId])
+    }
+    return rawIsAlias
+  }
+  /** 剥离后缀得到检索词；原词本身已是别名时保留原词 */
+  const cut = (suffix) => (isRawAlias() ? keyword : keyword.slice(0, -suffix.length).trim())
+
   for (const [suffix, pageType] of PAGE_TYPE_ENTRIES) {
     if (keyword.endsWith(suffix)) {
-      const searchKeyword = keyword.slice(0, -suffix.length).trim()
+      const searchKeyword = cut(suffix)
       if (searchKeyword) return { searchKeyword, subView: null, pageType }
     }
   }
   // 「套」：原神 圣遗物、星铁 遗器套装、绝区零 驱动盘（如 #如雷套 / *铁卫套 / %啄木鸟套）
   const setPageType = SET_PAGE_TYPE_BY_GAME[gameId]
   if (setPageType && keyword.endsWith(SET_SUFFIX)) {
-    const searchKeyword = keyword.slice(0, -SET_SUFFIX.length).trim()
+    const searchKeyword = cut(SET_SUFFIX)
     if (searchKeyword) return { searchKeyword, subView: null, pageType: setPageType }
   }
   for (const { suffix, subView } of SUB_VIEW_SUFFIXES) {
     if (keyword.endsWith(suffix)) {
-      const searchKeyword = keyword.slice(0, -suffix.length).trim()
+      const searchKeyword = cut(suffix)
       if (searchKeyword) {
         return { searchKeyword, subView, pageType: null }
       }
