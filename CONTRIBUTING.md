@@ -34,7 +34,7 @@ node src/scrape.mjs --game gi,hsr,zzz --locales zh              # 含图片（�
 corepack yarn versions                                          # 查看可用版本
 ```
 
-> 测试套件在**缺少前置时自动跳过**（打印 `⏭ 跳过：原因` 并 exit 0）。若你看到大量「跳过」，说明图鉴数据 / 攻略仓库 / 浏览器还没就绪——**跳过不等于通过**，请先把数据准备好再判断自己的改动。
+> 测试套件在**缺少前置时自动跳过**（打印 `⏭ 跳过：原因` 并 exit 0）。若你看到大量「跳过」，说明图鉴数据 / 浏览器还没就绪——**跳过不等于通过**，请先把数据准备好再判断自己的改动。
 
 ---
 
@@ -44,10 +44,10 @@ corepack yarn versions                                          # 查看可用�
 Atlas-Plugin/
 ├── index.js          # 单入口：配置 → 子模块同步 + 预加载索引 → Promise.allSettled 载入 apps/*.js
 ├── apps/             # 事件绑定（命令注册处）：atlasShortcut / atlas / admin / alias / status / help / updateLog
-├── modules/          # 业务编排：atlasQuery（查询主流程）· codexQuery（角色攻略页）
+├── modules/          # 业务编排：atlasQuery（查询主流程）
 ├── model/            # 数据访问：AtlasService（搜索/索引/记录读取）· AtlasRepository（记录与缓存）
 │                     # AliasLoader · CustomAlias · LinkResolver · MiaoParams · AtlasUpdater · VersionDiff
-│                     # itemIndex/ · monsterIndex/ · codexIndex/
+│                     # itemIndex/ · monsterIndex/
 ├── components/       # 可复用件：config · constants · render · queryUtils · protagonist · patch · util
 │   └── sections/     # 页面数据构建器：character | weapon | relic | monster | bangboo | item
 ├── resources/        # 模板与静态资源：atlas/*.html（15 个模板）· common/*.css + font/ + image/
@@ -55,7 +55,7 @@ Atlas-Plugin/
 ├── config/           # config.yaml.example（入库）+ config.yaml / alias/（运行时，git-ignored）
 ├── defSet/ + guoba/  # 锅巴配置模板与 schema
 ├── test/             # 回归套件（入库）
-└── tool/             # nanoka-atlas-backend（子模块）· Character-Codex-Data（攻略数据 clone，git-ignored）
+└── tool/             # nanoka-atlas-backend（子模块）
 ```
 
 ### 新文件放哪里：四步判据
@@ -91,10 +91,7 @@ Atlas-Plugin/
    | 页头（大图 / 立绘 / 遮罩 / 标题 / 小方框） | `.hero` 框架 | `hero.css` |
 
 2. **页面专属样式只进该页的 CSS**：`resources/common/<页面>.css`，且**只被该页模板 `<link>`**（模板与样式一对一，不要交叉引用）。这类文件**不得定义共享 CSS 已有的类**——同一个类名在两处各有一套值，谁生效只看模板引用的顺序，排查起来毫无线索。
-   - 现有白名单（唯一例外）：`codex.css` 对 `.hero-game` / `.hero-subtitle` / `.hero-info-item` 的 **3 条定向覆盖**（名刺图上小字对比度不足，2026-09-20 定稿）；**待换成共享件后从白名单删除**。
-   - 边界由 `test/style-scope.test.mjs` 守住：页面 CSS 定义共享类即失败（白名单除外），被非同名前缀的模板引用也失败，引用的 CSS 与 `url()` 资源不存在同样失败。
-
-3. **外部仓库的镜像文件要登记来源，且不得手改**：`model/codexIndex/display.js` 是攻略仓库 [Character-Codex-Data](https://github.com/Hyposelenia-Moon/Character-Codex-Data) 里 `scripts/lib/guide-display.mjs` 的**逐字节副本**（面板与网页版的措辞靠两份一致）。改规则去上游改，再用上游 `node scripts/check-display-sync.mjs --write` 同步；本地手改会同时挂掉上游校验与 `test/codex-display-sync.test.mjs`。
+   - 边界由 `test/style-scope.test.mjs` 守住：页面 CSS 定义共享类即失败，被非同名前缀的模板引用也失败，引用的 CSS 与 `url()` 资源不存在同样失败。
 
 ### 配置三层（自研插件统一模式）
 
@@ -104,7 +101,7 @@ config/config.yaml.example  入库的参考默认值——**加配置项必须�
 config/config.yaml          运行时（git-ignored）——不要提交
 ```
 
-读取统一走 `components/config.js` 的 `getPluginConfig()`（逐级兜底并合并默认值）。锅巴 field 用**点分路径**（`codex.enabled`），模板变量用**下划线**（`${atlas_codex_enabled}`）。
+读取统一走 `components/config.js` 的 `getPluginConfig()`（逐级兜底并合并默认值）。锅巴 field 用**点分路径**（`autoUpdate.enabled`），模板变量用**下划线**（`${atlas_autoUpdate_enabled}`）。
 
 ---
 
@@ -156,15 +153,14 @@ config/config.yaml          运行时（git-ignored）——不要提交
 
 ## 5. 已知坑（踩过的，别再踩）
 
-1. **art-template 4.x 没有注释语法**。在 `resources/atlas/*.html` 里写 `{{* 注释 *}}` 会让模板 **编译失败**——曾因此把 `#角色攻略` 整条链路打挂（修复见提交 `5d7ab3b`）。要写说明就用 HTML 注释或直接删掉。
+1. **art-template 4.x 没有注释语法**。在 `resources/atlas/*.html` 里写 `{{* 注释 *}}` 会让模板 **编译失败**——曾因此把整页渲染打挂（用户只看到一句「渲染失败」，不挑角色）。要写说明就用 HTML 注释或直接删掉。
 2. **模板必须保留 `<body style="zoom:{{renderScale}}">`**。渲染缩放靠它实现（框架渲染后端不暴露 DPR 旋钮），删掉会让 `renderScale` 配置静默失效。
 3. **行尾**：`.gitattributes` 是 `* text=auto eol=lf`，Windows 工作副本会显示 CRLF。**不要整文件重写/格式化**（会产出全文件 diff）；只改必要的行。
 4. **渲染链按 cwd 解析**：框架的 `lib/renderer/loader.js` 用 cwd 找 `renderers/` 与 `temp/`。所以渲染相关代码在测试里需要 cwd = Bot 根——`test/_helper.mjs` 已经处理，**不要**在套件里自己去 `chdir`。
 5. **子模块指针**：除非你确实要升级数据引擎版本，否则别把 `tool/nanoka-atlas-backend/nanoka-atlas-backend` 的 gitlink 改动混进 PR。
-6. **`tool/Character-Codex-Data/Character-Codex-Data/`** 是攻略数据的 git clone（**不是子模块**，本体被 gitignore）。攻略**正文**改这个仓库，不要提到本插件仓库。
-7. **`test/.test-tmp/`** 是套件临时产物目录（gitignore）。别把里面的文件提交上来。
-8. **别写死数据**：套件里不要硬编码角色名/条目数（图鉴与攻略仓库都在增长）。攻略相关用例要**运行时取样**「有攻略 / 无攻略」的角色。
-9. **别为了跑绿改测试**：断言失败先假设实现有问题。只有确认契约本身变了，才改测试，并在 PR 里说明为什么旧契约不再成立。
+6. **`test/.test-tmp/`** 是套件临时产物目录（gitignore）。别把里面的文件提交上来。
+7. **别写死数据**：套件里不要硬编码角色名/条目数（图鉴数据在持续增长），数据依赖要**运行时取样**。
+8. **别为了跑绿改测试**：断言失败先假设实现有问题。只有确认契约本身变了，才改测试，并在 PR 里说明为什么旧契约不再成立。
 
 ---
 
@@ -180,7 +176,7 @@ pnpm test -- --filter=cache   # 只跑文件名含 cache 的
 ```
 
 - 当前 **21 个套件**；每套末尾输出 `结果：通过 N / 失败 N`，运行器最后给汇总
-- **缺前置打印「跳过」并 exit 0**：图鉴数据 / 攻略仓库 / 浏览器 / git 替身四类
+- **缺前置打印「跳过」并 exit 0**：图鉴数据 / 浏览器 / git 替身三类
 - 需要浏览器时用系统 Edge/Chrome（可用 `ATLAS_TEST_BROWSER` 指定）；Windows 下 git 替身会编译成真 `.exe`（`.cmd`/`.ps1` 不行）
 
 ### 新增套件的规范
@@ -188,8 +184,8 @@ pnpm test -- --filter=cache   # 只跑文件名含 cache 的
 | 要求 | 说明 |
 |------|------|
 | 命名 | `<主题>.test.mjs`（写被测行为，不用 `check-` / `stage` 之类历史前缀；数据口径类用 `data-<游戏><页面>`） |
-| 路径 | 一律经 `test/_helper.mjs` 推导（`pluginRoot` / `appRoot` / `dataDir` / `codexDir` / `tmpDir` / `mod()`），**禁止裸相对路径与盘符** |
-| 前置 | 用 `requireAtlasData()` / `requireCodexRepo()` 等，缺前置就 `skip('原因')`（exit 0） |
+| 路径 | 一律经 `test/_helper.mjs` 推导（`pluginRoot` / `appRoot` / `dataDir` / `tmpDir` / `mod()`），**禁止裸相对路径与盘符** |
+| 前置 | 用 `requireAtlasData()` 等，缺前置就 `skip('原因')`（exit 0） |
 | 断言 | 用 `checker()`（`check(名称, 条件, 附加信息)` + `finish()`）；数量不必多，但要能真的失败 |
 | 临时产物 | 只写 `test/.test-tmp/`；**确需临时改 `config/config.yaml` 的必须按原字节/原 MD5 还原** |
 | 桩 | 框架全局桩（`logger`/`redis`/`cfg`/`segment`）已收敛在 `_helper.mjs`，套件内不要重复实现 |
@@ -208,7 +204,7 @@ check('关键词能搜到角色', search('gi', '胡桃')?.results?.[0]?.name ===
 finish()   // 有失败即 exit 1
 ```
 
-改模板 / 改渲染链时，**至少跑** `codex-template`（模板可编译 + 合成数据渲染）与 `render-scale`（输出尺寸随 `renderScale` 成比例）。
+改模板 / 改渲染链时，**至少跑** `render-scale`（模板可编译 + 输出尺寸随 `renderScale` 成比例）。
 
 ---
 
@@ -251,8 +247,6 @@ Review 会关注：是否放行了本不该接管的查询、是否破坏既有�
 | 插件代码、模板、样式、补丁层、测试、文档 | **本仓库** |
 | 图鉴抓取逻辑、条目 JSON 结构（引擎侧） | [`nanoka-atlas-backend`](https://github.com/AxiuCN/nanoka-atlas-backend)（本插件的子模块） |
 | 图鉴数据本身抓错了 | 先用本仓库的 `resources/patch/**` 打补丁；数据源问题可反馈给上游 [nanoka.cc](https://nanoka.cc/) |
-| 角色攻略**正文**（武器/圣遗物/配队等内容） | [`Character-Codex-Data`](https://github.com/Hyposelenia-Moon/Character-Codex-Data) |
-| 攻略页的**展示逻辑**（段类型、图标、hero） | **本仓库**（`modules/codexQuery.js` / `model/codexIndex/` / `resources/atlas/codex.html`） |
 
 > 维护者本地还有 `CLAUDE.md`、`AGENTS.md`、`.dsh/` 等**不入库**的开发笔记；贡献者不需要创建或提交它们。
 

@@ -3,7 +3,7 @@
  *
  * 套件约定（见插件 CLAUDE.md「测试」一节）：
  * - **任意 cwd 可跑**：路径一律由本文件位置推导，不写裸相对字面量、不写盘符绝对路径
- * - **缺前置就跳过、不算失败**：图鉴数据未初始化 / 攻略仓库未拉取 / 没有可用浏览器时，
+ * - **缺前置就跳过、不算失败**：图鉴数据未初始化 / 没有可用浏览器时，
  *   打印「跳过：原因」并 exit 0 —— 否则新克隆的仓库一跑全红
  * - **不改动源数据**：临时产物一律写 `test/.test-tmp/`（gitignore）；确需临时改配置的
  *   （如渲染缩放用例改 config.yaml）必须按原字节还原
@@ -23,8 +23,6 @@ export const appRoot = path.resolve(pluginRoot, '../..')
 export const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
 /** 图鉴数据目录 */
 export const dataDir = path.join(backendRoot, 'data')
-/** 角色攻略仓库（git clone） */
-export const codexDir = path.join(pluginRoot, 'tool/Character-Codex-Data/Character-Codex-Data')
 /** 套件临时产物目录（gitignore） */
 export const tmpDir = path.join(testDir, '.test-tmp')
 
@@ -53,11 +51,6 @@ export function ensureTmpDir () {
 /** 图鉴数据是否已就绪（map.json 存在） */
 export function hasAtlasData () {
   return fs.existsSync(path.join(dataDir, 'map.json'))
-}
-
-/** 攻略仓库是否已拉取 */
-export function hasCodexRepo () {
-  return fs.existsSync(path.join(codexDir, '.git'))
 }
 
 /** 找一个可用浏览器（框架渲染后端通过 chromiumPath 指定）：返回路径或空串 */
@@ -115,11 +108,6 @@ export function ensureFakeGit () {
 /** 前置：图鉴数据 */
 export function requireAtlasData () {
   if (!hasAtlasData()) skip('图鉴数据未初始化（先执行 #图鉴初始化 / #图鉴更新）')
-}
-
-/** 前置：攻略仓库 */
-export function requireCodexRepo () {
-  if (!hasCodexRepo()) skip('角色攻略仓库未拉取（先执行 #图鉴初始化 / #图鉴更新）')
 }
 
 /* ============================================================

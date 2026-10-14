@@ -39,8 +39,6 @@ export const SHORTCUT_SUFFIXES = [
   '圣遗物', '遗器', '驱动盘',
   // 泛用套装后缀（按游戏映射到各自的套装页面类型，见 SET_PAGE_TYPE_BY_GAME）
   '套',
-  // 角色攻略（独立页面类型 codex，数据来自 Character-Codex-Data，与图鉴条目解耦）
-  '攻略', '指南',
   '资料', '描述', '故事', '语音',
   // 怪物页专有（变种个体的完整叫法与简称）
   '变种个体', '变种', '变体',
@@ -49,18 +47,11 @@ export const SHORTCUT_SUFFIXES = [
 
 // 页面类型后缀 → pageKey（atlasQuery.parseSubView 使用）
 // 这类后缀不改变子视图，只把搜索结果限定到对应页面类型（如 #绝缘之旗印圣遗物 → 圣遗物页）
-// 攻略/指南 → codex：攻略不是图鉴条目类型（nanoka map.json 里没有该 pageKey），
-// 保留原搜索结果，由 modules/codexQuery.js 以独立模板渲染
 export const PAGE_TYPE_SUFFIXES = {
   圣遗物: 'artifact',
   遗器: 'relicset',
-  驱动盘: 'equipment',
-  攻略: 'codex',
-  指南: 'codex'
+  驱动盘: 'equipment'
 }
-
-/** 角色攻略页面类型标识（独立模板 resources/atlas/codex.html） */
-export const CODEX_PAGE_KEY = 'codex'
 
 // 泛用套装后缀 → 各游戏的套装页面类型
 // 三游戏把「套装」叫成不同名字（原神 圣遗物 / 星铁 遗器套装 / 绝区零 驱动盘），

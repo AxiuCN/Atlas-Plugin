@@ -9,15 +9,6 @@ const pluginRoot = path.resolve(__dirname, '..')
 /** nanoka-atlas-backend 子模块目录 */
 export const BACKEND_DIR = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
 
-/** Character-Codex-Data 角色攻略仓库目录（git clone 拉取，**不是子模块**） */
-export const CODEX_DIR = path.join(pluginRoot, 'tool/Character-Codex-Data/Character-Codex-Data')
-
-/** 攻略仓库远端地址 */
-const CODEX_REPO_URL = 'https://github.com/Hyposelenia-Moon/Character-Codex-Data.git'
-
-/** 攻略仓库同步超时（10 分钟） */
-const CODEX_TIMEOUT_MS = 10 * 60 * 1000
-
 /** 子模块相对插件根目录的路径（gitlink 记录路径） */
 const SUBMODULE_PATH = 'tool/nanoka-atlas-backend/nanoka-atlas-backend'
 
@@ -32,9 +23,6 @@ let _updateRunning = false
 
 /** 上次抓取完成时间戳，防止短时间内重复抓取（如初始化后立即被定时任务触发） */
 let _lastScrapeTime = 0
-
-/** 攻略仓库同步的进行中 Promise（并发调用复用同一次 git，见 syncCodexRepo） */
-let _codexSyncing = null
 
 /** 抓取冷却期（毫秒），此时间内拒绝新的抓取 */
 const SCRAPE_COOLDOWN = 5 * 60 * 1000 // 5 分钟
@@ -401,76 +389,6 @@ export async function runDiffScrape (games = ['gi', 'hsr', 'zzz']) {
     logger?.warn(`[Atlas][Updater] 版本记录抓取异常（不影响本次更新）: ${err.message}`)
     return { ok: false, reason: err.message }
   }
-}
-
-/* ============================================================
- *  角色攻略仓库（Character-Codex-Data）
- * ============================================================ */
-
-/**
- * 同步角色攻略仓库（初始化 / 更新 / 定时三条入口的**独立步骤**）
- *
- * 该仓库以 git clone 方式落在 CODEX_DIR，**不使用子模块**——插件仓库不记录 gitlink，
- * 攻略仓库的日常更新不需要插件仓库跟着推送。
- * 目录不存在 → `git clone --depth 1`；已存在 → `git pull --ff-only`（分叉时不强推，保留现场）。
- * 攻略属可选数据源，任何失败只告警、不阻断图鉴更新主流程。
- *
- * 攻略仓库与图鉴数据源互不相关、更新频率也与图鉴版本无关，故调用点放在各入口的**前段**，
- * 不挂在「图鉴抓取成功」的末尾——否则版本未变化 / 抓取失败等早退分支永远不会检测它。
- * @returns {Promise<{ ok: boolean, mode?: 'clone'|'pull', error?: string }>}
- */
-export async function syncCodexRepo () {
-  // 并发保护：初始化 / 更新 / 定时可能同时触发，复用同一次 git 调用，
-  // 避免两个 git 进程同时操作同一目录（后到者等前一个完成）
-  if (_codexSyncing) return await _codexSyncing
-  _codexSyncing = _syncCodexRepoOnce()
-  try {
-    return await _codexSyncing
-  } finally {
-    _codexSyncing = null
-  }
-}
-
-/**
- * 攻略仓库单次同步（调用方负责并发保护）
- * @returns {Promise<{ ok: boolean, mode?: 'clone'|'pull', error?: string }>}
- */
-async function _syncCodexRepoOnce () {
-  const gitDir = path.join(CODEX_DIR, '.git')
-
-  if (!fs.existsSync(gitDir)) {
-    try {
-      fs.mkdirSync(path.dirname(CODEX_DIR), { recursive: true })
-    } catch (err) {
-      logger?.warn(`[Atlas][Updater] 攻略仓库父目录创建失败: ${err.message}`)
-      return { ok: false, error: err.message }
-    }
-
-    const result = await runSpawn('git', ['clone', '--depth', '1', CODEX_REPO_URL, CODEX_DIR], {
-      cwd: pluginRoot,
-      timeoutMs: CODEX_TIMEOUT_MS,
-      label: '攻略仓库克隆'
-    })
-    if (!result.ok) {
-      logger?.warn(`[Atlas][Updater] 攻略仓库克隆失败（不影响图鉴数据）: ${result.stderr || result.reason}`)
-      return { ok: false, error: result.stderr || result.reason }
-    }
-    logger?.info(`[Atlas][Updater] 攻略仓库已克隆到 ${CODEX_DIR}`)
-    return { ok: true, mode: 'clone', updated: true }
-  }
-
-  const result = await runSpawn('git', ['pull', '--ff-only'], {
-    cwd: CODEX_DIR,
-    timeoutMs: CODEX_TIMEOUT_MS,
-    label: '攻略仓库拉取'
-  })
-  if (!result.ok) {
-    logger?.warn(`[Atlas][Updater] 攻略仓库拉取失败（不影响图鉴数据）: ${result.stderr || result.reason}`)
-    return { ok: false, error: result.stderr || result.reason }
-  }
-  // git 输出为「Already up to date.」时表示远端无新内容（成功但无变化）
-  const updated = !/already up[- ]to[- ]date/i.test(result.stdout || '')
-  return { ok: true, mode: 'pull', updated }
 }
 
 /* ============================================================

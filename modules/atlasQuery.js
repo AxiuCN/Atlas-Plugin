@@ -6,9 +6,7 @@
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
-import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, CODEX_PAGE_KEY } from '../components/constants.js'
-import { isCodexEnabled } from '../components/config.js'
-import { handleCodexQuery } from './codexQuery.js'
+import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME } from '../components/constants.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
 /** 子视图后缀列表（长→短，图鉴、页面类型与泛用套装后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
@@ -131,9 +129,6 @@ export async function handleQuery (e, gameId, keyword) {
     // ── 阶段 0：子视图 / 页面类型后缀检测 ──
     const { searchKeyword, subView, pageType } = parseSubView(keyword, gameId)
 
-    // 攻略功能关闭（config.yaml → codex.enabled）：不搜索、不接管，直接放行给其他插件
-    if (pageType === CODEX_PAGE_KEY && !isCodexEnabled()) return false
-
     let result
     if (subView) {
       // 带后缀 → 先按剥离后的关键词搜索
@@ -154,11 +149,6 @@ export async function handleQuery (e, gameId, keyword) {
       result = search(gameId, searchKeyword)
     } else {
       result = search(gameId, keyword)
-    }
-
-    // 角色攻略（独立页面类型）：不做结果收敛，交给 codexQuery 以专用模板渲染
-    if (pageType === CODEX_PAGE_KEY) {
-      return await handleCodexQuery(e, gameId, result, searchKeyword)
     }
 
     // 结果按页面类型收敛：限定类型无任何命中 → 放行给其他插件

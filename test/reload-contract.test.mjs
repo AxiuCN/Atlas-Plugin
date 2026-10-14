@@ -8,14 +8,13 @@
 //     ⑤ 消费侧不再返回上一代对象；连续两次 reload 结论一致（不该变的没变）
 import fs from 'node:fs'
 import path from 'node:path'
-import { mod, pluginRoot, tmpDir, ensureTmpDir, hasCodexRepo, requireAtlasData, skip, checker, installFrameworkStubs } from './_helper.mjs'
+import { mod, pluginRoot, tmpDir, ensureTmpDir, requireAtlasData, skip, checker, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 requireAtlasData()
 
 const { reloadIndex, loadRecord, loadRawRecord, loadMap, getPageRecords, search } = await import(mod('model/AtlasService.js'))
 const { PATCH_DATA_DIR, PATCH_MAP_FILE } = await import(mod('components/patch.js'))
-const { listCodexGuides, getCharacterGuide, reloadCodexIndex } = await import(mod('model/codexIndex/index.js'))
 const mapLoader = await import(mod('model/itemIndex/mapLoader.js'))
 const monsterIndex = await import(mod('model/monsterIndex/index.js'))
 const curve = await import(mod('model/monsterIndex/curve.js'))
@@ -161,67 +160,6 @@ check('搜索首条一致', first.top === second.top, first.top)
 check('怪物条目数一致', first.monsters === second.monsters, String(first.monsters))
 check('物品页条目数一致', first.items === second.items, String(first.items))
 check('怪物曲线值一致（插件自有资源，不参与失效）', first.curve === second.curve, String(first.curve))
-
-console.log('\n=== H. 图鉴换新后，攻略解析缓存必须按新索引重解析（新 index → 旧 cache）===')
-if (!hasCodexRepo()) {
-  console.log('  （攻略仓库未拉取，本节跳过）')
-} else {
-  /** 候选：能反查到角色、且「图鉴条目名 ≠ 攻略卡名」——只有这种会走反查缓存（路径②） */
-  const candidates = []
-  for (const gameId of ['gi', 'hsr', 'zzz']) {
-    for (const g of listCodexGuides() || []) {
-      if (g.game && g.game !== gameId) continue
-      const res = search(gameId, g.name)
-      const top = res?.results?.[0]
-      if (res?.type === 'empty' || top?.pageKey !== 'character') continue
-      if (top.name === g.name) continue
-      if (!getCharacterGuide(gameId, top.name)) continue
-      candidates.push({ gameId, card: g.name, entry: top.name, id: top.recordId })
-    }
-  }
-
-  const nameOf = (g) => (g ? g.name : null)
-  let discriminated = false
-  for (const c of candidates.slice(0, 3)) {
-    reloadCodexIndex()
-    const g1 = getCharacterGuide(c.gameId, c.entry) // 在图鉴代际 G1 下建立解析缓存
-    if (!g1) continue
-
-    const originalBytes = fs.readFileSync(PATCH_MAP_FILE)
-    fs.writeFileSync(mapBackup, originalBytes)
-    let afterReload = null
-    let truth = null
-    try {
-      // 图鉴侧改名（攻略仓库文件不动）：reloadIndex() 会让图鉴代际变化
-      fs.writeFileSync(PATCH_MAP_FILE, JSON.stringify({
-        _patch: { note: 'reload-contract 套件临时索引补丁（跑完还原）' },
-        games: { [c.gameId]: { locales: { zh: { pages: { character: { records: { [c.id]: { name: '兹兹测试' } } } } } } } }
-      }, null, 2), 'utf8')
-      reloadIndex()
-      afterReload = getCharacterGuide(c.gameId, c.entry) // 契约要求：此刻就该反映新图鉴
-      reloadCodexIndex()
-      truth = getCharacterGuide(c.gameId, c.entry) // 地面真值：完全重解析
-    } finally {
-      fs.writeFileSync(PATCH_MAP_FILE, originalBytes)
-      fs.unlinkSync(mapBackup)
-      reloadIndex()
-      reloadCodexIndex()
-    }
-
-    if (nameOf(truth) === nameOf(g1)) {
-      console.log(`  · 样本 ${c.gameId}/${c.entry} 改名后解析结果不变（走别名直配路径①），换下一个`)
-      continue
-    }
-
-    console.log(`  · 样本 ${c.gameId}/${c.entry}（卡名 ${c.card}）：改名前 ${nameOf(g1)}｜reload 后 ${nameOf(afterReload)}｜地面真值 ${nameOf(truth)}`)
-    check('reloadIndex() 后攻略解析已按新图鉴索引重建（不等地面真值即旧代际泄漏）', nameOf(afterReload) === nameOf(truth))
-    check('还原索引补丁后该角色攻略恢复可查', Boolean(getCharacterGuide(c.gameId, c.entry)))
-    check('索引补丁已字节级还原', Buffer.compare(fs.readFileSync(PATCH_MAP_FILE), originalBytes) === 0)
-    discriminated = true
-    break
-  }
-  if (!discriminated) console.log('  ⚠ 没找到可判别样本（攻略卡名与图鉴条目名全等，反查路径未被使用）——本节未产生断言')
-}
 
 cleanup()
 console.log('\n清理：临时补丁已删除、新建目录已回收、索引已恢复')

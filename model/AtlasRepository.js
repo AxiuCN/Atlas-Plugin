@@ -22,7 +22,7 @@ const dataDir = path.join(backendRoot, 'data')
 /**
  * 记录缓存：相对路径 → { sig, record }（LRU，上限见 RECORD_CACHE_MAX）
  *
- * 一次查询会反复取同一条目（全文兜底的二次评分、详情页 + 兄弟形态、攻略页 hero 与图标），
+ * 一次查询会反复取同一条目（全文兜底的二次评分、详情页 + 兄弟形态），
  * 而 loadRecord 每次都要读盘 + JSON.parse；缓存按「路径 + 文件签名」判活，数据文件被替换即自愈。
  * 注意：缓存的是**套过补丁**的实例，补丁文件本身的改动仍需 reloadIndex() 才生效（与补丁缓存同口径）。
  * @type {Map<string, {sig: string, record: object}>}

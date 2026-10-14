@@ -20,7 +20,7 @@
 <summary>提交前可顺手确认</summary>
 
 - 配置或命令有变更时，已同步 `README.md`、`#图鉴帮助`、`config/config.yaml.example`
-- 渲染 / 模板类改动已跑 `codex-template` 与 `render-scale`
+- 渲染 / 模板类改动已跑 `render-scale`
 - 本 PR 只含本次改动文件（`test/.test-tmp/`、`CLAUDE.md`、`.dsh/` 等本地文件不入库）
 
 </details>
