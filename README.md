@@ -4,6 +4,8 @@ TRSS-Yunzai v3 多游戏图鉴查询插件，支持原神、星穹铁道、绝�
 
 > 角色攻略模块已迁移至独立插件 [Meta-Plugin](https://github.com/Hyposelenia-Moon/Meta-Plugin)。
 
+> 本插件同时承担**别名基础设施**角色：合并四层别名来源（miao-plugin / ZZZ-Plugin 预设、miao 自定义、Atlas 预设、Atlas 自定义）并以只读 API 开放，其它插件可按需接入 —— 见下文「别名基础设施（对外 API）」与 [别名接入文档](docs/别名接入文档.md)。
+
 ## 安装
 
 在 Yunzai 根目录执行：
@@ -87,6 +89,40 @@ pnpm install --filter=Atlas-Plugin
 - 首次安装即使未运行 `#图鉴初始化`，启动时也会自动拉取子模块
 - 同步失败不影响插件使用，下次启动自动重试
 - 仅同步代码，数据目录 `data/` 不受影响
+
+## 别名基础设施（对外 API）
+
+除了图鉴查询，本插件也向其它插件提供**别名基础设施**：把四层别名来源合并成一张表（共同维护、统一归一化），以只读门面 `modules/aliasApi.js` 开放。接入后不必再自己解析上游别名文件、各建一份表、各挂一套热更新。
+
+| 函数 | 用途 |
+|------|------|
+| `getAliasMap(gameId?)` | 取整表（只读，`gameId` = `gi` / `hsr` / `zzz`） |
+| `resolveAlias(name, gameId?)` | 名字 → 候选 `{ key, candidates, primary }` |
+| `expandKeyword(keyword, gameId?)` | 关键词 → 检索变体（原词 + 别名） |
+| `getAliasVersion()` | 表版本号，派生缓存据此失效 |
+| `getAliasStatus()` | 版本 / 键数 / 条目数 / 各游戏条目数 |
+
+```js
+// 动态 import + 降级：Atlas 是可选依赖，静态 import 会让未安装它的机器整插件加载失败
+let aliasApi = null
+try {
+  aliasApi = await import('../../Atlas-Plugin/modules/aliasApi.js')
+} catch {
+  logger?.warn('[YourPlugin] Atlas 别名门面不可用，使用本地兜底')
+}
+
+const hit = aliasApi?.resolveAlias(userInput, gameId)   // 未命中 / 不可用时 primary 为 null
+const target = hit?.primary || userInput
+```
+
+接入约定（完整版见 [docs/别名接入文档.md](docs/别名接入文档.md)）：
+
+1. **动态 import** 并保留降级路径；
+2. **传 `gameId`**，否则跨游戏同名别名会混在一起；
+3. **不要缓存副本** —— 需要长期派生数据时用 `getAliasVersion()` 判断失效；
+4. **不要挂自己的别名 watcher** —— Atlas 已在监听，同时挂会重复重建。
+
+已接入：ProfileImg-Plugin（面板图插件；门面优先 + 本地冻结兜底，见其 `docs/模块-别名.md`）。
 
 ## 配置
 
