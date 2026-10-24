@@ -52,6 +52,9 @@ export function selectTemplate (result) {
     if (result.specialType === 'page_detail') return 'challenge'
   }
 
+  // 强制列表（用于「一个角色多把专武」这类合成结果：条目是武器，但语义是列表而非首条详情）
+  if (result.forceList) return 'list'
+
   // 正常搜索：取第一条结果的 pageKey 判断
   const entry = result.results?.[0]
   if (!entry) {

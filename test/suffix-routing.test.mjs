@@ -33,6 +33,15 @@ async function run (gameId, keyword, expectConsume) {
   console.log(`  ${ok ? '✅' : '❌'} [${gameId}] #${keyword}  return=${ret} 期望=${expectConsume ? '消费' : '放行'}${replies[0] ? '  reply=' + String(replies[0]).slice(0, 30) : ''}`)
 }
 
+/** 断言「消费 + 回复文案包含某段文字」（用于专武未收录这类提示） */
+async function runReply (gameId, keyword, expectText) {
+  const replies = []
+  const e = { msg: `#${keyword}`, reply: async (m) => { replies.push(typeof m === 'string' ? m : '[segment]') } }
+  const ret = await handleQuery(e, gameId, keyword)
+  const text = replies.find(r => typeof r === 'string') || ''
+  check(`[${gameId}] #${keyword} 回复「${expectText}」`, ret !== false && text.includes(expectText), text.slice(0, 40) || '无文本回复')
+}
+
 console.log('=== A. 角色 + 套装类后缀：图鉴无该页 → 必须放行给 miao ===')
 await run('gi', '丝柯克圣遗物', false)
 await run('gi', '胡桃圣遗物', false)
@@ -121,6 +130,34 @@ for (const [alias, target] of [['风套', '翠绿之影'], ['冰套', '冰风迷
     : `非缓冲区：${typeof a === 'string' ? a : typeof a}`
   check(`#${alias} 与 #${target} 渲染同一页`, sameImage(a, b), detail)
 }
+
+console.log('\n=== I. 「专武」后缀：别名表登记 → 武器页；无数据要明说 ===')
+// 官方名 / 别名 / 全名 三种写法都要能落到武器页（组合解析，不再依赖逐条字符串）
+await run('gi', '胡桃专武', true)
+await run('gi', '雷神专武', true)
+await run('gi', '枫原万叶专武', true)
+await run('gi', '温迪专武', true)    // 多把 → 列表页
+await run('gi', '温迪新专武', true)  // 显式修饰 → 单条
+await run('hsr', '黄泉专武', true)   // 星铁 aliasCfg 已加载
+// 没有专武数据的角色：必须明确回复，不能静默落到角色页
+await runReply('gi', '香菱专武', '暂未收录')
+await runReply('gi', '阿罗夏专武', '暂未收录')
+await runReply('zzz', '雅专武', '暂未收录')
+// 认不出角色 → 放行给其它插件（与其它后缀的放行语义一致）
+await run('gi', '绝对不存在的名字专武', false)
+
+// 落点校验：只断言「消费」不够——`#枫原万叶专武` 若解析失败也会回「暂未收录」而照样消费。
+// 故与对应武器名渲染比对（同 H 节手法），多把时必须是列表页（与单把渲染不同）。
+check('#雷神专武 与 #薙草之稻光 渲染同一页',
+  sameImage(await renderOf('gi', '雷神专武'), await renderOf('gi', '薙草之稻光')))
+check('#枫原万叶专武 与 #苍古自由之誓 渲染同一页（全名经简称闭合）',
+  sameImage(await renderOf('gi', '枫原万叶专武'), await renderOf('gi', '苍古自由之誓')))
+check('#胡桃专武 与 #护摩之杖 渲染同一页',
+  sameImage(await renderOf('gi', '胡桃专武'), await renderOf('gi', '护摩之杖')))
+check('#温迪新专武 与 #黎明破晓之史 渲染同一页（显式修饰单条）',
+  sameImage(await renderOf('gi', '温迪新专武'), await renderOf('gi', '黎明破晓之史')))
+check('#温迪专武 是多把的列表页（与单把渲染不同）',
+  !sameImage(await renderOf('gi', '温迪专武'), await renderOf('gi', '终末嗟叹之诗')))
 
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

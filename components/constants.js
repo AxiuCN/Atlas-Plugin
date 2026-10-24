@@ -39,6 +39,8 @@ export const SHORTCUT_SUFFIXES = [
   '圣遗物', '遗器', '驱动盘',
   // 泛用套装后缀（按游戏映射到各自的套装页面类型，见 SET_PAGE_TYPE_BY_GAME）
   '套',
+  // 专武（`<角色>专武` / `<角色>新专武`：由别名表登记的专武归一成武器页，见 SIGNATURE_SUFFIX）
+  '专武',
   '资料', '描述', '故事', '语音',
   // 怪物页专有（变种个体的完整叫法与简称）
   '变种个体', '变种', '变体',
@@ -58,6 +60,10 @@ export const PAGE_TYPE_SUFFIXES = {
 // 故「套」不能像圣遗物/遗器/驱动盘那样写死在 PAGE_TYPE_SUFFIXES，需按当前游戏取页面类型
 // 行为与页面类型后缀一致：只剥离关键词并收敛结果，不改子视图
 export const SET_SUFFIX = '套'
+
+// 专武后缀（`<角色>专武` / `<角色>新专武`；与 AliasLoader 的 SIGNATURE_SUFFIX 同值，且必须登记在上面
+// 的 SHORTCUT_SUFFIXES 里，才能由 atlasShortcut 抢先于 miao 接管）
+export const SIGNATURE_SUFFIX = '专武'
 export const SET_PAGE_TYPE_BY_GAME = {
   gi: 'artifact',
   hsr: 'relicset',

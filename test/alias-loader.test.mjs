@@ -20,7 +20,10 @@ const {
   buildKeywordVariants,
   normalizeForMatch,
   normalizeKeyword,
-  initAliasWatcher
+  initAliasWatcher,
+  isSignatureKeyword,
+  signatureLabelMarker,
+  resolveSignatureWeapons
 } = await import(mod('model/AliasLoader.js'))
 const aliasApi = await import(mod('modules/aliasApi.js'))
 
@@ -271,6 +274,30 @@ check('forEach 第三参是视图本身（不是底层 Map）', forEachThird ===
 check('forEach 第三参写入被拒（抛 TypeError）', throwsTypeError(() => forEachThird.clear()))
 check('两种绕过尝试后快照内容仍完整',
   apiFull.size === loadAliasMap().size && apiFull.has(normalizeForMatch('火套')))
+
+/* ============================================================
+ *  I. 专武索引（「<角色>专武」→ 武器；支持别名、全名、多把、修饰词）
+ * ============================================================ */
+console.log('\n=== I. 专武解析 ===')
+check('isSignatureKeyword 识别后缀', isSignatureKeyword('胡桃专武') && isSignatureKeyword('温迪新专武') && !isSignatureKeyword('胡桃'))
+check('signatureLabelMarker 区分修饰词', signatureLabelMarker('温迪新专武') === '新' && signatureLabelMarker('胡桃专武') === '')
+
+const sigOf = (name, game) => resolveSignatureWeapons(name, game).map(item => `${item.weapon}(${item.label})`)
+check('官方名直查：胡桃 → 护摩之杖', sigOf('胡桃', 'gi').join() === '护摩之杖(专武)', sigOf('胡桃', 'gi').join())
+check('别名闭合：雷神 → 薙草之稻光（经雷电将军专武）', sigOf('雷神', 'gi').join() === '薙草之稻光(专武)', sigOf('雷神', 'gi').join())
+check('全名闭合：枫原万叶 → 苍古自由之誓（经万叶专武）', sigOf('枫原万叶', 'gi').join() === '苍古自由之誓(专武)', sigOf('枫原万叶', 'gi').join())
+check('多把专武：温迪 → 2 条且带修饰词',
+  sigOf('温迪', 'gi').join() === '终末嗟叹之诗(专武),黎明破晓之史(新专武)', sigOf('温迪', 'gi').join())
+check('未登记专武的角色返回空：阿罗夏', resolveSignatureWeapons('阿罗夏', 'gi').length === 0)
+check('星铁 aliasCfg 已加载：黄泉 → 行于流逝的岸', sigOf('黄泉', 'hsr').join() === '行于流逝的岸(专武)', sigOf('黄泉', 'hsr').join())
+check('按游戏过滤：胡桃 在 zzz 无结果', resolveSignatureWeapons('胡桃', 'zzz').length === 0)
+check('绝区零暂无专武登记：雅 → 空', resolveSignatureWeapons('雅', 'zzz').length === 0)
+check('空输入安全', resolveSignatureWeapons('', 'gi').length === 0 && resolveSignatureWeapons(undefined).length === 0)
+
+// 索引随 reload 重建
+const sigBefore = sigOf('雷神', 'gi').join()
+reloadAliasMap()
+check('reload 后专武索引仍可用', sigOf('雷神', 'gi').join() === sigBefore && sigBefore.length > 0, sigBefore)
 
 const resolved = aliasApi.resolveAlias('风套', 'gi')
 check('resolveAlias 命中别名（风套 → 翠绿之影）',

@@ -6,13 +6,13 @@
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
-import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME } from '../components/constants.js'
-import { loadAliasMap, normalizeForMatch } from '../model/AliasLoader.js'
+import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, SIGNATURE_SUFFIX } from '../components/constants.js'
+import { loadAliasMap, normalizeForMatch, isSignatureKeyword, signatureLabelMarker, resolveSignatureWeapons } from '../model/AliasLoader.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
-/** 子视图后缀列表（长→短，图鉴、页面类型与泛用套装后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
+/** 子视图后缀列表（长→短，图鉴、页面类型、泛用套装与专武后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
 const SUB_VIEW_SUFFIXES = SHORTCUT_SUFFIXES
-  .filter(s => s !== '图鉴' && s !== SET_SUFFIX && !PAGE_TYPE_SUFFIXES[s])
+  .filter(s => s !== '图鉴' && s !== SET_SUFFIX && s !== SIGNATURE_SUFFIX && !PAGE_TYPE_SUFFIXES[s])
   .sort((a, b) => b.length - a.length)
   .map(s => ({ suffix: s, subView: SUFFIX_TO_SUBVIEW[s] || 'materials' }))
 
@@ -54,6 +54,38 @@ function parseSubView (keyword, gameId) {
   }
   /** 剥离后缀得到检索词；原词本身已是别名时保留原词 */
   const cut = (suffix) => (isRawAlias() ? keyword : keyword.slice(0, -suffix.length).trim())
+
+  // 「<角色>专武」：数据源没有专武字段，只认别名表登记；这里归一成「角色 → 武器列表」。
+  // 先直查整串（保住 `万叶专武`、`温迪新专武` 这类逐条写法），再按角色名闭包拼「候选+专武」兜底。
+  if (isSignatureKeyword(keyword)) {
+    const gameMap = loadAliasMap(GAME_NAMES[gameId] ? gameId : undefined)
+    const direct = gameMap.get(normalizeForMatch(keyword)) || []
+    const marker = signatureLabelMarker(keyword)
+    const suffixLen = SIGNATURE_SUFFIX.length
+    if (marker) {
+      // 显式写了修饰词（如「新专武」）：只认这一条，不扩展到该角色的其它专武
+      const weapons = direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
+      const base = keyword.slice(0, -(marker.length + suffixLen))
+      return {
+        searchKeyword: weapons[0]?.weapon || keyword,
+        subView: null,
+        pageType: null,
+        signature: { state: weapons.length ? 'single' : 'miss', weapons, base }
+      }
+    }
+    const base = keyword.slice(0, -suffixLen)
+    const merged = direct.map(item => ({ weapon: item.value, label: SIGNATURE_SUFFIX }))
+    for (const hit of resolveSignatureWeapons(base, gameId)) {
+      if (!merged.some(item => item.weapon === hit.weapon && item.label === hit.label)) merged.push(hit)
+    }
+    if (merged.length === 0) {
+      return { searchKeyword: keyword, subView: null, pageType: null, signature: { state: 'miss', weapons: [], base } }
+    }
+    if (merged.length === 1) {
+      return { searchKeyword: merged[0].weapon, subView: null, pageType: null, signature: { state: 'single', weapons: merged, base } }
+    }
+    return { searchKeyword: base, subView: null, pageType: null, signature: { state: 'multi', weapons: merged, base } }
+  }
 
   for (const [suffix, pageType] of PAGE_TYPE_ENTRIES) {
     if (keyword.endsWith(suffix)) {
@@ -146,11 +178,40 @@ export async function handleQuery (e, gameId, keyword) {
   if (!keyword) return false
 
   try {
-    // ── 阶段 0：子视图 / 页面类型后缀检测 ──
-    const { searchKeyword, subView, pageType } = parseSubView(keyword, gameId)
+    // ── 阶段 0：子视图 / 页面类型 / 专武后缀检测 ──
+    const { searchKeyword, subView, pageType, signature } = parseSubView(keyword, gameId)
+
+    // 「<角色>专武」没登记过：能认出是角色就明说，否则放行给其它插件
+    if (signature?.state === 'miss') {
+      const top = search(gameId, signature.base || keyword)?.results?.[0]
+      if (top?.pageKey === 'character') {
+        await e.reply(`[Atlas] 暂未收录「${top.name}」的专武数据`)
+        return true
+      }
+      return false
+    }
 
     let result
-    if (subView) {
+    if (signature?.state === 'multi') {
+      // 一个角色多把专武（目前只有温迪：专武 / 新专武）→ 合成列表页
+      const entries = []
+      for (const sig of signature.weapons) {
+        const top = search(gameId, sig.weapon)?.results?.[0]
+        if (top?.pageKey === 'weapon' && !entries.some(entry => entry.filePath === top.filePath)) entries.push(top)
+      }
+      if (!entries.length) return false
+      result = {
+        type: 'list',
+        results: entries,
+        total: entries.length,
+        pageKey: 'weapon',
+        pageTitle: '武器',
+        keyword: signature.base,
+        forceList: true
+      }
+    } else if (signature?.state === 'single') {
+      result = search(gameId, signature.weapons[0].weapon)
+    } else if (subView) {
       // 带后缀 → 先按剥离后的关键词搜索
       result = search(gameId, searchKeyword)
       // 子视图只对角色生效；怪物页不做过滤（这些后缀仅用于把「#怪名掉落」这类查询导向怪物页），

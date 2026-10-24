@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
+import { SIGNATURE_SUFFIX } from '../components/constants.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -171,6 +172,9 @@ function buildAliasMap () {
   // ── 来源 D: config/alias 用户自定义（最高优先级） ──
   addAliasYamlDir(aliases, CUSTOM_ALIAS_DIR, SOURCE_CUSTOM)
 
+  // 专武索引随之重建（「<角色>专武」是逐条登记的别名，这里把它归一成「角色 → 武器列表」）
+  buildSignatureIndexes(aliases)
+
   ALIAS_CACHE.loaded = true
   ALIAS_CACHE.map = aliases
   aliasVersion++
@@ -242,10 +246,10 @@ function miaoAliasFiles () {
   for (const base of miaoPluginRoots()) {
     files.push(
       { path: path.join(base, 'resources', 'meta-gs', 'character', 'alias.js'), exports: ['alias'], game: '原神' },
-      { path: path.join(base, 'resources', 'meta-gs', 'weapon', 'alias.js'), exports: ['alias', 'abbr'], game: '原神' },
+      { path: path.join(base, 'resources', 'meta-gs', 'weapon', 'alias.js'), exports: ['alias', 'abbr', 'aliasCfg'], game: '原神' },
       { path: path.join(base, 'resources', 'meta-gs', 'artifact', 'alias.js'), exports: ['alias', 'setAbbr'], game: '原神' },
       { path: path.join(base, 'resources', 'meta-sr', 'character', 'alias.js'), exports: ['alias'], game: '星铁' },
-      { path: path.join(base, 'resources', 'meta-sr', 'weapon', 'alias.js'), exports: ['alias', 'abbr'], game: '星铁' },
+      { path: path.join(base, 'resources', 'meta-sr', 'weapon', 'alias.js'), exports: ['alias', 'abbr', 'aliasCfg'], game: '星铁' },
       { path: path.join(base, 'resources', 'meta-sr', 'artifact', 'alias.js'), exports: ['alias', 'setAbbr'], game: '星铁' }
     )
   }
@@ -586,6 +590,128 @@ export function buildKeywordVariants (keyword, aliases = new Map(), game = '') {
     key: normalizeForMatch(value),
     alias: value !== text
   }))
+}
+
+/* ============================================================
+ *  专武索引（「<角色>专武」→ 武器）
+ *
+ *  专武在数据源里没有字段，只有 miao 逐条登记的别名（`胡桃专武`、`雷电将军专武`、
+ *  `万叶专武`、`温迪新专武`…），写法在简称/全名之间不统一，且一个角色可能有多把
+ *  （目前只有温迪：`温迪专武` 旧、`温迪新专武` 新）。故这里做两件事：
+ *    1) 建索引：`<角色>` → [{ weapon, label, game }]，label 区分「专武」与「新专武」等修饰；
+ *    2) 查询时先直查整串（保住 `万叶专武`/`温迪新专武` 这类逐条写法），
+ *       再以角色名的 1-hop 双向闭包（官名 + 简称）拼 `候选专武` 兜底。
+ *  索引随别名表重建（`buildAliasMap()` 内调用），与 `reloadAliasMap()` 同步失效。
+ * ============================================================ */
+
+/** 「专武」后缀本体（与 components/constants.js 的 SIGNATURE_SUFFIX 同源） */
+
+/**
+ * 专武键的修饰词（出现在「专武」之前）
+ * 例：`温迪新专武` → base=温迪、label=新专武。将来出现新写法时在这里登记。
+ */
+const SIGNATURE_LABEL_MARKERS = ['新']
+
+/** 专武索引：normalize(base) → [{ weapon, label, game }] */
+let SIGNATURE_INDEX = new Map()
+
+/** 反向索引：normalize(值) → Set<归一化键>，用于「简称/别名 → 官名」的闭包 */
+let SIGNATURE_REVERSE = new Map()
+
+/**
+ * 重建专武索引与反向索引
+ * @param {Map<string, {value: string, game: string, source: number}[]>} aliases - 全量别名表
+ */
+function buildSignatureIndexes (aliases) {
+  const index = new Map()
+  const reverse = new Map()
+  for (const [key, list] of aliases) {
+    for (const item of list) {
+      const value = normalizeForMatch(item.value)
+      if (!value) continue
+      const keys = reverse.get(value) || new Set()
+      keys.add(key)
+      reverse.set(value, keys)
+    }
+    if (!key.endsWith(SIGNATURE_SUFFIX)) continue
+    let base = key.slice(0, -SIGNATURE_SUFFIX.length)
+    let label = SIGNATURE_SUFFIX
+    for (const marker of SIGNATURE_LABEL_MARKERS) {
+      if (base.length > marker.length && base.endsWith(marker)) {
+        base = base.slice(0, -marker.length)
+        label = marker + SIGNATURE_SUFFIX
+        break
+      }
+    }
+    if (!base) continue
+    const bucket = index.get(base) || []
+    for (const item of list) {
+      if (!item.value) continue
+      bucket.push({ weapon: item.value, label, game: item.game })
+    }
+    index.set(base, bucket)
+  }
+  SIGNATURE_INDEX = index
+  SIGNATURE_REVERSE = reverse
+}
+
+/**
+ * 该关键词是否以「专武」结尾（含 `新专武` 等修饰写法）
+ * @param {string} keyword - 已去前缀的关键词
+ * @returns {boolean}
+ */
+export function isSignatureKeyword (keyword) {
+  return String(keyword || '').trim().endsWith(SIGNATURE_SUFFIX)
+}
+
+/**
+ * 取关键词里的专武修饰词（无修饰返回空串）
+ * @param {string} keyword
+ * @returns {string} 如 `新`（对应 `新专武`）
+ */
+export function signatureLabelMarker (keyword) {
+  const text = String(keyword || '')
+  return SIGNATURE_LABEL_MARKERS.find(marker => text.endsWith(marker + SIGNATURE_SUFFIX)) || ''
+}
+
+/**
+ * 按角色名解析专武（逐条直查由调用方负责，这里只做「角色 → 武器」的组合解析）
+ *
+ * 角色名先做 1-hop 双向闭包（自身 + 别名值 + 以它为值的键），再对每个候选查
+ * `候选 + 专武` 索引。因此简称与全名可以互通：`雷神` → `雷电将军专武`、
+ * `枫原万叶` → `万叶专武`。
+ * @param {string} name - 角色名或角色别名（不含「专武」）
+ * @param {string} [gameId] - gi/hsr/zzz；缺省不按游戏过滤
+ * @returns {{weapon: string, label: string}[]} 去重后的专武列表（可能为空 / 多把）
+ */
+export function resolveSignatureWeapons (name, gameId) {
+  const key = normalizeForMatch(name)
+  if (!key) return []
+  if (!ALIAS_CACHE.loaded) {
+    buildAliasMap()
+    initAliasWatcher()
+  }
+  const gameName = GAME_CN[gameId] || ''
+
+  const bases = new Set([key])
+  for (const other of SIGNATURE_REVERSE.get(key) || []) bases.add(other)
+  for (const item of loadAliasMap(gameId || undefined).get(key) || []) {
+    const value = normalizeForMatch(item.value)
+    if (value) bases.add(value)
+  }
+
+  const found = []
+  const seen = new Set()
+  for (const base of bases) {
+    for (const entry of SIGNATURE_INDEX.get(base) || []) {
+      if (gameName && entry.game && entry.game !== gameName) continue
+      const id = `${entry.weapon}|${entry.label}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      found.push({ weapon: entry.weapon, label: entry.label })
+    }
+  }
+  return found
 }
 
 /* ============================================================
