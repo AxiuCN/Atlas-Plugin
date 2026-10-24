@@ -5,8 +5,9 @@
  * - `AliasLoader` 负责「从哪读、怎么合并、怎么归一化」；本文件只做**契约收口**：固定返回形状、
  *   永不抛错、文档化只读与缓存规则。新增消费者只依赖本文件，内部实现换数据源（文件 / 未来的 miao API）时它们不用改。
  * - **只读**：不暴露写入与重建（写入仍走 `apps/alias.js` + `model/CustomAlias.js`）。
- * - **不缓存副本**：返回的 Map 是 Atlas 自己的缓存实例，消费者视为 immutable；确需长期持有派生数据时，
- *   用它自己的缓存 + `getAliasVersion()` 比对失效（重建后版本必然变化）。
+ * - **快照而非内部表**：`getAliasMap()` 返回按版本缓存的只读快照（Map 副本 + 冻结的条目数组与条目对象），
+ *   消费方误改快照不会污染 Atlas，也不会改变 `resolveAlias()` / 搜索的结果；快照随 `getAliasVersion()` 重建。
+ *   确需长期持有派生数据时，用它自己的缓存 + `getAliasVersion()` 比对失效（重建后版本必然变化）。
  * - **永不抛错**：非法入参返回空结构；读取失败只 `logger.warn`，不中断调用方。
  *
  * 消费方注意：别名表是**双向注册**的（标准名 ↔ 别名互为键），表本身不记录方向，故 `resolveAlias()`
@@ -42,12 +43,57 @@ function safe (fn, fallback, label) {
 }
 
 /**
- * 取别名表（只读）
+ * 只读快照缓存：结构与 Atlas 内部表相同，但 Map 是副本、条目数组与条目对象都冻结
+ * 按别名表版本缓存（同版本内反复调用返回同一实例），`reloadAliasMap()` 后自动重建
+ * @type {{ version: number, full: Map|null, byGame: Map<string, Map> }}
+ */
+const SNAPSHOT = { version: -1, full: null, byGame: new Map() }
+
+/**
+ * 复制一张表并冻结条目（Map 是副本，误改不会回到 Atlas 内部）
+ * @param {Map} sourceMap - Atlas 内部表或其过滤视图
+ * @returns {Map<string, readonly {value: string, game: string, source: number}[]>}
+ */
+function freezeSnapshot (sourceMap) {
+  const copy = new Map()
+  for (const [key, list] of sourceMap) {
+    copy.set(key, Object.freeze(list.map(item =>
+      Object.freeze({ value: item.value, game: item.game, source: item.source }))))
+  }
+  return copy
+}
+
+/**
+ * 取当前版本的只读快照
+ * @param {string} [gameId] - 已校验的游戏 ID；缺省返回全量
+ * @returns {Map<string, readonly {value: string, game: string, source: number}[]>}
+ */
+function snapshotOf (gameId) {
+  const version = readAliasVersion()
+  if (SNAPSHOT.version !== version || !SNAPSHOT.full) {
+    SNAPSHOT.version = version
+    SNAPSHOT.full = freezeSnapshot(loadAliasMap())
+    SNAPSHOT.byGame = new Map()
+  }
+  if (!gameId) return SNAPSHOT.full
+  let one = SNAPSHOT.byGame.get(gameId)
+  if (!one) {
+    one = freezeSnapshot(loadAliasMap(gameId))
+    SNAPSHOT.byGame.set(gameId, one)
+  }
+  return one
+}
+
+/**
+ * 取别名表（只读快照，按版本缓存）
+ *
+ * 返回**副本**：消费方 `set/delete` 或改写条目都不会影响 Atlas 自身，也不会影响其它消费方经
+ * `resolveAlias()` / `expandKeyword()` 得到的结果（条目数组与条目对象已冻结）。
  * @param {string} [gameId] - gi/hsr/zzz；缺省或未知值返回全量
- * @returns {Map<string, {value: string, game: string, source: number}[]>} 键为归一化名；异常时返回空 Map
+ * @returns {Map<string, readonly {value: string, game: string, source: number}[]>} 键为归一化名；异常时返回空 Map
  */
 export function getAliasMap (gameId) {
-  return safe(() => loadAliasMap(GAME_NAMES[gameId] ? gameId : undefined), new Map(), 'getAliasMap')
+  return safe(() => snapshotOf(GAME_NAMES[gameId] ? gameId : undefined), new Map(), 'getAliasMap')
 }
 
 /**

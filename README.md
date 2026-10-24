@@ -96,7 +96,7 @@ pnpm install --filter=Atlas-Plugin
 
 | 函数 | 用途 |
 |------|------|
-| `getAliasMap(gameId?)` | 取整表（只读，`gameId` = `gi` / `hsr` / `zzz`） |
+| `getAliasMap(gameId?)` | 取整表的**只读快照**（Map 副本 + 冻结条目，按版本缓存；`gameId` = `gi` / `hsr` / `zzz`） |
 | `resolveAlias(name, gameId?)` | 名字 → 候选 `{ key, candidates, primary }` |
 | `expandKeyword(keyword, gameId?)` | 关键词 → 检索变体（原词 + 别名） |
 | `getAliasVersion()` | 表版本号，派生缓存据此失效 |

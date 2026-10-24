@@ -94,9 +94,13 @@ const crossEntry = [...fullMap.entries()].find(([, list]) =>
   new Set(list.map(item => item.game).filter(Boolean)).size > 1)
 if (crossEntry) {
   const [crossKey, crossList] = crossEntry
-  const foreignGames = [...new Set(crossList.map(item => item.game).filter(Boolean))]
+  const games = [...new Set(crossList.map(item => item.game).filter(Boolean))]
   const giOnly = (giMap.get(crossKey) || []).map(item => item.game).filter(Boolean)
-  check(`跨游戏键按 game 拆开（${crossKey}：${foreignGames.join('/')}）`, giOnly.every(g => g === '原神'), giOnly.join('/') || '无')
+  // 取样有效性：跨游戏键必须同时含原神与星铁，否则这条断言没有意义
+  check(`跨游戏取样有效（${crossKey}：${games.join('/')}）`, games.includes('原神') && games.includes('星铁'), games.join('/'))
+  // 不能只写 every：giOnly 为空时 every 恒真（空数组误通过）
+  check(`跨游戏键按 game 拆开（${crossKey}）`,
+    giOnly.length > 0 && giOnly.every(g => g === '原神'), giOnly.join('/') || '空')
 } else {
   console.log('  ⏭ 跳过跨游戏取样：当前表中没有同时挂两个游戏条目的键')
 }
@@ -132,31 +136,44 @@ check('不支持的关键词也安全', buildKeywordVariants('不存在的东西
 console.log('\n=== E. 覆盖语义 ===')
 const customGameDir = path.join(pluginRoot, 'config', 'alias', 'gi')
 const customFile = path.join(customGameDir, '_alias-loader-test.yaml')
-let customWritten = false
+/** 清理临时夹具（失败不影响断言结果，由后续「未残留」断言体现） */
+function cleanupCustomFixture () {
+  try {
+    if (fs.existsSync(customFile)) fs.rmSync(customFile, { force: true })
+    if (fs.existsSync(customGameDir) && fs.readdirSync(customGameDir).length === 0) fs.rmdirSync(customGameDir)
+    reloadAliasMap()
+  } catch {
+    // 忽略：清理失败由「未残留」断言兜底
+  }
+}
+
+// 只有「写不进去」才算环境缺失（跳过）；写入成功后，任何异常都属于覆盖语义没验证成功，必须转红
+let canWrite = true
 try {
   fs.mkdirSync(customGameDir, { recursive: true })
   // 自定义层（source 3）把「火套」改指甘雨，应整体替换预设层（source 2）的炽烈的炎之魔女
   fs.writeFileSync(customFile, '甘雨: 火套\n')
-  customWritten = true
-  reloadAliasMap()
-  const overridden = (loadAliasMap('gi').get(presetKey) || []).map(item => item.value)
-  check('高来源整体替换低来源', overridden.includes('甘雨') && !overridden.includes('炽烈的炎之魔女'), overridden.join('/'))
-
-  // 删掉自定义文件后重建 → 自动回退到预设层（删除后重建自动回退）
-  fs.rmSync(customFile, { force: true })
-  customWritten = false
-  reloadAliasMap()
-  const restored = (loadAliasMap('gi').get(presetKey) || []).map(item => item.value)
-  check('删除自定义后回退到预设层', restored.includes('炽烈的炎之魔女') && !restored.includes('甘雨'), restored.join('/'))
 } catch (err) {
-  console.log(`  ⏭ 跳过覆盖语义用例：${err.message}`)
-} finally {
+  canWrite = false
+  console.log(`  ⏭ 跳过覆盖语义用例（无法写入临时自定义 YAML）：${err.message}`)
+  cleanupCustomFixture()
+}
+
+if (canWrite) {
   try {
-    if (customWritten) fs.rmSync(customFile, { force: true })
-    if (fs.existsSync(customGameDir) && fs.readdirSync(customGameDir).length === 0) fs.rmdirSync(customGameDir)
     reloadAliasMap()
-  } catch {
-    // 清理失败不改变断言结果，由文件系统状态体现
+    const overridden = (loadAliasMap('gi').get(presetKey) || []).map(item => item.value)
+    check('高来源整体替换低来源', overridden.includes('甘雨') && !overridden.includes('炽烈的炎之魔女'), overridden.join('/'))
+
+    // 删掉自定义文件后重建 → 自动回退到预设层（删除后重建自动回退）
+    fs.rmSync(customFile, { force: true })
+    reloadAliasMap()
+    const restored = (loadAliasMap('gi').get(presetKey) || []).map(item => item.value)
+    check('删除自定义后回退到预设层', restored.includes('炽烈的炎之魔女') && !restored.includes('甘雨'), restored.join('/'))
+  } catch (err) {
+    check('覆盖语义用例执行未抛错', false, err.message)
+  } finally {
+    cleanupCustomFixture()
   }
 }
 check('清理后未残留临时自定义文件', !fs.existsSync(customFile))
@@ -209,10 +226,26 @@ console.log('\n=== H. 对外门面 contract ===')
 check('契约版本 = 1', aliasApi.ALIAS_API_VERSION === 1, String(aliasApi.ALIAS_API_VERSION))
 
 const apiFull = aliasApi.getAliasMap()
-check('getAliasMap() 复用 Atlas 缓存实例', apiFull === loadAliasMap())
+check('getAliasMap() 返回副本（不是内部表）', apiFull !== loadAliasMap() && apiFull.size === loadAliasMap().size)
+check('getAliasMap() 同版本内是稳定实例', aliasApi.getAliasMap() === apiFull)
 const apiGi = aliasApi.getAliasMap('gi')
-check('getAliasMap(gameId) 走过滤缓存', apiGi === loadAliasMap('gi'))
-check('getAliasMap 未知 gameId 退化为全量', aliasApi.getAliasMap('xx') === loadAliasMap())
+check('getAliasMap(gameId) 返回过滤快照（不是内部过滤表）', apiGi !== loadAliasMap('gi') && apiGi.size === loadAliasMap('gi').size)
+check('getAliasMap 未知 gameId 退化为全量快照', aliasApi.getAliasMap('xx') === apiFull)
+
+// 只读保护：改快照不能污染 Atlas（P1 回归）
+const snapshotKey = '不存在的污染键'
+apiFull.set(snapshotKey, [{ value: '污染', game: '原神', source: 3 }])
+check('快照 set 不影响 Atlas 内部表', !loadAliasMap().has(snapshotKey) && !aliasApi.resolveAlias(snapshotKey).primary)
+const snapshotList = [...apiFull.values()][0]
+let arrayFrozen = false
+try {
+  snapshotList.push({ value: '污染', game: '原神', source: 3 })
+} catch {
+  arrayFrozen = true
+}
+check('快照条目数组已冻结（push 抛错）', arrayFrozen && Object.isFrozen(snapshotList))
+check('快照条目对象已冻结', snapshotList.length > 0 && Object.isFrozen(snapshotList[0]))
+apiFull.delete(snapshotKey)
 
 const resolved = aliasApi.resolveAlias('风套', 'gi')
 check('resolveAlias 命中别名（风套 → 翠绿之影）',
