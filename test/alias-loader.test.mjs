@@ -1,11 +1,12 @@
 // 别名层回归（**数据无关**：不需要图鉴数据，只需要本仓库自带的 resources/alias + 可选的 miao/ZZZ 预设）
-//   钉住 model/AliasLoader.js 的对外语义，供后续内部改造（版本号 / 过滤缓存 / 归一化补全）当门禁：
-//     ① 归一化：normalizeForMatch 去空格/间隔号/括号/引号 + 小写；normalizeKeyword 去前缀与「图鉴」
-//     ② 表性质：键为归一化形态、条目带 {value,game,source}、Atlas 预设层生效
-//     ③ 按游戏过滤：只留本游戏与通用条目；全量表与过滤表不同引用
+//   钉住 model/AliasLoader.js 的对外语义（含版本号 / 过滤缓存 / 归一化补全后的行为）：
+//     ① 归一化：normalizeForMatch 去空格/六种间隔号/括号/引号 + 小写；normalizeKeyword 去前缀与「图鉴」
+//     ② 表性质：键为归一化形态且不含间隔号、条目带 {value,game,source}、Atlas 预设层生效
+//     ③ 按游戏过滤：只留本游戏与通用条目；全量表与过滤表不同引用；同 gameId 命中缓存
 //     ④ buildKeywordVariants 双向展开 + game 过滤 + 去重
 //     ⑤ 覆盖语义：高来源替换低来源（用临时自定义 YAML，跑完回退）
 //     ⑥ reload 契约：重建后 Map 换新；watcher 幂等
+//     ⑦ 版本号：reload 后 +1，过滤表随之失效、内容与缓存实例保持一致
 import fs from 'node:fs'
 import path from 'node:path'
 import { mod, pluginRoot, checker, installFrameworkStubs, logs } from './_helper.mjs'
@@ -15,6 +16,7 @@ installFrameworkStubs()
 const {
   loadAliasMap,
   reloadAliasMap,
+  getAliasVersion,
   buildKeywordVariants,
   normalizeForMatch,
   normalizeKeyword,
@@ -35,8 +37,10 @@ check('去间隔号 ·', normalizeForMatch('知更鸟·晴歌') === '知更鸟�
 check('去间隔号 ・', normalizeForMatch('知更鸟・晴歌') === '知更鸟晴歌', normalizeForMatch('知更鸟・晴歌'))
 check('去括号/引号/书名号', normalizeForMatch('「三月七」『(存护)』') === '三月七存护', normalizeForMatch('「三月七」『(存护)』'))
 check('空值安全', normalizeForMatch(undefined) === '' && normalizeForMatch(null) === '')
-// 已知缺口：项目符号 •(U+2022) 当前不被去掉（后续归一化补全时会改这条断言）
-check('当前不去 •(U+2022)（补全后本断言预期变更）', normalizeForMatch('知更鸟•晴歌') === '知更鸟•晴歌', normalizeForMatch('知更鸟•晴歌'))
+// 间隔号六种变体必须等价（`•` U+2022 是 miao 侧角色名的实际写法：丹恒•饮月 / 阮•梅）
+for (const sep of ['·', '・', '•', '‧', '⋅', '∙']) {
+  check(`间隔号 ${sep}(U+${sep.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}) 归一`, normalizeForMatch(`知更鸟${sep}晴歌`) === '知更鸟晴歌', normalizeForMatch(`知更鸟${sep}晴歌`))
+}
 check('normalizeKeyword 去 # 前缀', normalizeKeyword('#胡桃') === '胡桃')
 check('normalizeKeyword 去「图鉴」', normalizeKeyword('#图鉴胡桃') === '胡桃')
 check('normalizeKeyword 去 * 前缀', normalizeKeyword('*符玄') === '符玄')
@@ -60,6 +64,8 @@ const typoHits = (loadAliasMap('gi').get(typoKey) || []).map(item => item.value)
 check('预设层的错字修正：冰封迷途的勇士 → 冰风迷途的勇士', typoHits.includes('冰风迷途的勇士'), typoHits.join('/'))
 const keyIsNormalized = [...fullMap.keys()].every(key => normalizeForMatch(key) === key)
 check('所有键已是归一化形态（幂等）', keyIsNormalized)
+const separators = ['·', '・', '•', '‧', '⋅', '∙']
+check('键中不含任何间隔号（六种变体）', [...fullMap.keys()].every(key => !separators.some(s => key.includes(s))))
 
 const entryShapeOk = [...fullMap.values()].every(list => list.every(item =>
   typeof item.value === 'string' && item.value.length > 0 &&
@@ -78,6 +84,7 @@ console.log('\n=== C. 按游戏过滤 ===')
 const giMap = loadAliasMap('gi')
 const zzzMap = loadAliasMap('zzz')
 check('过滤表是新实例（非全量表引用）', giMap !== fullMap && zzzMap !== fullMap)
+check('同一 gameId 的过滤表命中缓存（同一实例）', loadAliasMap('gi') === giMap)
 check('原神过滤表只含原神/通用条目', [...giMap.values()].flat().every(item => !item.game || item.game === '原神'))
 check('绝区零过滤表只含绝区零/通用条目', [...zzzMap.values()].flat().every(item => !item.game || item.game === '绝区零'))
 
@@ -170,5 +177,28 @@ initAliasWatcher()
 const watcherAfter = logCount('别名热更新监听已启动')
 check('watcher 已随首次加载启动', watcherBefore >= 1, `${watcherBefore} 次`)
 check('watcher 幂等（重复调用不重复启动）', watcherAfter === watcherBefore, `${watcherBefore} → ${watcherAfter}`)
+
+/* ============================================================
+ *  G. 版本号与过滤缓存的一致性（② 新增能力）
+ * ============================================================ */
+console.log('\n=== G. 版本号与缓存一致性 ===')
+const versionBefore = getAliasVersion()
+check('版本号是正整数', Number.isInteger(versionBefore) && versionBefore > 0, String(versionBefore))
+
+const staleGi = loadAliasMap('gi')
+const versionStable = getAliasVersion()
+loadAliasMap('gi')
+check('读取过滤表不会触发重建（版本不变）', getAliasVersion() === versionStable, `${versionStable}`)
+
+reloadAliasMap()
+const versionAfter = getAliasVersion()
+check('reload 后版本号 +1', versionAfter === versionBefore + 1, `${versionBefore} → ${versionAfter}`)
+
+const freshGi = loadAliasMap('gi')
+check('reload 后过滤表不复用旧缓存', freshGi !== staleGi && freshGi.size > 0, `${staleGi.size} → ${freshGi.size}`)
+check('reload 后过滤表内容仍正确（Atlas 预设层在）',
+  (freshGi.get(normalizeForMatch('火套')) || []).some(item => item.value === '炽烈的炎之魔女'))
+check('重建后同 gameId 仍命中稳定实例', loadAliasMap('gi') === freshGi)
+check('全量表与过滤表版本同源（无独立计数）', getAliasVersion() === versionAfter)
 
 finish()

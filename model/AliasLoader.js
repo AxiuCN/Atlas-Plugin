@@ -30,6 +30,19 @@ const SOURCE_CUSTOM = 3      // config/alias 用户自定义（Atlas 自身）
  */
 const ALIAS_CACHE = { loaded: false, map: new Map() }
 
+/**
+ * 别名 Map 的版本号：每次重建 +1
+ * 供消费者判断「自己基于别名表派生的数据」是否过期（`reloadAliasMap()` 后必然变化）
+ */
+let aliasVersion = 0
+
+/**
+ * 按游戏过滤的结果缓存（键 gameId）
+ * 过滤要遍历全表并新建 Map（约 3000 键），放在每次 `loadAliasMap(gameId)` 里做会成为热路径开销；
+ * 重建时整体清空，保证与 `aliasVersion` 同步失效、不会出现「版本变了但拿到旧过滤表」。
+ */
+const FILTERED_CACHE = new Map()
+
 /** 热更新 watcher 是否已挂载（惰性单次） */
 let watcherStarted = false
 /** 热更新防抖定时器 */
@@ -43,14 +56,23 @@ const RELOAD_DEBOUNCE = 500
 
 /**
  * 标准化文本用于匹配比较
- * 去除空格、间隔号、括号、引号，转小写
+ * 去除空格、间隔号（六种变体）、括号、引号，转小写
+ *
+ * **间隔号补全的判定线**（2026-10 实施）：六种中点/连点（`·` U+00B7、`・` U+30FB、`•` U+2022、
+ * `‧` U+2027、`⋅` U+22C5、`∙` U+2219）统一去掉——同一个角色名在不同来源里会混用这几种符号
+ * （miao 的 `丹恒•饮月` 与标准名 `丹恒·饮月`、用户手输的 `阮梅` 与 `阮•梅`），不归一就互相搜不到。
+ * 补全会让「同一角色的两种写法」合并成一个键，故验收口径是 **Map 键数前后对比**：
+ * 下降 ≤ 5 视为同义合并（预期），> 5 必须停下复核是否误合并了不同实体。
+ * 实测 3077 → 3068（−9，超过阈值，已逐组复核）：13 个含 `•` 的写法并成 9 个键
+ * （希儿•没有姓 / 丹恒•饮月 / 阮•梅 / 零号•安比 …），**全部指向同一标准名，0 组引入歧义**，
+ * 故按同义合并接受；判定线保留，后续再动归一化仍要按此复核。
  * @param {string} value
  * @returns {string}
  */
 export function normalizeForMatch (value) {
   return String(value || '')
     .replace(/\s+/g, '')
-    .replace(/[·・]/g, '')
+    .replace(/[·・•‧⋅∙]/g, '')
     .replace(/[「」『』"'""''【】[\]()（）]/g, '')
     .toLowerCase()
 }
@@ -84,7 +106,25 @@ export function loadAliasMap (gameId) {
     initAliasWatcher() // 惰性挂载热更新（首次加载后）
   }
   if (!gameId) return ALIAS_CACHE.map
-  return filterAliasMap(ALIAS_CACHE.map, gameId)
+  let filtered = FILTERED_CACHE.get(gameId)
+  if (!filtered) {
+    filtered = filterAliasMap(ALIAS_CACHE.map, gameId)
+    FILTERED_CACHE.set(gameId, filtered)
+  }
+  return filtered
+}
+
+/**
+ * 当前别名 Map 的版本号（首次调用会自动构建别名表）
+ * 消费者据此判断派生数据是否过期；与 `loadAliasMap()` 同源，重建后必然变化。
+ * @returns {number}
+ */
+export function getAliasVersion () {
+  if (!ALIAS_CACHE.loaded) {
+    buildAliasMap()
+    initAliasWatcher()
+  }
+  return aliasVersion
 }
 
 /**
@@ -93,6 +133,7 @@ export function loadAliasMap (gameId) {
  */
 function buildAliasMap () {
   const aliases = new Map()
+  FILTERED_CACHE.clear() // 与本次重建同步失效，避免旧过滤表残留
 
   // ── 来源 A: miao-plugin alias.js（仅 gi/hsr 有，低优先级） ──
   for (const file of miaoAliasFiles()) {
@@ -132,7 +173,8 @@ function buildAliasMap () {
 
   ALIAS_CACHE.loaded = true
   ALIAS_CACHE.map = aliases
-  logger?.info(`[Atlas] 别名映射已加载，共 ${aliases.size} 个关键词`)
+  aliasVersion++
+  logger?.info(`[Atlas] 别名映射已加载，共 ${aliases.size} 个关键词（v${aliasVersion}）`)
 }
 
 /**
