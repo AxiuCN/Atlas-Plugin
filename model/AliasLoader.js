@@ -678,13 +678,14 @@ export function signatureLabelMarker (keyword) {
  * 按角色名解析专武（逐条直查由调用方负责，这里只做「角色 → 武器」的组合解析）
  *
  * 角色名先做 1-hop 双向闭包（自身 + 别名值 + 以它为值的键），再对每个候选查
- * `候选 + 专武` 索引。因此简称与全名可以互通：`雷神` → `雷电将军专武`、
- * `枫原万叶` → `万叶专武`。
+ * `候选 + (修饰)专武` 索引。因此简称与全名可以互通：`雷神` → `雷电将军专武`、
+ * `枫原万叶` → `万叶专武`；传 `marker='新'` 时只取 `新专武` 那一条（`风神` → `黎明破晓之史`）。
  * @param {string} name - 角色名或角色别名（不含「专武」）
  * @param {string} [gameId] - gi/hsr/zzz；缺省不按游戏过滤
+ * @param {string} [marker] - 修饰词（如 `新`），只返回该修饰的专武
  * @returns {{weapon: string, label: string}[]} 去重后的专武列表（可能为空 / 多把）
  */
-export function resolveSignatureWeapons (name, gameId) {
+export function resolveSignatureWeapons (name, gameId, marker = '') {
   const key = normalizeForMatch(name)
   if (!key) return []
   if (!ALIAS_CACHE.loaded) {
@@ -692,6 +693,7 @@ export function resolveSignatureWeapons (name, gameId) {
     initAliasWatcher()
   }
   const gameName = GAME_CN[gameId] || ''
+  const wantLabel = marker ? marker + SIGNATURE_SUFFIX : ''
 
   const bases = new Set([key])
   for (const other of SIGNATURE_REVERSE.get(key) || []) bases.add(other)
@@ -705,6 +707,7 @@ export function resolveSignatureWeapons (name, gameId) {
   for (const base of bases) {
     for (const entry of SIGNATURE_INDEX.get(base) || []) {
       if (gameName && entry.game && entry.game !== gameName) continue
+      if (wantLabel && entry.label !== wantLabel) continue
       const id = `${entry.weapon}|${entry.label}`
       if (seen.has(id)) continue
       seen.add(id)

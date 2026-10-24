@@ -55,17 +55,22 @@ function parseSubView (keyword, gameId) {
   /** 剥离后缀得到检索词；原词本身已是别名时保留原词 */
   const cut = (suffix) => (isRawAlias() ? keyword : keyword.slice(0, -suffix.length).trim())
 
-  // 「<角色>专武」：数据源没有专武字段，只认别名表登记；这里归一成「角色 → 武器列表」。
-  // 先直查整串（保住 `万叶专武`、`温迪新专武` 这类逐条写法），再按角色名闭包拼「候选+专武」兜底。
+  // 「<角色>专武」：数据源没有专武字段，只认别名表登记；这里归一成「角色 → 武器」。
+  // 先直查整串（保住 `万叶专武`、`温迪新专武` 这类逐条写法），再按角色名闭包拼「候选+(修饰)专武」兜底。
+  // 单条优先：同一角色有多把时（温迪：专武=终末 / 新专武=黎明），`#X专武` 取不带修饰的那把，
+  // 要新的必须显式写 `#X新专武`——不把多把合成列表（用户实测列表页不符合预期）。
   if (isSignatureKeyword(keyword)) {
     const gameMap = loadAliasMap(GAME_NAMES[gameId] ? gameId : undefined)
     const direct = gameMap.get(normalizeForMatch(keyword)) || []
     const marker = signatureLabelMarker(keyword)
     const suffixLen = SIGNATURE_SUFFIX.length
     if (marker) {
-      // 显式写了修饰词（如「新专武」）：只认这一条，不扩展到该角色的其它专武
-      const weapons = direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
+      // 显式写了修饰词（如「新专武」）：直查整串，未命中再按角色闭包找该修饰的专武
+      // （例：`#风神新专武` → 风神 → 温迪 → 温迪新专武 → 黎明破晓之史）
       const base = keyword.slice(0, -(marker.length + suffixLen))
+      const weapons = direct.length
+        ? direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
+        : resolveSignatureWeapons(base, gameId, marker)
       return {
         searchKeyword: weapons[0]?.weapon || keyword,
         subView: null,
@@ -81,10 +86,9 @@ function parseSubView (keyword, gameId) {
     if (merged.length === 0) {
       return { searchKeyword: keyword, subView: null, pageType: null, signature: { state: 'miss', weapons: [], base } }
     }
-    if (merged.length === 1) {
-      return { searchKeyword: merged[0].weapon, subView: null, pageType: null, signature: { state: 'single', weapons: merged, base } }
-    }
-    return { searchKeyword: base, subView: null, pageType: null, signature: { state: 'multi', weapons: merged, base } }
+    // 多条时优先「专武」那条（无修饰），其余作为「另有」信息丢弃渲染、不影响落点
+    const preferred = merged.find(item => item.label === SIGNATURE_SUFFIX) || merged[0]
+    return { searchKeyword: preferred.weapon, subView: null, pageType: null, signature: { state: 'single', weapons: [preferred], others: merged.filter(item => item !== preferred), base } }
   }
 
   for (const [suffix, pageType] of PAGE_TYPE_ENTRIES) {
@@ -192,24 +196,7 @@ export async function handleQuery (e, gameId, keyword) {
     }
 
     let result
-    if (signature?.state === 'multi') {
-      // 一个角色多把专武（目前只有温迪：专武 / 新专武）→ 合成列表页
-      const entries = []
-      for (const sig of signature.weapons) {
-        const top = search(gameId, sig.weapon)?.results?.[0]
-        if (top?.pageKey === 'weapon' && !entries.some(entry => entry.filePath === top.filePath)) entries.push(top)
-      }
-      if (!entries.length) return false
-      result = {
-        type: 'list',
-        results: entries,
-        total: entries.length,
-        pageKey: 'weapon',
-        pageTitle: '武器',
-        keyword: signature.base,
-        forceList: true
-      }
-    } else if (signature?.state === 'single') {
+    if (signature?.state === 'single') {
       result = search(gameId, signature.weapons[0].weapon)
     } else if (subView) {
       // 带后缀 → 先按剥离后的关键词搜索

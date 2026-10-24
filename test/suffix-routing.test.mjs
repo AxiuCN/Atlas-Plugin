@@ -147,7 +147,7 @@ await runReply('zzz', '雅专武', '暂未收录')
 await run('gi', '绝对不存在的名字专武', false)
 
 // 落点校验：只断言「消费」不够——`#枫原万叶专武` 若解析失败也会回「暂未收录」而照样消费。
-// 故与对应武器名渲染比对（同 H 节手法），多把时必须是列表页（与单把渲染不同）。
+// 故与对应武器名渲染比对（同 H 节手法）。
 check('#雷神专武 与 #薙草之稻光 渲染同一页',
   sameImage(await renderOf('gi', '雷神专武'), await renderOf('gi', '薙草之稻光')))
 check('#枫原万叶专武 与 #苍古自由之誓 渲染同一页（全名经简称闭合）',
@@ -156,8 +156,14 @@ check('#胡桃专武 与 #护摩之杖 渲染同一页',
   sameImage(await renderOf('gi', '胡桃专武'), await renderOf('gi', '护摩之杖')))
 check('#温迪新专武 与 #黎明破晓之史 渲染同一页（显式修饰单条）',
   sameImage(await renderOf('gi', '温迪新专武'), await renderOf('gi', '黎明破晓之史')))
-check('#温迪专武 是多把的列表页（与单把渲染不同）',
-  !sameImage(await renderOf('gi', '温迪专武'), await renderOf('gi', '终末嗟叹之诗')))
+// 多把专武：`#X专武` 落在不带修饰的那把（单条），不是列表页
+check('#温迪专武 与 #终末嗟叹之诗 渲染同一页（多把时取无修饰那条）',
+  sameImage(await renderOf('gi', '温迪专武'), await renderOf('gi', '终末嗟叹之诗')))
+// 别名 + 修饰词：必须经闭包落到「新专武」，而不是回「暂未收录」
+check('#风神专武 与 #终末嗟叹之诗 渲染同一页（别名）',
+  sameImage(await renderOf('gi', '风神专武'), await renderOf('gi', '终末嗟叹之诗')))
+check('#风神新专武 与 #黎明破晓之史 渲染同一页（别名 + 修饰词）',
+  sameImage(await renderOf('gi', '风神新专武'), await renderOf('gi', '黎明破晓之史')))
 
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

@@ -289,6 +289,13 @@ check('全名闭合：枫原万叶 → 苍古自由之誓（经万叶专武）',
 check('多把专武：温迪 → 2 条且带修饰词',
   sigOf('温迪', 'gi').join() === '终末嗟叹之诗(专武),黎明破晓之史(新专武)', sigOf('温迪', 'gi').join())
 check('未登记专武的角色返回空：阿罗夏', resolveSignatureWeapons('阿罗夏', 'gi').length === 0)
+check('修饰词过滤：温迪新专武 → 只有黎明破晓之史',
+  resolveSignatureWeapons('温迪', 'gi', '新').map(x => x.weapon).join() === '黎明破晓之史', JSON.stringify(resolveSignatureWeapons('温迪', 'gi', '新')))
+check('别名 + 修饰词：风神新专武 → 黎明破晓之史',
+  resolveSignatureWeapons('风神', 'gi', '新').map(x => x.weapon).join() === '黎明破晓之史', JSON.stringify(resolveSignatureWeapons('风神', 'gi', '新')))
+check('别名（无修饰）：风神 → 终末嗟叹之诗 + 黎明破晓之史',
+  resolveSignatureWeapons('风神', 'gi').map(x => x.label).join() === '专武,新专武', JSON.stringify(resolveSignatureWeapons('风神', 'gi')))
+check('修饰词无对应条目时返回空', resolveSignatureWeapons('胡桃', 'gi', '新').length === 0)
 check('星铁 aliasCfg 已加载：黄泉 → 行于流逝的岸', sigOf('黄泉', 'hsr').join() === '行于流逝的岸(专武)', sigOf('黄泉', 'hsr').join())
 check('按游戏过滤：胡桃 在 zzz 无结果', resolveSignatureWeapons('胡桃', 'zzz').length === 0)
 check('绝区零暂无专武登记：雅 → 空', resolveSignatureWeapons('雅', 'zzz').length === 0)
