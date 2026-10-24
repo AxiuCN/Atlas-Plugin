@@ -9,6 +9,7 @@
  *   （如渲染缩放用例改 config.yaml）必须按原字节还原
  */
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -53,10 +54,45 @@ export function hasAtlasData () {
   return fs.existsSync(path.join(dataDir, 'map.json'))
 }
 
+/**
+ * puppeteer 缓存里的 Chrome for Testing（`npx puppeteer browsers install chrome` 的产物）
+ * 目录形态：`<cache>/chrome/<platform>-<version>/chrome-<platform>/chrome(.exe)`
+ * 版本目录按名字逆序，优先选新版本。系统浏览器（Edge）在少数版本上启动即退，故优先于系统路径。
+ * @returns {string[]} 存在可执行文件的绝对路径（新版本在前）
+ */
+function chromeForTestingCandidates () {
+  const exeName = process.platform === 'win32' ? 'chrome.exe' : 'chrome'
+  const bases = [
+    path.join(os.homedir(), '.cache', 'puppeteer', 'chrome'),
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'puppeteer', 'chrome') : ''
+  ].filter(Boolean)
+  const found = []
+  for (const base of bases) {
+    let versions = []
+    try {
+      versions = fs.readdirSync(base).sort().reverse()
+    } catch {
+      continue // 缓存目录不存在 → 跳过
+    }
+    for (const version of versions) {
+      for (const sub of ['chrome-win64', 'chrome-win', 'chrome-linux64', 'chrome-linux', 'chrome-mac-x64']) {
+        const exe = path.join(base, version, sub, exeName)
+        try {
+          if (fs.existsSync(exe)) found.push(exe)
+        } catch {
+          // 单个路径不可读 → 跳过
+        }
+      }
+    }
+  }
+  return found
+}
+
 /** 找一个可用浏览器（框架渲染后端通过 chromiumPath 指定）：返回路径或空串 */
 export function findBrowser () {
   const candidates = [
     process.env.ATLAS_TEST_BROWSER,
+    ...chromeForTestingCandidates(),
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
     '/usr/bin/chromium',
