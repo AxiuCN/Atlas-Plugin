@@ -8,7 +8,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
-- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 16 套件
+- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 17 套件
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
 - **数据准备**：`#图鉴初始化`（拉子模块 → 装依赖 → 全量抓取，后台异步）；只想抓 JSON 见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
 
@@ -37,6 +37,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 | 搜索评分与索引、进程内缓存契约、角色页口径、技能参数表、素材口径与排序 | [`docs/数据-搜索与角色.md`](docs/数据-搜索与角色.md) |
 | 武器 / 圣遗物 / 怪物 / 邦布 四类页面的数据口径 | [`docs/数据-装备与敌人.md`](docs/数据-装备与敌人.md) |
 | 本地补丁层、别名系统、版本更新记录 | [`docs/数据-路由补丁与别名.md`](docs/数据-路由补丁与别名.md) |
+| 别名对外门面（`modules/aliasApi.js`）与 ProfileImg 接入交接 | [`docs/别名-ProfileImg交接.md`](docs/别名-ProfileImg交接.md) |
 | 回归套件的命令、前置、规范 | [`docs/测试.md`](docs/测试.md) |
 | 套件清单与逐套覆盖 | [`test/AGENTS.md`](test/AGENTS.md)（进入 `test/` 时自动加载）、[`test/README.md`](test/README.md) |
 | 待办、ATLAS 审计登记、长期观察项 | [`docs/待办与规划.md`](docs/待办与规划.md) |
@@ -70,7 +71,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 ## 测试
 
-回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **16 套件**。
+回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **17 套件**。
 
 ```bash
 cd plugins/Atlas-Plugin

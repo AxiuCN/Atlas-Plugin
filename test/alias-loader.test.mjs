@@ -22,6 +22,7 @@ const {
   normalizeKeyword,
   initAliasWatcher
 } = await import(mod('model/AliasLoader.js'))
+const aliasApi = await import(mod('modules/aliasApi.js'))
 
 const { check, finish } = checker()
 
@@ -200,5 +201,49 @@ check('reload 后过滤表内容仍正确（Atlas 预设层在）',
   (freshGi.get(normalizeForMatch('火套')) || []).some(item => item.value === '炽烈的炎之魔女'))
 check('重建后同 gameId 仍命中稳定实例', loadAliasMap('gi') === freshGi)
 check('全量表与过滤表版本同源（无独立计数）', getAliasVersion() === versionAfter)
+
+/* ============================================================
+ *  H. 对外门面 modules/aliasApi.js（③）
+ * ============================================================ */
+console.log('\n=== H. 对外门面 contract ===')
+check('契约版本 = 1', aliasApi.ALIAS_API_VERSION === 1, String(aliasApi.ALIAS_API_VERSION))
+
+const apiFull = aliasApi.getAliasMap()
+check('getAliasMap() 复用 Atlas 缓存实例', apiFull === loadAliasMap())
+const apiGi = aliasApi.getAliasMap('gi')
+check('getAliasMap(gameId) 走过滤缓存', apiGi === loadAliasMap('gi'))
+check('getAliasMap 未知 gameId 退化为全量', aliasApi.getAliasMap('xx') === loadAliasMap())
+
+const resolved = aliasApi.resolveAlias('风套', 'gi')
+check('resolveAlias 命中别名（风套 → 翠绿之影）',
+  resolved.key === '风套' && resolved.candidates.includes('翠绿之影') && resolved.primary === '翠绿之影',
+  JSON.stringify(resolved.candidates))
+const dotMixed = aliasApi.resolveAlias('知更鸟·晴歌', 'hsr')
+check('resolveAlias 对 •/· 混写生效（知更鸟·晴歌 命中）',
+  dotMixed.candidates.length > 0, JSON.stringify(dotMixed.candidates))
+check('resolveAlias 未命中返回空结构',
+  JSON.stringify(aliasApi.resolveAlias('绝对不存在的名字')) === JSON.stringify({ key: '绝对不存在的名字', candidates: [], primary: null }))
+const emptyCases = [undefined, null, '', '   '].map(v => aliasApi.resolveAlias(v))
+check('resolveAlias 空/缺失入参返回空结构', emptyCases.every(r => r.primary === null && r.candidates.length === 0))
+// 数字入参不抛错；若恰好是合法别名（表里存在 "123" → 伊安珊）则正常返回
+const numeric = aliasApi.resolveAlias(123)
+check('resolveAlias 数字入参不抛错且形状合法', typeof numeric.key === 'string' && Array.isArray(numeric.candidates))
+
+const expanded = aliasApi.expandKeyword('风套', 'gi')
+check('expandKeyword 展开原词与别名',
+  expanded.some(v => v.raw === '风套') && expanded.some(v => v.raw === '翠绿之影'))
+const emptyExpand = aliasApi.expandKeyword('', 'gi')
+check('expandKeyword 空输入返回单元素兜底', Array.isArray(emptyExpand) && emptyExpand.length === 1)
+
+check('门面版本号与 Atlas 一致', aliasApi.getAliasVersion() === getAliasVersion(), `${aliasApi.getAliasVersion()}`)
+const status = aliasApi.getAliasStatus()
+check('getAliasStatus 形状完整',
+  Number.isInteger(status.version) && status.keys > 0 && status.entries >= status.keys &&
+  ['gi', 'hsr', 'zzz'].every(g => Number.isInteger(status.games[g])),
+  `v${status.version} / ${status.keys} 键 / ${status.entries} 条目`)
+
+const versionBeforeCalls = aliasApi.getAliasVersion()
+aliasApi.getAliasMap('gi'); aliasApi.resolveAlias('风套', 'gi'); aliasApi.expandKeyword('风套', 'gi'); aliasApi.getAliasStatus()
+check('门面调用不触发重建（版本不变）', aliasApi.getAliasVersion() === versionBeforeCalls, `${versionBeforeCalls}`)
 
 finish()

@@ -28,6 +28,7 @@
 
 | 套件 | 覆盖 | 前置 |
 |------|------|------|
+| `alias-loader.test.mjs` | 别名层（**数据无关**）：`normalizeForMatch` 六种间隔号归一、键幂等、`{value,game,source}` 形状、按游戏过滤与过滤缓存、`buildKeywordVariants` 双向展开、高来源覆盖低来源（临时自定义 YAML 后回退）、reload 换新与 watcher 幂等、`aliasVersion` 与缓存失效一致性、对外门面 `modules/aliasApi.js` 的返回形状与「永不抛错」 | 无（只读文件） |
 | `variant-family.test.mjs` | 形态族（旅行者/奇偶/开拓者/三月七）、同名折叠、重名条目 id 别名合并、`resolveEntryPageKey` | 图鉴数据 |
 | `suffix-routing.test.mjs` | 子视图 / 页面类型 / 泛用「套」后缀的消费与放行（35 例，含 miao 面板换装放行） | 图鉴数据 |
 | `style-scope.test.mjs` | 样式归属：页面 CSS 不得定义共享词汇、页面 CSS 只被同前缀模板引用、模板 link 与 CSS `url()` 的资源必须存在 | 无（只读文件） |
