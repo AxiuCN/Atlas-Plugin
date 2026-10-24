@@ -143,6 +143,10 @@ await run('hsr', '黄泉专武', true)   // 星铁 aliasCfg 已加载
 await runReply('gi', '香菱专武', '暂未收录')
 await runReply('gi', '阿罗夏专武', '暂未收录')
 await runReply('zzz', '雅专武', '暂未收录')
+// 有专武、只是没有该修饰的专武（钟离有贯虹之槊，但没有新专武）——不能笼统说「暂未收录」
+await runReply('gi', '钟离新专武', '没有新专武')
+await runReply('gi', '钟离新专武', '贯虹之槊')
+await runReply('gi', '香菱新专武', '暂未收录')
 // 认不出角色 → 放行给其它插件（与其它后缀的放行语义一致）
 await run('gi', '绝对不存在的名字专武', false)
 

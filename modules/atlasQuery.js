@@ -68,14 +68,23 @@ function parseSubView (keyword, gameId) {
       // 显式写了修饰词（如「新专武」）：直查整串，未命中再按角色闭包找该修饰的专武
       // （例：`#风神新专武` → 风神 → 温迪 → 温迪新专武 → 黎明破晓之史）
       const base = keyword.slice(0, -(marker.length + suffixLen))
-      const weapons = direct.length
-        ? direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
-        : resolveSignatureWeapons(base, gameId, marker)
+      const directWeapons = direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
+      const weapons = directWeapons.length ? directWeapons : resolveSignatureWeapons(base, gameId, marker)
+      if (!weapons.length) {
+        // 区分「没有这个修饰的专武」与「根本没有专武数据」——前者要给出现有专武，不能笼统说未收录
+        const available = resolveSignatureWeapons(base, gameId)
+        return {
+          searchKeyword: keyword,
+          subView: null,
+          pageType: null,
+          signature: { state: 'miss', weapons: [], base, marker, available, reason: available.length ? 'no-marker' : 'none' }
+        }
+      }
       return {
-        searchKeyword: weapons[0]?.weapon || keyword,
+        searchKeyword: weapons[0].weapon,
         subView: null,
         pageType: null,
-        signature: { state: weapons.length ? 'single' : 'miss', weapons, base }
+        signature: { state: 'single', weapons, base }
       }
     }
     const base = keyword.slice(0, -suffixLen)
@@ -189,7 +198,15 @@ export async function handleQuery (e, gameId, keyword) {
     if (signature?.state === 'miss') {
       const top = search(gameId, signature.base || keyword)?.results?.[0]
       if (top?.pageKey === 'character') {
-        await e.reply(`[Atlas] 暂未收录「${top.name}」的专武数据`)
+        if (signature.reason === 'no-marker' && signature.available?.length) {
+          // 只是没有这个修饰的专武（如钟离没有新专武），但角色本身有专武 —— 必须给出现有专武
+          const list = signature.available
+            .map(item => item.label === SIGNATURE_SUFFIX ? `「${item.weapon}」` : `「${item.weapon}」（${item.label}）`)
+            .join('、')
+          await e.reply(`[Atlas]「${top.name}」没有${signature.marker}专武；目前收录的专武是${list}`)
+        } else {
+          await e.reply(`[Atlas] 暂未收录「${top.name}」的专武数据`)
+        }
         return true
       }
       return false
