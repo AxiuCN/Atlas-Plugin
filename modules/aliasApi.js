@@ -5,9 +5,9 @@
  * - `AliasLoader` 负责「从哪读、怎么合并、怎么归一化」；本文件只做**契约收口**：固定返回形状、
  *   永不抛错、文档化只读与缓存规则。新增消费者只依赖本文件，内部实现换数据源（文件 / 未来的 miao API）时它们不用改。
  * - **只读**：不暴露写入与重建（写入仍走 `apps/alias.js` + `model/CustomAlias.js`）。
- * - **快照而非内部表**：`getAliasMap()` 返回按版本缓存的只读快照（Map 副本 + 冻结的条目数组与条目对象），
- *   消费方误改快照不会污染 Atlas，也不会改变 `resolveAlias()` / 搜索的结果；快照随 `getAliasVersion()` 重建。
- *   确需长期持有派生数据时，用它自己的缓存 + `getAliasVersion()` 比对失效（重建后版本必然变化）。
+ * - **快照而非内部表**：`getAliasMap()` 返回按版本缓存的 `ReadonlyAliasMap`（Map 副本 + 冻结的条目数组与
+ *   条目对象 + `set/delete/clear` 抛错）。消费方无法通过它污染 Atlas，也影响不到 `resolveAlias()` / 搜索的结果；
+ *   快照随 `getAliasVersion()` 重建。确需长期持有派生数据时，用它自己的缓存 + `getAliasVersion()` 比对失效。
  * - **永不抛错**：非法入参返回空结构；读取失败只 `logger.warn`，不中断调用方。
  *
  * 消费方注意：别名表是**双向注册**的（标准名 ↔ 别名互为键），表本身不记录方向，故 `resolveAlias()`
@@ -43,16 +43,46 @@ function safe (fn, fallback, label) {
 }
 
 /**
- * 只读快照缓存：结构与 Atlas 内部表相同，但 Map 是副本、条目数组与条目对象都冻结
+ * 只读 Map 视图
+ *
+ * `Map.prototype.set/delete/clear` 无法用 `Object.freeze` 阻止（freeze 只冻结属性，不改方法行为），
+ * 故用一层视图落实「只读」契约：读接口与 Map 一致（`size` / `get` / `has` / 迭代 / `forEach`，
+ * 且可直接 `new Map(view)` 取可变副本），写接口一律抛 `TypeError`。
+ */
+class ReadonlyAliasMap {
+  /** @param {Map} map - 被保护的快照副本 */
+  constructor (map) {
+    this._map = map
+    Object.freeze(this)
+  }
+
+  get size () { return this._map.size }
+  get (key) { return this._map.get(key) }
+  has (key) { return this._map.has(key) }
+  keys () { return this._map.keys() }
+  values () { return this._map.values() }
+  entries () { return this._map.entries() }
+  forEach (fn, thisArg) { this._map.forEach(fn, thisArg) }
+  [Symbol.iterator] () { return this._map.entries() }
+  get [Symbol.toStringTag] () { return 'ReadonlyMap' }
+
+  /** 拒绝写入：快照在同一版本内被共享，改动会影响同进程其它消费者 */
+  set () { throw new TypeError('[Atlas] 别名表是只读快照，不可 set；需要可变副本请 new Map(getAliasMap())') }
+  delete () { throw new TypeError('[Atlas] 别名表是只读快照，不可 delete；需要可变副本请 new Map(getAliasMap())') }
+  clear () { throw new TypeError('[Atlas] 别名表是只读快照，不可 clear；需要可变副本请 new Map(getAliasMap())') }
+}
+
+/**
+ * 只读快照缓存：内部是 Map 副本 + 冻结的条目数组/条目对象，对外包一层 `ReadonlyAliasMap`
  * 按别名表版本缓存（同版本内反复调用返回同一实例），`reloadAliasMap()` 后自动重建
- * @type {{ version: number, full: Map|null, byGame: Map<string, Map> }}
+ * @type {{ version: number, full: ReadonlyAliasMap|null, byGame: Map<string, ReadonlyAliasMap> }}
  */
 const SNAPSHOT = { version: -1, full: null, byGame: new Map() }
 
 /**
- * 复制一张表并冻结条目（Map 是副本，误改不会回到 Atlas 内部）
+ * 复制一张表、冻结条目，并包成只读视图
  * @param {Map} sourceMap - Atlas 内部表或其过滤视图
- * @returns {Map<string, readonly {value: string, game: string, source: number}[]>}
+ * @returns {ReadonlyAliasMap}
  */
 function freezeSnapshot (sourceMap) {
   const copy = new Map()
@@ -60,13 +90,13 @@ function freezeSnapshot (sourceMap) {
     copy.set(key, Object.freeze(list.map(item =>
       Object.freeze({ value: item.value, game: item.game, source: item.source }))))
   }
-  return copy
+  return new ReadonlyAliasMap(copy)
 }
 
 /**
  * 取当前版本的只读快照
  * @param {string} [gameId] - 已校验的游戏 ID；缺省返回全量
- * @returns {Map<string, readonly {value: string, game: string, source: number}[]>}
+ * @returns {ReadonlyAliasMap}
  */
 function snapshotOf (gameId) {
   const version = readAliasVersion()
@@ -87,13 +117,14 @@ function snapshotOf (gameId) {
 /**
  * 取别名表（只读快照，按版本缓存）
  *
- * 返回**副本**：消费方 `set/delete` 或改写条目都不会影响 Atlas 自身，也不会影响其它消费方经
- * `resolveAlias()` / `expandKeyword()` 得到的结果（条目数组与条目对象已冻结）。
+ * 返回 `ReadonlyAliasMap`：读接口与 Map 一致，`set` / `delete` / `clear` 抛 `TypeError`；
+ * 条目数组与条目对象已冻结。它也是**副本**，所以任何绕过手段都影响不到 Atlas 自身，
+ * 需要可变副本时用 `new Map(getAliasMap(gameId))`。
  * @param {string} [gameId] - gi/hsr/zzz；缺省或未知值返回全量
- * @returns {Map<string, readonly {value: string, game: string, source: number}[]>} 键为归一化名；异常时返回空 Map
+ * @returns {ReadonlyAliasMap} 键为归一化名；异常时返回空只读视图
  */
 export function getAliasMap (gameId) {
-  return safe(() => snapshotOf(GAME_NAMES[gameId] ? gameId : undefined), new Map(), 'getAliasMap')
+  return safe(() => snapshotOf(GAME_NAMES[gameId] ? gameId : undefined), new ReadonlyAliasMap(new Map()), 'getAliasMap')
 }
 
 /**

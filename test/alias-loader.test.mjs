@@ -232,10 +232,27 @@ const apiGi = aliasApi.getAliasMap('gi')
 check('getAliasMap(gameId) 返回过滤快照（不是内部过滤表）', apiGi !== loadAliasMap('gi') && apiGi.size === loadAliasMap('gi').size)
 check('getAliasMap 未知 gameId 退化为全量快照', aliasApi.getAliasMap('xx') === apiFull)
 
-// 只读保护：改快照不能污染 Atlas（P1 回归）
+// 只读契约：set / delete / clear 必须被拒绝，且拒绝后内容完整（P1 回归）
 const snapshotKey = '不存在的污染键'
-apiFull.set(snapshotKey, [{ value: '污染', game: '原神', source: 3 }])
-check('快照 set 不影响 Atlas 内部表', !loadAliasMap().has(snapshotKey) && !aliasApi.resolveAlias(snapshotKey).primary)
+const throwsTypeError = (fn) => {
+  try {
+    fn()
+    return false
+  } catch (err) {
+    return err instanceof TypeError
+  }
+}
+check('快照不是可写的 Map（instanceof Map 为假）', !(apiFull instanceof Map))
+check('快照 set 被拒绝（抛 TypeError）', throwsTypeError(() => apiFull.set(snapshotKey, [{ value: '污染', game: '原神', source: 3 }])))
+check('快照 delete 被拒绝（抛 TypeError）', throwsTypeError(() => apiFull.delete(normalizeForMatch('火套'))))
+check('快照 clear 被拒绝（抛 TypeError）', throwsTypeError(() => apiFull.clear()))
+check('写入被拒后同版本快照内容仍完整',
+  aliasApi.getAliasMap() === apiFull && apiFull.size === loadAliasMap().size && apiFull.has(normalizeForMatch('火套')))
+check('快照仍可正常读取（size / has / get / 迭代）',
+  apiFull.get(normalizeForMatch('火套'))?.some(item => item.value === '炽烈的炎之魔女') === true &&
+  [...apiFull.keys()].length === apiFull.size)
+check('可用 new Map(view) 取可变副本', new Map(apiFull).size === apiFull.size)
+
 const snapshotList = [...apiFull.values()][0]
 let arrayFrozen = false
 try {
@@ -245,7 +262,6 @@ try {
 }
 check('快照条目数组已冻结（push 抛错）', arrayFrozen && Object.isFrozen(snapshotList))
 check('快照条目对象已冻结', snapshotList.length > 0 && Object.isFrozen(snapshotList[0]))
-apiFull.delete(snapshotKey)
 
 const resolved = aliasApi.resolveAlias('风套', 'gi')
 check('resolveAlias 命中别名（风套 → 翠绿之影）',
