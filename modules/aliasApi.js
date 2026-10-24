@@ -48,22 +48,30 @@ function safe (fn, fallback, label) {
  * `Map.prototype.set/delete/clear` 无法用 `Object.freeze` 阻止（freeze 只冻结属性，不改方法行为），
  * 故用一层视图落实「只读」契约：读接口与 Map 一致（`size` / `get` / `has` / 迭代 / `forEach`，
  * 且可直接 `new Map(view)` 取可变副本），写接口一律抛 `TypeError`。
+ * 底层 Map 放在私有字段里，且 `forEach` 不把底层 Map 当第三个参数传出去 —— 否则这两条都是绕过写保护的入口。
  */
 class ReadonlyAliasMap {
+  /** 底层 Map（私有字段：公开字段如 `_map` 可被外部直接 `clear()`） */
+  #map
+
   /** @param {Map} map - 被保护的快照副本 */
   constructor (map) {
-    this._map = map
+    this.#map = map
     Object.freeze(this)
   }
 
-  get size () { return this._map.size }
-  get (key) { return this._map.get(key) }
-  has (key) { return this._map.has(key) }
-  keys () { return this._map.keys() }
-  values () { return this._map.values() }
-  entries () { return this._map.entries() }
-  forEach (fn, thisArg) { this._map.forEach(fn, thisArg) }
-  [Symbol.iterator] () { return this._map.entries() }
+  get size () { return this.#map.size }
+  get (key) { return this.#map.get(key) }
+  has (key) { return this.#map.has(key) }
+  keys () { return this.#map.keys() }
+  values () { return this.#map.values() }
+  entries () { return this.#map.entries() }
+  /** 第三参传视图自身：Map 原生 forEach 会把底层 Map 传给回调，等于开了一个写入口 */
+  /** 第三参传视图自身：Map 原生 forEach 会把底层 Map 传给回调，等于开了一个写入口 */
+  forEach (fn, thisArg) {
+    this.#map.forEach((value, key) => fn.call(thisArg, value, key, this))
+  }
+  [Symbol.iterator] () { return this.#map.entries() }
   get [Symbol.toStringTag] () { return 'ReadonlyMap' }
 
   /** 拒绝写入：快照在同一版本内被共享，改动会影响同进程其它消费者 */

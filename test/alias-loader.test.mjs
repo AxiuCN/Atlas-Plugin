@@ -263,6 +263,15 @@ try {
 check('快照条目数组已冻结（push 抛错）', arrayFrozen && Object.isFrozen(snapshotList))
 check('快照条目对象已冻结', snapshotList.length > 0 && Object.isFrozen(snapshotList[0]))
 
+// 封装绕过入口：不能留可访问的底层 Map（公开字段 / forEach 第三参都会把 Map 交出去）
+check('视图没有可访问的内部 Map 字段', !('_map' in apiFull) && !('map' in apiFull) && Object.keys(apiFull).length === 0)
+let forEachThird = null
+apiFull.forEach((value, key, map) => { if (!forEachThird) forEachThird = map })
+check('forEach 第三参是视图本身（不是底层 Map）', forEachThird === apiFull && !(forEachThird instanceof Map))
+check('forEach 第三参写入被拒（抛 TypeError）', throwsTypeError(() => forEachThird.clear()))
+check('两种绕过尝试后快照内容仍完整',
+  apiFull.size === loadAliasMap().size && apiFull.has(normalizeForMatch('火套')))
+
 const resolved = aliasApi.resolveAlias('风套', 'gi')
 check('resolveAlias 命中别名（风套 → 翠绿之影）',
   resolved.key === '风套' && resolved.candidates.includes('翠绿之影') && resolved.primary === '翠绿之影',
