@@ -247,10 +247,10 @@ function miaoAliasFiles () {
     files.push(
       { path: path.join(base, 'resources', 'meta-gs', 'character', 'alias.js'), exports: ['alias'], game: '原神' },
       { path: path.join(base, 'resources', 'meta-gs', 'weapon', 'alias.js'), exports: ['alias', 'abbr', 'aliasCfg'], game: '原神' },
-      { path: path.join(base, 'resources', 'meta-gs', 'artifact', 'alias.js'), exports: ['alias', 'setAbbr'], game: '原神' },
+      { path: path.join(base, 'resources', 'meta-gs', 'artifact', 'alias.js'), exports: ['alias', 'setAbbr', 'setAlias'], game: '原神' },
       { path: path.join(base, 'resources', 'meta-sr', 'character', 'alias.js'), exports: ['alias'], game: '星铁' },
       { path: path.join(base, 'resources', 'meta-sr', 'weapon', 'alias.js'), exports: ['alias', 'abbr', 'aliasCfg'], game: '星铁' },
-      { path: path.join(base, 'resources', 'meta-sr', 'artifact', 'alias.js'), exports: ['alias', 'setAbbr'], game: '星铁' }
+      { path: path.join(base, 'resources', 'meta-sr', 'artifact', 'alias.js'), exports: ['alias', 'setAbbr', 'aliasCfg', 'artiAbbr', 'artiSetAbbr'], game: '星铁' }
     )
   }
   return uniqueExistingFiles(files)

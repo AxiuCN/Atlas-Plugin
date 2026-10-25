@@ -28,9 +28,9 @@
 
 | 套件 | 覆盖 | 前置 |
 |------|------|------|
-| `alias-loader.test.mjs` | 别名层（**数据无关**）：`normalizeForMatch` 六种间隔号归一、键幂等、`{value,game,source}` 形状、按游戏过滤与过滤缓存、`buildKeywordVariants` 双向展开、高来源覆盖低来源（临时自定义 YAML 后回退）、reload 换新与 watcher 幂等、`aliasVersion` 与缓存失效一致性、对外门面 `modules/aliasApi.js` 的返回形状与只读契约、**专武索引**（官名/别名/全名闭包、修饰词过滤、未登记为空、按游戏过滤） | 无（只读文件） |
+| `alias-loader.test.mjs` | 别名层（**数据无关**）：`normalizeForMatch` 六种间隔号归一、键幂等、`{value,game,source}` 形状、按游戏过滤与过滤缓存、`buildKeywordVariants` 双向展开、高来源覆盖低来源（临时自定义 YAML 后回退）、reload 换新与 watcher 幂等、`aliasVersion` 与缓存失效一致性、对外门面 `modules/aliasApi.js` 的返回形状与只读契约、**专武索引**（官名/别名/全名闭包、修饰词过滤、未登记为空、按游戏过滤）、**套装别名补读**（gs `setAlias` 错字/非子串/带「套」别名、sr `aliasCfg` 属性套与简称、跨游戏同名隔离） | 无（只读文件） |
 | `variant-family.test.mjs` | 形态族（旅行者/奇偶/开拓者/三月七）、同名折叠、重名条目 id 别名合并、`resolveEntryPageKey` | 图鉴数据 |
-| `suffix-routing.test.mjs` | 子视图 / 页面类型 / 泛用「套」/ 专武后缀的消费与放行（77 例，含 miao 面板换装放行、专武落点渲染比对与别名+修饰词、未命中文案区分） | 图鉴数据 |
+| `suffix-routing.test.mjs` | 子视图 / 页面类型 / 泛用「套」/ 专武后缀的消费与放行（82 例，含 miao 面板换装放行、专武落点渲染比对与别名+修饰词、未命中文案区分、套装别名落点） | 图鉴数据 |
 | `style-scope.test.mjs` | 样式归属：页面 CSS 不得定义共享词汇、页面 CSS 只被同前缀模板引用、模板 link 与 CSS `url()` 的资源必须存在 | 无（只读文件） |
 | `record-cache.test.mjs` | `loadRecord` LRU 上限、签名自愈、冻结诊断、缓存实例与现读现套补丁逐字一致 | 图鉴数据 |
 | `text-cache.test.mjs` | 全文兜底文本缓存：二次查询 0 读盘、`reloadIndex` 作废、单条 mtime 自愈、结果不变 | 图鉴数据 |

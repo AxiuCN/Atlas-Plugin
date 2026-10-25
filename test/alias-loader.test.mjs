@@ -338,4 +338,26 @@ const versionBeforeCalls = aliasApi.getAliasVersion()
 aliasApi.getAliasMap('gi'); aliasApi.resolveAlias('风套', 'gi'); aliasApi.expandKeyword('风套', 'gi'); aliasApi.getAliasStatus()
 check('门面调用不触发重建（版本不变）', aliasApi.getAliasVersion() === versionBeforeCalls, `${versionBeforeCalls}`)
 
+/* ============================================================
+ *  J. miao 套装别名补读（gs setAlias / sr aliasCfg + artiAbbr + artiSetAbbr）
+ * ============================================================ */
+console.log('\n=== J. 套装别名补读 ===')
+const setMapGi = loadAliasMap('gi')
+const setMapHsr = loadAliasMap('hsr')
+const hasValue = (map, key, value) => (map.get(normalizeForMatch(key)) || []).some(item => item.value === value)
+check('gs 错字别名：海染车磲 → 海染砗磲', hasValue(setMapGi, '海染车磲', '海染砗磲'))
+check('gs 错字别名：晨砂往生录 → 辰砂往生录', hasValue(setMapGi, '晨砂往生录', '辰砂往生录'))
+check('gs 非子串别名：度火 → 渡过烈火的贤人', hasValue(setMapGi, '度火', '渡过烈火的贤人'))
+check('gs 带「套」别名：生命之契套 → 谐律异想断章', hasValue(setMapGi, '生命之契套', '谐律异想断章'))
+check('gs 带「套」别名：燃烧套 → 未竟的遐思', hasValue(setMapGi, '燃烧套', '未竟的遐思'))
+check('sr 属性套：量子套 → 繁星璀璨的天才', hasValue(setMapHsr, '量子套', '繁星璀璨的天才'))
+check('sr 属性套：虚数套 → 盗匪荒漠的废土客', hasValue(setMapHsr, '虚数套', '盗匪荒漠的废土客'))
+check('sr 简称：快枪手 → 野穗伴行的快枪手', hasValue(setMapHsr, '快枪手', '野穗伴行的快枪手'))
+// 跨游戏同名键必须按游戏隔离（火套 / 少女 在两个游戏指向不同条目）
+check('跨游戏同名隔离：火套',
+  hasValue(setMapGi, '火套', '炽烈的炎之魔女') && !hasValue(setMapGi, '火套', '熔岩锻铸的火匠') &&
+  hasValue(setMapHsr, '火套', '熔岩锻铸的火匠') && !hasValue(setMapHsr, '火套', '炽烈的炎之魔女'))
+check('跨游戏同名隔离：少女',
+  hasValue(setMapGi, '少女', '哥伦比娅') && hasValue(setMapHsr, '少女', '闪耀功勋的魔法少女'))
+
 finish()

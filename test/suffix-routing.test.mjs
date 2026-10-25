@@ -169,5 +169,17 @@ check('#风神专武 与 #终末嗟叹之诗 渲染同一页（别名）',
 check('#风神新专武 与 #黎明破晓之史 渲染同一页（别名 + 修饰词）',
   sameImage(await renderOf('gi', '风神新专武'), await renderOf('gi', '黎明破晓之史')))
 
+console.log('\n=== J. 套装别名补读后的落点（gs setAlias / sr aliasCfg）===')
+check('#海染车磲（错字别名）与 #海染砗磲 渲染同一页',
+  sameImage(await renderOf('gi', '海染车磲'), await renderOf('gi', '海染砗磲')))
+check('#度火 与 #渡过烈火的贤人 渲染同一页（非子串别名）',
+  sameImage(await renderOf('gi', '度火'), await renderOf('gi', '渡过烈火的贤人')))
+check('#生命之契套 与 #谐律异想断章 渲染同一页（带「套」别名不再被误剥）',
+  sameImage(await renderOf('gi', '生命之契套'), await renderOf('gi', '谐律异想断章')))
+check('*量子套 与 *繁星璀璨的天才 渲染同一页（星铁属性套）',
+  sameImage(await renderOf('hsr', '量子套'), await renderOf('hsr', '繁星璀璨的天才')))
+check('*火套 与 *熔岩锻铸的火匠 渲染同一页（与 #火套 分属两个游戏）',
+  sameImage(await renderOf('hsr', '火套'), await renderOf('hsr', '熔岩锻铸的火匠')))
+
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)
