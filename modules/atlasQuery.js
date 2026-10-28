@@ -6,13 +6,13 @@
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
-import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, SIGNATURE_SUFFIX } from '../components/constants.js'
-import { loadAliasMap, normalizeForMatch, isSignatureKeyword, signatureLabelMarker, resolveSignatureWeapons } from '../model/AliasLoader.js'
+import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, SIGNATURE_SUFFIX, SIGNATURE_SHORT_SUFFIX } from '../components/constants.js'
+import { loadAliasMap, normalizeForMatch, isSignatureKeyword, signatureLabelMarker, resolveSignatureWeapons, expandSignatureKeyword } from '../model/AliasLoader.js'
 
 // 子视图后缀映射见 components/constants.js 的 SUFFIX_TO_SUBVIEW（与 atlasShortcut 后缀集合同处维护）
-/** 子视图后缀列表（长→短，图鉴、页面类型、泛用套装与专武后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
+/** 子视图后缀列表（长→短，图鉴、页面类型、泛用套装与专武（含简写）后缀除外；顺序匹配，先命中先剥离，避免"养成素材"被拆成"养成"+"素材"） */
 const SUB_VIEW_SUFFIXES = SHORTCUT_SUFFIXES
-  .filter(s => s !== '图鉴' && s !== SET_SUFFIX && s !== SIGNATURE_SUFFIX && !PAGE_TYPE_SUFFIXES[s])
+  .filter(s => s !== '图鉴' && s !== SET_SUFFIX && s !== SIGNATURE_SUFFIX && s !== SIGNATURE_SHORT_SUFFIX && !PAGE_TYPE_SUFFIXES[s])
   .sort((a, b) => b.length - a.length)
   .map(s => ({ suffix: s, subView: SUFFIX_TO_SUBVIEW[s] || 'materials' }))
 
@@ -55,49 +55,68 @@ function parseSubView (keyword, gameId) {
   /** 剥离后缀得到检索词；原词本身已是别名时保留原词 */
   const cut = (suffix) => (isRawAlias() ? keyword : keyword.slice(0, -suffix.length).trim())
 
-  // 「<角色>专武」：数据源没有专武字段，只认别名表登记；这里归一成「角色 → 武器」。
+  /**
+   * 疑似 miao 面板变换语法（`#胡桃换护摩专武` / `#胡桃补武器 xx`）
+   * 只作「解析失败后的兜底判据」，不做前置闸门——名字本身含「换/补」的角色仍能正常查
+   */
+  const looksLikePanelChange = (text) => /[换补]/.test(text || '')
+
+  // 「<角色>专武」/ 简写「<角色>专」：数据源没有专武字段，只认别名表登记；这里归一成「角色 → 武器」。
   // 先直查整串（保住 `万叶专武`、`温迪新专武` 这类逐条写法），再按角色名闭包拼「候选+(修饰)专武」兜底。
   // 单条优先：同一角色有多把时（温迪：专武=终末 / 新专武=黎明），`#X专武` 取不带修饰的那把，
   // 要新的必须显式写 `#X新专武`——不把多把合成列表（用户实测列表页不符合预期）。
   if (isSignatureKeyword(keyword)) {
-    const gameMap = loadAliasMap(GAME_NAMES[gameId] ? gameId : undefined)
-    const direct = gameMap.get(normalizeForMatch(keyword)) || []
-    const marker = signatureLabelMarker(keyword)
-    const suffixLen = SIGNATURE_SUFFIX.length
-    if (marker) {
-      // 显式写了修饰词（如「新专武」）：直查整串，未命中再按角色闭包找该修饰的专武
-      // （例：`#风神新专武` → 风神 → 温迪 → 温迪新专武 → 黎明破晓之史）
-      const base = keyword.slice(0, -(marker.length + suffixLen))
-      const directWeapons = direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
-      const weapons = directWeapons.length ? directWeapons : resolveSignatureWeapons(base, gameId, marker)
-      if (!weapons.length) {
-        // 区分「没有这个修饰的专武」与「根本没有专武数据」——前者要给出现有专武，不能笼统说未收录
-        const available = resolveSignatureWeapons(base, gameId)
+    // 简写「专」统一补成「专武」：`丝柯克专` → `丝柯克专武`、`温迪新专` → `温迪新专武`
+    const full = expandSignatureKeyword(keyword)
+    // 裸后缀（`#专` / `#专武`）不当专武查询，交回普通搜索
+    if (full.length > SIGNATURE_SUFFIX.length) {
+      const gameMap = loadAliasMap(GAME_NAMES[gameId] ? gameId : undefined)
+      const direct = gameMap.get(normalizeForMatch(full)) || []
+      const marker = signatureLabelMarker(full)
+      const suffixLen = SIGNATURE_SUFFIX.length
+      if (marker) {
+        // 显式写了修饰词（如「新专武」/「新专」）：直查整串，未命中再按角色闭包找该修饰的专武
+        // （例：`#风神新专武` → 风神 → 温迪 → 温迪新专武 → 黎明破晓之史）
+        const base = full.slice(0, -(marker.length + suffixLen))
+        const directWeapons = direct.map(item => ({ weapon: item.value, label: marker + SIGNATURE_SUFFIX }))
+        const weapons = directWeapons.length ? directWeapons : resolveSignatureWeapons(base, gameId, marker)
+        if (!weapons.length) {
+          // 面板变换形状（`#胡桃换护摩新专武`）：解析失败就不该由图鉴回答，放行给 miao
+          if (looksLikePanelChange(base)) {
+            return { searchKeyword: keyword, subView: null, pageType: null, signature: { state: 'pass', base } }
+          }
+          // 区分「没有这个修饰的专武」与「根本没有专武数据」——前者要给出现有专武，不能笼统说未收录
+          const available = resolveSignatureWeapons(base, gameId)
+          return {
+            searchKeyword: keyword,
+            subView: null,
+            pageType: null,
+            signature: { state: 'miss', weapons: [], base, marker, available, reason: available.length ? 'no-marker' : 'none' }
+          }
+        }
         return {
-          searchKeyword: keyword,
+          searchKeyword: weapons[0].weapon,
           subView: null,
           pageType: null,
-          signature: { state: 'miss', weapons: [], base, marker, available, reason: available.length ? 'no-marker' : 'none' }
+          signature: { state: 'single', weapons, base }
         }
       }
-      return {
-        searchKeyword: weapons[0].weapon,
-        subView: null,
-        pageType: null,
-        signature: { state: 'single', weapons, base }
+      const base = full.slice(0, -suffixLen)
+      const merged = direct.map(item => ({ weapon: item.value, label: SIGNATURE_SUFFIX }))
+      for (const hit of resolveSignatureWeapons(base, gameId)) {
+        if (!merged.some(item => item.weapon === hit.weapon && item.label === hit.label)) merged.push(hit)
       }
+      if (merged.length === 0) {
+        // 面板变换形状（`#胡桃换护摩专武`）：解析失败就放行，不回复「暂未收录」也不吞 miao 的指令
+        if (looksLikePanelChange(base)) {
+          return { searchKeyword: keyword, subView: null, pageType: null, signature: { state: 'pass', base } }
+        }
+        return { searchKeyword: keyword, subView: null, pageType: null, signature: { state: 'miss', weapons: [], base } }
+      }
+      // 多条时优先「专武」那条（无修饰），其余作为「另有」信息丢弃渲染、不影响落点
+      const preferred = merged.find(item => item.label === SIGNATURE_SUFFIX) || merged[0]
+      return { searchKeyword: preferred.weapon, subView: null, pageType: null, signature: { state: 'single', weapons: [preferred], others: merged.filter(item => item !== preferred), base } }
     }
-    const base = keyword.slice(0, -suffixLen)
-    const merged = direct.map(item => ({ weapon: item.value, label: SIGNATURE_SUFFIX }))
-    for (const hit of resolveSignatureWeapons(base, gameId)) {
-      if (!merged.some(item => item.weapon === hit.weapon && item.label === hit.label)) merged.push(hit)
-    }
-    if (merged.length === 0) {
-      return { searchKeyword: keyword, subView: null, pageType: null, signature: { state: 'miss', weapons: [], base } }
-    }
-    // 多条时优先「专武」那条（无修饰），其余作为「另有」信息丢弃渲染、不影响落点
-    const preferred = merged.find(item => item.label === SIGNATURE_SUFFIX) || merged[0]
-    return { searchKeyword: preferred.weapon, subView: null, pageType: null, signature: { state: 'single', weapons: [preferred], others: merged.filter(item => item !== preferred), base } }
   }
 
   for (const [suffix, pageType] of PAGE_TYPE_ENTRIES) {
@@ -193,6 +212,9 @@ export async function handleQuery (e, gameId, keyword) {
   try {
     // ── 阶段 0：子视图 / 页面类型 / 专武后缀检测 ──
     const { searchKeyword, subView, pageType, signature } = parseSubView(keyword, gameId)
+
+    // 面板变换形状（含「换/补」）解析失败：不回答，交回 miao
+    if (signature?.state === 'pass') return false
 
     // 「<角色>专武」没登记过：能认出是角色就明说，否则放行给其它插件
     if (signature?.state === 'miss') {

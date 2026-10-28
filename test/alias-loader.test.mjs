@@ -23,6 +23,7 @@ const {
   initAliasWatcher,
   isSignatureKeyword,
   signatureLabelMarker,
+  expandSignatureKeyword,
   resolveSignatureWeapons
 } = await import(mod('model/AliasLoader.js'))
 const aliasApi = await import(mod('modules/aliasApi.js'))
@@ -280,7 +281,11 @@ check('两种绕过尝试后快照内容仍完整',
  * ============================================================ */
 console.log('\n=== I. 专武解析 ===')
 check('isSignatureKeyword 识别后缀', isSignatureKeyword('胡桃专武') && isSignatureKeyword('温迪新专武') && !isSignatureKeyword('胡桃'))
+check('isSignatureKeyword 识别简写「专」', isSignatureKeyword('丝柯克专') && isSignatureKeyword('温迪新专'))
+check('expandSignatureKeyword 简写补成专武',
+  expandSignatureKeyword('丝柯克专') === '丝柯克专武' && expandSignatureKeyword('温迪新专') === '温迪新专武' && expandSignatureKeyword('胡桃专武') === '胡桃专武')
 check('signatureLabelMarker 区分修饰词', signatureLabelMarker('温迪新专武') === '新' && signatureLabelMarker('胡桃专武') === '')
+check('signatureLabelMarker 兼容简写', signatureLabelMarker('温迪新专') === '新' && signatureLabelMarker('丝柯克专') === '')
 
 const sigOf = (name, game) => resolveSignatureWeapons(name, game).map(item => `${item.weapon}(${item.label})`)
 check('官方名直查：胡桃 → 护摩之杖', sigOf('胡桃', 'gi').join() === '护摩之杖(专武)', sigOf('胡桃', 'gi').join())

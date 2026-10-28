@@ -1,8 +1,14 @@
 /**
- * 黑名单检查 — 独立配置文件 config/blacklist.yaml
+ * 黑名单检查 — 代码内建规则 + 用户配置 config/blacklist.yaml
  *
  * 命中正则时图鉴两个入口（快捷入口 + 常规查询）均跳过处理：
  * 不回复、不拦截（返回 false 继续传递），消息交由其他插件处理。
+ *
+ * 两类规则：
+ * - **内建（`DEFAULT_PATTERNS`）**：已知的误捕来源，必须始终生效。不能只靠
+ *   `blacklist.yaml.example`——`index.js` 仅在配置文件**不存在**时拷贝，已有配置的
+ *   实例永远拿不到新规则。
+ * - **用户配置**：`config/blacklist.yaml` 的 `patterns`，按需追加。
  *
  * 热更新策略：以配置文件 mtime 为缓存键，文件变化即重新解析，
  * 无需 fs.watch，锅巴保存 / 手动编辑后下一条消息立即生效。
@@ -16,6 +22,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
 export const blacklistFile = path.join(pluginRoot, 'config', 'blacklist.yaml')
 export const blacklistExample = path.join(pluginRoot, 'config', 'blacklist.yaml.example')
+
+/**
+ * 内建黑名单（始终生效，不受配置文件影响）
+ * - `面板`：miao 的面板与面板变换指令（`#丝柯克面板 换千织专武`、`#胡桃面板`）常以
+ *   `专武` / `专` / `套` 结尾，会被图鉴的后缀抢占误捕
+ */
+export const DEFAULT_PATTERNS = ['面板']
 
 /** 缓存：{ mtimeMs, raw: string[], regexps: RegExp[] } */
 let cache = null
@@ -69,12 +82,13 @@ export function loadBlacklistPatterns () {
 }
 
 /**
- * 检查消息是否命中黑名单
+ * 检查消息是否命中黑名单（内建规则优先判定，再查用户配置）
  * @param {string} msg - 完整消息文本（e.msg，含前缀）
  * @returns {boolean} true = 命中，应跳过图鉴处理
  */
 export function isBlacklisted (msg) {
   if (!msg) return false
+  if (DEFAULT_PATTERNS.some(pattern => msg.includes(pattern))) return true
   return readBlacklist().regexps.some(re => re.test(msg))
 }
 

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
-import { SIGNATURE_SUFFIX } from '../components/constants.js'
+import { SIGNATURE_SUFFIX, SIGNATURE_SHORT_SUFFIX } from '../components/constants.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -602,6 +602,7 @@ export function buildKeywordVariants (keyword, aliases = new Map(), game = '') {
  *    2) 查询时先直查整串（保住 `万叶专武`/`温迪新专武` 这类逐条写法），
  *       再以角色名的 1-hop 双向闭包（官名 + 简称）拼 `候选专武` 兜底。
  *  索引随别名表重建（`buildAliasMap()` 内调用），与 `reloadAliasMap()` 同步失效。
+ *  简写：`<角色>专` / `<角色>新专` 由 `expandSignatureKeyword()` 补成 `专武` 后再走同一路径。
  * ============================================================ */
 
 /** 「专武」后缀本体（与 components/constants.js 的 SIGNATURE_SUFFIX 同源） */
@@ -656,21 +657,36 @@ function buildSignatureIndexes (aliases) {
 }
 
 /**
- * 该关键词是否以「专武」结尾（含 `新专武` 等修饰写法）
+ * 该关键词是否以「专武」或简写「专」结尾（含 `新专武` / `新专` 等修饰写法）
  * @param {string} keyword - 已去前缀的关键词
  * @returns {boolean}
  */
 export function isSignatureKeyword (keyword) {
-  return String(keyword || '').trim().endsWith(SIGNATURE_SUFFIX)
+  const text = String(keyword || '').trim()
+  return text.endsWith(SIGNATURE_SUFFIX) || text.endsWith(SIGNATURE_SHORT_SUFFIX)
+}
+
+/**
+ * 把简写「专」补成「专武」（已带「专武」的原样返回）
+ *
+ * 只补末尾一个字，不改写中间的修饰词：`丝柯克专` → `丝柯克专武`、`温迪新专` → `温迪新专武`。
+ * @param {string} keyword
+ * @returns {string}
+ */
+export function expandSignatureKeyword (keyword) {
+  const text = String(keyword || '')
+  if (text.endsWith(SIGNATURE_SUFFIX)) return text
+  if (text.endsWith(SIGNATURE_SHORT_SUFFIX)) return text + '武'
+  return text
 }
 
 /**
  * 取关键词里的专武修饰词（无修饰返回空串）
  * @param {string} keyword
- * @returns {string} 如 `新`（对应 `新专武`）
+ * @returns {string} 如 `新`（对应 `新专武` / `新专`）
  */
 export function signatureLabelMarker (keyword) {
-  const text = String(keyword || '')
+  const text = expandSignatureKeyword(keyword)
   return SIGNATURE_LABEL_MARKERS.find(marker => text.endsWith(marker + SIGNATURE_SUFFIX)) || ''
 }
 

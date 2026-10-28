@@ -6,6 +6,8 @@ installFrameworkStubs()
 requireAtlasData()
 
 const { handleQuery } = await import(mod('modules/atlasQuery.js'))
+const { isBlacklisted } = await import(mod('components/blacklist.js'))
+const { atlasShortcut } = await import(mod('apps/atlasShortcut.js'))
 
 let pass = 0
 let fail = 0
@@ -180,6 +182,34 @@ check('*量子套 与 *繁星璀璨的天才 渲染同一页（星铁属性套�
   sameImage(await renderOf('hsr', '量子套'), await renderOf('hsr', '繁星璀璨的天才')))
 check('*火套 与 *熔岩锻铸的火匠 渲染同一页（与 #火套 分属两个游戏）',
   sameImage(await renderOf('hsr', '火套'), await renderOf('hsr', '熔岩锻铸的火匠')))
+
+console.log('\n=== K. 专武简写「专」+ 面板黑名单 ===')
+await run('gi', '丝柯克专', true)
+await run('gi', '温迪专', true)
+await run('gi', '温迪新专', true)
+await run('hsr', '黄泉专', true)
+await runReply('gi', '香菱专', '暂未收录')
+check('#丝柯克专 与 #丝柯克专武 渲染同一页（专 = 专武）',
+  sameImage(await renderOf('gi', '丝柯克专'), await renderOf('gi', '丝柯克专武')))
+check('#温迪专 与 #终末嗟叹之诗 渲染同一页（专取无修饰那把）',
+  sameImage(await renderOf('gi', '温迪专'), await renderOf('gi', '终末嗟叹之诗')))
+check('#温迪新专 与 #黎明破晓之史 渲染同一页（新专 = 新专武）',
+  sameImage(await renderOf('gi', '温迪新专'), await renderOf('gi', '黎明破晓之史')))
+
+// 面板类消息必须整体放行（miao 的 #xxx面板 / 换装 / 补装 会带 专武·专·套 后缀，被后缀抢占误捕）
+const panelMsg = '#丝柯克面板 换千织专武'
+check('黑名单命中「面板」消息', isBlacklisted(panelMsg), panelMsg)
+const shortcut = new atlasShortcut()
+check('快捷入口 accept 对面板消息放行（不抢 miao 的 accept）',
+  await shortcut.accept({ msg: panelMsg, message: [{ type: 'text', text: panelMsg }] }) === false)
+check('快捷入口 rule 对面板消息放行（返回 false 继续传递）',
+  await shortcut.shortcutGI({ msg: panelMsg, message: [{ type: 'text', text: panelMsg }] }) === false)
+// 不带「面板」二字的面板变换（换/补）：解析失败时必须放行、不回复「暂未收录」
+await run('gi', '胡桃换护摩专武', false)
+await run('gi', '钟离补护摩专武', false)
+await run('gi', '胡桃换护摩新专武', false)
+// 而真正的「无专武」仍要提示，不能被兜底放行误伤
+await runReply('gi', '阿罗夏专武', '暂未收录')
 
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

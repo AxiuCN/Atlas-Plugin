@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.3
+
+- **修复面板类指令被图鉴误捕**：miao 的 `#丝柯克面板 换千织专武` 以 `专武` 结尾，会被后缀抢占当成图鉴查询。`components/blacklist.js` 新增**代码内建** `DEFAULT_PATTERNS = ['面板']`（始终生效）—— 之所以不能只写进 `blacklist.yaml.example`：`index.js` 仅在配置文件**不存在**时拷贝，已有配置的实例永远读不到后加的默认规则。
+- 补充兜底：不带「面板」二字的面板变换（`#胡桃换护摩专武`、`#钟离补护摩专武`）此前会回「暂未收录「胡桃」的专武数据」并吞掉 miao 指令；现在专武解析失败且 base 含 `换`/`补` 时放行（`signature.state = 'pass'`）。只作失败兜底、不做前置闸门，名字含「换/补」的角色仍能正常查。
+- **专武可简写为「专」**：`#丝柯克专` 等价 `#丝柯克专武`、`#温迪新专` 等价 `#温迪新专武`。`SIGNATURE_SHORT_SUFFIX = '专'` 登记进 `SHORTCUT_SUFFIXES` 并从 `SUB_VIEW_SUFFIXES` 排除；`expandSignatureKeyword()` 只补末尾一个字，解析路径与未命中文案完全复用。裸 `#专` / `#专武` 交回普通搜索。
+- 测试：`alias-loader` 104 → **107** 条（简写识别、`expandSignatureKeyword` 补全、修饰词兼容简写）；`suffix-routing` 82 → **97** 条（简写路由与落点、面板黑名单放行、换/补兜底放行、真无专武仍提示）。
+- 文档：`docs/功能与命令.md` 增「可简写为专」与「面板类消息不归图鉴」两层防线；`docs/架构.md` 黑名单改为「内建 + 配置」并说明必须内建的原因；`AGENTS.md`、`test/AGENTS.md`、`docs/测试.md` 同步。
+
 ## 1.3.2
 
 - **补读 miao 套装别名**：`miaoAliasFiles()` 的 artifact 两条清单此前与 miao 的导出名不符 —— gs 只读 `setAbbr`（漏 `setAlias`），sr 请求的 `alias`/`setAbbr` **两个都不存在**（实际导出是 `aliasCfg`/`artiAbbr`/`artiSetAbbr`）→ 星铁该文件**整批 0 条**别名进表。现补全六个导出，别名表键数 3414 → **3752**（+338）。
