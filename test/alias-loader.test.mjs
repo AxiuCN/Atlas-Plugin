@@ -365,4 +365,19 @@ check('跨游戏同名隔离：火套',
 check('跨游戏同名隔离：少女',
   hasValue(setMapGi, '少女', '哥伦比娅') && hasValue(setMapHsr, '少女', '闪耀功勋的魔法少女'))
 
+/* ============================================================
+ *  K. 专武简写进别名层（构建期派生 `X专武` → `X专`）
+ * ============================================================ */
+console.log('\n=== K. 专武简写派生 ===')
+check('简写键在表内：胡桃专 / 丝柯克专 / 温迪新专',
+  ['胡桃专', '丝柯克专', '温迪新专'].every(k => setMapGi.has(normalizeForMatch(k))))
+check('对外 API 能解析简写：胡桃专 → 护摩之杖', aliasApi.resolveAlias('胡桃专', 'gi').primary === '护摩之杖')
+check('对外 API 能解析简写：丝柯克专 → 苍耀', aliasApi.resolveAlias('丝柯克专', 'gi').primary === '苍耀')
+check('修饰词简写：温迪新专 → 黎明破晓之史', aliasApi.resolveAlias('温迪新专', 'gi').primary === '黎明破晓之史')
+check('星铁简写：黄泉专 → 行于流逝的岸', aliasApi.resolveAlias('黄泉专', 'hsr').primary === '行于流逝的岸')
+const fullKeys = [...loadAliasMap().keys()].filter(k => k.endsWith('专武'))
+const missingShort = fullKeys.filter(k => !loadAliasMap().has(k.slice(0, -2) + '专'))
+check('不变量：每个「X专武」都有「X专」兄弟键', fullKeys.length > 0 && missingShort.length === 0,
+  `${fullKeys.length} 个专武键 / 缺 ${missingShort.length}`)
+
 finish()

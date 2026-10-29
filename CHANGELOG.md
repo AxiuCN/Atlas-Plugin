@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.4
+
+- **专武简写「专」改为进别名表**：`buildAliasMap()` 末尾新增 `deriveSignatureShorts()`，把每个 `X专武` 键派生一条 `X专`（`温迪新专武` → `温迪新专`），值 / `game` / `source` 全部继承，已有同形键不覆盖。此前简写只在查询端临时拼接（`expandSignatureKeyword`），别名层看不到，`aliasApi` 的消费方（如 ProfileImg）解析不了 `#丝柯克专`。
+- 派生结果就是普通别名，因此 `resolveAlias('胡桃专', 'gi')` → 护摩之杖、`resolveAlias('丝柯克专', 'gi')` → 苍耀、`resolveAlias('黄泉专', 'hsr')` → 行于流逝的岸；`parseSubView` 的 `expandSignatureKeyword()` 降为兜底（`雷神专` 这类要靠闭包命中的写法）。只从「专武」结尾的键派生，派生键不以「专武」结尾 ⇒ 不递归。
+- 实测：148 个专武键 → 148 个简写键，**0 同形冲突**；别名表键数 3752 → **3900**。
+- 测试：`alias-loader` 107 → **113** 条（简写键在表、4 个 API 解析用例、每个专武键都有简写兄弟键的不变量）；`suffix-routing` 保持 97 条。全量 17 套件通过。
+- 文档：`docs/数据-路由补丁与别名.md` §9 新增「专武简写进别名表」；`docs/功能与命令.md` 重写简写说明与「与套的异同」；`test/AGENTS.md`、`docs/测试.md` 同步。
+
 ## 1.3.3
 
 - **修复面板类指令被图鉴误捕**：miao 的 `#丝柯克面板 换千织专武` 以 `专武` 结尾，会被后缀抢占当成图鉴查询。`components/blacklist.js` 新增**代码内建** `DEFAULT_PATTERNS = ['面板']`（始终生效）—— 之所以不能只写进 `blacklist.yaml.example`：`index.js` 仅在配置文件**不存在**时拷贝，已有配置的实例永远读不到后加的默认规则。

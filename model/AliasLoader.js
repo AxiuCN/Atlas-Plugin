@@ -172,13 +172,16 @@ function buildAliasMap () {
   // ── 来源 D: config/alias 用户自定义（最高优先级） ──
   addAliasYamlDir(aliases, CUSTOM_ALIAS_DIR, SOURCE_CUSTOM)
 
+  // 专武简写入表：`X专武` → `X专`、`X新专武` → `X新专`（派生一次，读路径与普通别名一致）
+  const derivedShorts = deriveSignatureShorts(aliases)
+
   // 专武索引随之重建（「<角色>专武」是逐条登记的别名，这里把它归一成「角色 → 武器列表」）
   buildSignatureIndexes(aliases)
 
   ALIAS_CACHE.loaded = true
   ALIAS_CACHE.map = aliases
   aliasVersion++
-  logger?.info(`[Atlas] 别名映射已加载，共 ${aliases.size} 个关键词（v${aliasVersion}）`)
+  logger?.info(`[Atlas] 别名映射已加载，共 ${aliases.size} 个关键词（含专武简写 ${derivedShorts} 个，v${aliasVersion}）`)
 }
 
 /**
@@ -602,7 +605,9 @@ export function buildKeywordVariants (keyword, aliases = new Map(), game = '') {
  *    2) 查询时先直查整串（保住 `万叶专武`/`温迪新专武` 这类逐条写法），
  *       再以角色名的 1-hop 双向闭包（官名 + 简称）拼 `候选专武` 兜底。
  *  索引随别名表重建（`buildAliasMap()` 内调用），与 `reloadAliasMap()` 同步失效。
- *  简写：`<角色>专` / `<角色>新专` 由 `expandSignatureKeyword()` 补成 `专武` 后再走同一路径。
+ *  简写：`<角色>专` / `<角色>新专` 在构建期由 `deriveSignatureShorts()` **派生进别名表**
+ *  （对外 API 与查询端都按普通别名解析）；`expandSignatureKeyword()` 仍保留，用于
+ *  表中没有对应简写键时的兜底（如经闭包才能命中的 `雷神专`）。
  * ============================================================ */
 
 /** 「专武」后缀本体（与 components/constants.js 的 SIGNATURE_SUFFIX 同源） */
@@ -618,6 +623,34 @@ let SIGNATURE_INDEX = new Map()
 
 /** 反向索引：normalize(值) → Set<归一化键>，用于「简称/别名 → 官名」的闭包 */
 let SIGNATURE_REVERSE = new Map()
+
+/**
+ * 派生专武简写别名：`X专武` → `X专`、`X新专武` → `X新专`
+ *
+ * 在构建期一次性补进别名表，读路径与普通别名完全一致（`resolveAlias()` / `getAliasMap()`
+ * 等对外 API 同样能解析）；已有同形键不覆盖（上游与用户自定义优先）。
+ * 只从「专武」结尾的键派生，派生结果不以「专武」结尾，故不会递归。
+ * @param {Map<string, {value: string, game: string, source: number}[]>} aliases - 全量别名表
+ * @returns {number} 派生的简写键数量
+ */
+function deriveSignatureShorts (aliases) {
+  const derived = []
+  for (const [key, list] of aliases) {
+    if (!key.endsWith(SIGNATURE_SUFFIX)) continue
+    const base = key.slice(0, -SIGNATURE_SUFFIX.length)
+    if (!base) continue
+    const shortKey = base + SIGNATURE_SHORT_SUFFIX
+    if (aliases.has(shortKey)) continue
+    derived.push([shortKey, list])
+  }
+  for (const [shortKey, list] of derived) {
+    for (const item of list) {
+      if (!item.value) continue
+      addAliasPair(aliases, item.value, shortKey, item.game, item.source)
+    }
+  }
+  return derived.length
+}
 
 /**
  * 重建专武索引与反向索引
