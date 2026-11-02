@@ -31,6 +31,10 @@
     .status-value {
       color: #3a3a3a;
     }
+    .status-value.changed {
+      color: #8f6b2f;
+      font-weight: 600;
+    }
     .image-stats {
       display: flex;
       gap: 28px;
@@ -82,6 +86,18 @@
     </div>
   </div>
   {{/each}}
+
+  {{if changes && changes.length > 0}}
+  <div class="status-card">
+    <h3>本次更新</h3>
+    {{each changes c}}
+    <div class="status-row">
+      <span class="status-label">{{c.name}}</span>
+      <span class="status-value{{if c.changed}} changed{{/if}}">{{c.text}}</span>
+    </div>
+    {{/each}}
+  </div>
+  {{/if}}
 
   {{if images && images.total > 0}}
   <div class="status-card">

@@ -10,9 +10,11 @@ import { renderAtlas } from './render.js'
 
 /**
  * 构建 status.html 模板数据
+ * @param {{changes?: {name: string, changed: boolean, from: string, to: string, delta: number}[]}} [extra]
+ *   changes 仅更新/初始化完成通知会传（「本次更新」卡片）；#图鉴状态 命令不传
  * @returns {object|null} 未初始化时返回 null
  */
-export function buildStatusData () {
+export function buildStatusData (extra = {}) {
   const status = getDataStatus()
   if (!status.initialized) return null
 
@@ -37,21 +39,34 @@ export function buildStatusData () {
     }
   }
 
+  // 「本次更新」：模板只负责展示，文案在这里拼好（避免模板里写表达式）
+  const changes = Array.isArray(extra?.changes)
+    ? extra.changes.map(c => ({
+        name: c.name,
+        changed: !!c.changed,
+        text: c.changed
+          ? `${c.from || '?'} → ${c.to || '未知'}${c.delta ? `（条目 ${c.delta > 0 ? '+' : ''}${c.delta}）` : ''}`
+          : `无变化（${c.to || '版本未知'}）`
+      }))
+    : []
+
   return {
     games,
     images: status.images || { total: 0, downloaded: 0, placeholder: 0, missing: 0 },
     fetchedAt,
     mode: status.mode || '',
-    imageDownloads: status.imageDownloads
+    imageDownloads: status.imageDownloads,
+    changes
   }
 }
 
 /**
  * 渲染状态图（segment.image 对象）
+ * @param {object} [extra] - 同 buildStatusData，见其说明
  * @returns {Promise<object|null>} 未初始化 / 渲染失败返回 null
  */
-export async function renderStatusImage () {
-  const data = buildStatusData()
+export async function renderStatusImage (extra = {}) {
+  const data = buildStatusData(extra)
   if (!data) return null
   try {
     return await renderAtlas('status', data, { imgType: 'jpeg' })

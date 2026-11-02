@@ -41,6 +41,25 @@ for (const g of real.games) {
   check(`列出 ${g.name}（版本 ${g.version}）`, html.includes(g.name) && html.includes(g.version))
 }
 check('不再含已剥离的「角色攻略」卡', !html.includes('角色攻略'))
+check('未传 changes 时不出「本次更新」卡', !html.includes('本次更新'))
+
+console.log('\n=== 「本次更新」卡片（更新完成通知用）===')
+const withChanges = buildStatusData({
+  changes: [
+    { name: '原神', changed: true, from: '7.0.51', to: '7.0.52', delta: 88 },
+    { name: '星铁', changed: false, from: '3.4.1', to: '3.4.1', delta: 0 },
+    { name: '绝区零', changed: true, from: '2.1.0', to: '2.1.1', delta: -3 }
+  ]
+})
+const html2 = template.render(tpl, {
+  ...withChanges,
+  _res_path: pathToFileURL(path.join(pluginRoot, 'resources')).href
+})
+check('传 changes 时渲染出「本次更新」卡', html2.includes('本次更新') && !html2.includes('{{'))
+check('变化的游戏显示「旧版本 → 新版本」', html2.includes('7.0.51 → 7.0.52'))
+check('变化的游戏显示条目增减', html2.includes('条目 +88') && html2.includes('条目 -3'))
+check('未变化的游戏显示「无变化」', html2.includes('无变化（3.4.1）'))
+check('变化行带高亮样式类', html2.includes('status-value changed'))
 
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

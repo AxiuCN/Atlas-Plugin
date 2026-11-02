@@ -18,6 +18,7 @@ import {
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
 import { renderStatusImage } from '../components/status.js'
+import { GAME_NAMES } from '../components/constants.js'
 import { runDiffScrape } from '../model/AtlasUpdater.js'
 
 const config = getPluginConfig()
@@ -54,12 +55,12 @@ export class AtlasAdmin extends plugin {
     // 已初始化 + 数据完整 → 跳过抓取
     if (isInitialized()) {
       if (isDataIntact()) {
-        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复抓取', true)
+        await e.reply('[Atlas] 图鉴数据已初始化且完整，无需重复抓取', false)
         return true
       }
       // map.json 存在但数据异常（上次超时/崩溃残留），自动允许重新初始化
       logger?.warn('[Atlas][管理] 检测到数据不完整（上次可能异常中断），自动重新初始化')
-      await e.reply('[Atlas] 检测到上次初始化未完整完成，自动重新抓取...', true)
+      await e.reply('[Atlas] 检测到上次初始化未完整完成，自动重新抓取...', false)
     }
 
     return await this._doInit(e)
@@ -74,20 +75,20 @@ export class AtlasAdmin extends plugin {
     const gitFile = path.join(BACKEND_DIR, '.git')
 
     if (!fs.existsSync(gitFile)) {
-      await e.reply('[Atlas] 正在拉取子模块，请稍候...', true)
+      await e.reply('[Atlas] 正在拉取子模块，请稍候...', false)
       const gitRet = await initSubmodule()
       if (!gitRet.ok) {
-        await e.reply(`[Atlas] 子模块拉取失败：${gitRet.error}`, true)
+        await e.reply(`[Atlas] 子模块拉取失败：${gitRet.error}`, false)
         return true
       }
     }
 
     const nmDir = path.join(BACKEND_DIR, 'node_modules')
     if (!fs.existsSync(nmDir)) {
-      await e.reply('[Atlas] 正在安装依赖，请稍候...', true)
+      await e.reply('[Atlas] 正在安装依赖，请稍候...', false)
       const depRet = installDeps()
       if (!depRet.ok) {
-        await e.reply(`[Atlas] 依赖安装失败：${depRet.error}`, true)
+        await e.reply(`[Atlas] 依赖安装失败：${depRet.error}`, false)
         return true
       }
     }
@@ -100,7 +101,7 @@ export class AtlasAdmin extends plugin {
     const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
       ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
       : hasGroups ? '主人和配置群' : '主人'
-    await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, true)
+    await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, false)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
     runScrapeAsync(cfg?.autoUpdate?.timeoutMs).then(async (ret) => {
@@ -151,7 +152,7 @@ export class AtlasAdmin extends plugin {
    * #图鉴强制初始化 — 跳过完整性检查，直接全量抓取
    */
   async handleForceInit (e) {
-    await e.reply('[Atlas] 强制重新初始化：跳过完整性检查，将清空现有数据并全量重建（含图片）...', true)
+    await e.reply('[Atlas] 强制重新初始化：跳过完整性检查，将清空现有数据并全量重建（含图片）...', false)
     // 直接走完整流程（不检查 isInitialized）
     await this._doInit(e)
     return true
@@ -162,31 +163,31 @@ export class AtlasAdmin extends plugin {
    */
   async handleUpdate (e) {
     if (!isInitialized()) {
-      await e.reply('[Atlas] 图鉴数据未初始化，请先使用 #图鉴初始化', true)
+      await e.reply('[Atlas] 图鉴数据未初始化，请先使用 #图鉴初始化', false)
       return true
     }
 
-    await e.reply('[Atlas] 正在检查图鉴版本...', true)
-
-    // ── 同步完成版本检查（~5s）──
+    // ── 同步完成版本检查（~5s）：期间不发「正在检查」，避免与结果几乎同时刷屏 ──
+    // 更新前的状态留作「本次更新」卡片对比基线（版本 + 条目数）
+    const before = getDataStatus()
     const local = readLocalVersions()
     const remote = await checkRemoteVersions(['gi', 'hsr', 'zzz'])
 
     if (!remote.ok) {
-      await e.reply(`[Atlas] 远端版本检查失败：${remote.reason || '网络异常'}`, true)
+      await e.reply(`[Atlas] 远端版本检查失败：${remote.reason || '网络异常'}`, false)
       return true
     }
 
     if (!local.ready) {
-      await e.reply('[Atlas] 本地数据不完整，自动全量抓取中，完成后将通知...', true)
+      await e.reply('[Atlas] 本地数据不完整，自动全量抓取中，完成后将通知...', false)
     } else {
       const diff = compareAtlasVersions(local.versions, remote.versions)
       if (!diff.changed) {
-        await e.reply('[Atlas] 版本未变化，无需更新', true)
+        await e.reply(`[Atlas] 版本未变化，无需更新\n${versionLine(local.versions)}`, false)
         return true
       }
-      const changes = diff.changes.map(c => `${c.game} ${c.local.latest || '-'}→${c.remote.latest}`).join('，')
-      await e.reply(`[Atlas] 检测到版本变化：${changes}，开始更新...`, true)
+      const changes = diff.changes.map(c => `${gameLabel(c.game)} ${c.local.latest || '-'}→${c.remote.latest}`).join('，')
+      await e.reply(`[Atlas] 检测到版本变化：${changes}，开始更新（完成后通知）`, false)
     }
 
     // ── 异步抓取（不阻塞 bot）──
@@ -240,12 +241,15 @@ export class AtlasAdmin extends plugin {
         : ret.mode === 'full_fallback' ? '（增量失败，降级全量）'
         : ''
 
+      // 「本次更新」摘要（谁变了、条目数增减），随状态图一起展示
+      const changes = buildChangeSummary(before, status, ret?.check?.diff)
+
       // 渲染状态图通知（失败回退文字）
-      const img = await renderStatusImage()
+      const img = await renderStatusImage({ changes })
       if (img) {
         this._notifyResult(img)
       } else {
-        this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}`)
+        this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}\n${changeLines(changes)}`)
       }
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
@@ -302,6 +306,7 @@ export class AtlasAdmin extends plugin {
     logger?.info('[Atlas][管理] 开始定时自动更新...')
 
     try {
+      const before = getDataStatus()
       const ret = await checkAndUpdate({
         games: ['gi', 'hsr', 'zzz'],
         locales: ['zh'],
@@ -341,12 +346,15 @@ export class AtlasAdmin extends plugin {
         : ''
       logger?.info('[Atlas][管理] 定时更新完成')
 
+      // 「本次更新」摘要（谁变了、条目数增减），随状态图一起展示
+      const changes = buildChangeSummary(before, status, ret?.check?.diff)
+
       // 渲染状态图通知（失败回退文字）
-      const img = await renderStatusImage()
+      const img = await renderStatusImage({ changes })
       if (img) {
         this._notifyResult(img)
       } else {
-        this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}`)
+        this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}\n${changeLines(changes)}`)
       }
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
@@ -367,6 +375,66 @@ function parseGroupList (groups) {
   if (!groups && groups !== 0) return []
   const raw = Array.isArray(groups) ? groups.join(',') : String(groups)
   return raw.split(/[,，\s]+/).filter(Boolean).map(s => s.trim())
+}
+
+/**
+ * 游戏 ID → 中文名（缺省原样返回）
+ * @param {string} gameId
+ * @returns {string}
+ */
+function gameLabel (gameId) {
+  return GAME_NAMES[gameId] || gameId
+}
+
+/**
+ * 版本行：`原神 7.0.51 · 星铁 3.4.1 · 绝区零 2.1.0`（缺版本的跳过）
+ * @param {object} versions - readLocalVersions().versions
+ * @returns {string}
+ */
+function versionLine (versions = {}) {
+  const parts = Object.entries(versions)
+    .map(([game, v]) => {
+      const ver = v?.latest || v?.live
+      return ver ? `${gameLabel(game)} ${ver}` : ''
+    })
+    .filter(Boolean)
+  return parts.length ? parts.join(' · ') : '（版本未知）'
+}
+
+/**
+ * 本次更新摘要：逐游戏对比更新前后的版本与条目数
+ * @param {object} before - 更新前的 getDataStatus()
+ * @param {object} after - 更新后的 getDataStatus()
+ * @param {object} [diff] - checkAndUpdate().check.diff（判定哪些游戏真的变了）
+ * @returns {{id: string, name: string, changed: boolean, from: string, to: string, delta: number}[]}
+ */
+function buildChangeSummary (before, after, diff) {
+  const changedGames = new Set((diff?.changes || []).map(c => c.game))
+  const afterGames = after?.games || {}
+  return Object.entries(afterGames).map(([id, g]) => {
+    const prev = before?.games?.[id] || {}
+    return {
+      id,
+      name: g?.name || gameLabel(id),
+      changed: changedGames.has(id),
+      from: prev.version || '',
+      to: g?.version || '',
+      delta: Number(g?.recordCount || 0) - Number(prev.recordCount || 0)
+    }
+  })
+}
+
+/**
+ * 「本次更新」的文字版（状态图渲染失败时回退用）
+ * @param {ReturnType<typeof buildChangeSummary>} changes
+ * @returns {string}
+ */
+function changeLines (changes = []) {
+  if (!changes.length) return ''
+  const lines = changes.map(c => c.changed
+    ? `· ${c.name}：${c.from || '?'} → ${c.to}${c.delta ? `（条目 ${c.delta > 0 ? '+' : ''}${c.delta}）` : ''}`
+    : `· ${c.name}：无变化（${c.to || '版本未知'}）`)
+  return `本次更新：\n${lines.join('\n')}`
 }
 
 /**
