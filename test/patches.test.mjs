@@ -70,6 +70,10 @@ console.log(`  圣遗物补丁 ${artiPatches.length} 个`)
 const EXPECT_RANK = {}
 for (const id of ['14001', '14002', '14003', '14004', '15001', '15002', '15003', '15004', '15005', '15006', '15007', '15008', '15014', '15015', '15016', '15017', '15018']) EXPECT_RANK[id] = [4, 5]
 for (const id of ['15009', '15010', '15011', '15012', '15013']) EXPECT_RANK[id] = [3, 4]
+// 源站按最低星级分目录并写宽 rank：这 10 套低星套实际 3/4 星（目录 一星/二星 → 三星）
+for (const id of ['10001', '10002', '10003', '10004', '10005', '10006', '10007', '10008', '10009', '10012']) EXPECT_RANK[id] = [3, 4]
+// 开箱低星三套（冒险家/幸运儿/游医）实际 1/2/3 星，目录不变
+for (const id of ['10010', '10011', '10013']) EXPECT_RANK[id] = [1, 2, 3]
 // 源站把这 16 套的部件 desc 抓成占位文本（「XX专用」/「待定」），补丁里必须补成官方描述
 const EXPECT_DESC_FILLED = ['14001', '14004', '15001', '15002', '15005', '15006', '15007', '15008', '15014', '15015', '15016', '15017', '15018', '15019', '15020', '15021']
 
@@ -121,7 +125,7 @@ else {
       if (k === 'rarity') continue
       if (JSON.stringify(merged[k]) !== JSON.stringify(origin[k])) problems.push(`[map 误伤其他字段] ${id}.${k}`)
     }
-    if (merged.rarity !== '四星') problems.push(`[map rarity 未生效] ${id} = ${merged.rarity}`)
+    if (merged.rarity !== patchRec.rarity) problems.push(`[map rarity 未生效] ${id}: 声明 ${patchRec.rarity} 实际 ${merged.rarity}`)
   }
   // 未列出的条目不应被改动
   let unintended = 0

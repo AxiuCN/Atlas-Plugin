@@ -1,0 +1,25 @@
+{
+  "_patch": {
+    "note": "源站按最低星级分目录，把本套装归入「一星」，且 detail.rank 写成了 [1,2,3,4,5]；游戏内「流放者」实际为 3/4 星（来源：游戏内圣遗物图鉴截图）。rank 已改为 [3,4]，rarity 一星 → 三星（目录归类见 resources/patch/map.json 的索引补丁）",
+    "upstream": {
+      "meta.rarity": "一星",
+      "content.detail.rank.0": 1,
+      "content.detail.rank.1": 2,
+      "content.detail.rank.2": 3,
+      "content.detail.rank.3": 4,
+      "content.detail.rank.4": 5
+    },
+    "updatedAt": "2026-11-02"
+  },
+  "content": {
+    "detail": {
+      "rank": [
+        3,
+        4
+      ]
+    }
+  },
+  "meta": {
+    "rarity": "三星"
+  }
+}
