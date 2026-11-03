@@ -4,7 +4,7 @@
  * 未来若更换搜索方式，只需替换此模块，不影响 components/queryUtils.js 的数据构建器。
  */
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
-import { getPeriods, getCurrentPeriod, formatPeriodDate } from '../model/ChallengePeriod.js'
+import { getPeriods, getCurrentPeriod, formatPeriodDate, parsePeriodSpec, resolvePeriodSpec, periodMissReply } from '../model/ChallengePeriod.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, SIGNATURE_SUFFIX, SIGNATURE_SHORT_SUFFIX } from '../components/constants.js'
@@ -148,9 +148,10 @@ function parseSubView (keyword, gameId) {
  * @param {object} e - Runtime 实例
  * @param {string} gameId
  * @param {object} result - 搜索结果
+ * @param {object|null} [periodSpec] - 期修饰（月份 / 版本 / 本期·上期·下期），见 parsePeriodSpec
  * @returns {Promise<boolean>}
  */
-export async function handleSpecialQuery (e, gameId, result) {
+export async function handleSpecialQuery (e, gameId, result, periodSpec = null) {
   if (result.specialType === 'page_list') {
     const records = getPageRecords(gameId, result.pageKey)
     if (records.length === 0) {
@@ -185,14 +186,30 @@ export async function handleSpecialQuery (e, gameId, result) {
 
     // 「本期」= 时间窗覆盖当前时间的期。图鉴数据常超前于线上版本，记录顺序里的最后一条
     // 可能是尚未开放的未来期，故不能再用「取最后一条」当最新一期。
-    const { period, state, latest, next } = getCurrentPeriod(gameId, result.pageKey)
-    if (!period) {
-      // 已知未开期时只说「未开放」；连未开期都没有，说明数据停在最后一期之后，补上数据截止日
-      const tail = state === 'closed' && !next && latest?.end
-        ? `（数据截至 ${formatPeriodDate(latest.end)}）`
-        : ''
-      await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}`)
-      return true
+    let period = null
+    if (periodSpec) {
+      const resolved = resolvePeriodSpec(gameId, result.pageKey, periodSpec)
+      if (resolved.state === 'closed') {
+        await e.reply(`[Atlas] ${result.pageTitle} 本期未开放`)
+        return true
+      }
+      const miss = periodMissReply(result.pageTitle, resolved)
+      if (miss) {
+        await e.reply(miss)
+        return true
+      }
+      period = resolved.period
+    } else {
+      const current = getCurrentPeriod(gameId, result.pageKey)
+      period = current.period
+      if (!period) {
+        // 已知未开期时只说「未开放」；连未开期都没有，说明数据停在最后一期之后，补上数据截止日
+        const tail = current.state === 'closed' && !current.next && current.latest?.end
+          ? `（数据截至 ${formatPeriodDate(current.latest.end)}）`
+          : ''
+        await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}`)
+        return true
+      }
     }
 
     const record = loadRecord(period.filePath)
@@ -222,6 +239,12 @@ export async function handleQuery (e, gameId, keyword) {
   if (!keyword) return false
 
   try {
+    // ── 阶段 -1：期修饰前缀（月份 / 版本 / 本期·上期·下期）──
+    // 语序固定为 `<期修饰><挑战名>[图鉴]`，剥掉后剩下的部分照常走后缀与搜索
+    const specParsed = parsePeriodSpec(keyword)
+    const periodSpec = specParsed?.base ? specParsed.spec : null
+    if (periodSpec) keyword = specParsed.base
+
     // ── 阶段 0：子视图 / 页面类型 / 专武后缀检测 ──
     const { searchKeyword, subView, pageType, signature } = parseSubView(keyword, gameId)
 
@@ -323,7 +346,7 @@ export async function handleQuery (e, gameId, keyword) {
       }
 
       case 'special':
-        return handleSpecialQuery(e, gameId, result)
+        return handleSpecialQuery(e, gameId, result, periodSpec)
 
       default:
         return false
