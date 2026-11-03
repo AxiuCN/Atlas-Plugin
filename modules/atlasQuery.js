@@ -4,6 +4,7 @@
  * 未来若更换搜索方式，只需替换此模块，不影响 components/queryUtils.js 的数据构建器。
  */
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
+import { getPeriods, getCurrentPeriod, formatPeriodDate } from '../model/ChallengePeriod.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, SIGNATURE_SUFFIX, SIGNATURE_SHORT_SUFFIX } from '../components/constants.js'
@@ -176,19 +177,30 @@ export async function handleSpecialQuery (e, gameId, result) {
   }
 
   if (result.specialType === 'page_detail') {
-    const records = getPageRecords(gameId, result.pageKey)
-    if (records.length === 0) {
+    const periods = getPeriods(gameId, result.pageKey)
+    if (periods.length === 0) {
       await e.reply(`[Atlas] ${result.pageTitle}数据为空`)
       return true
     }
 
-    const latest = records[records.length - 1] || records[0]
-    const record = loadRecord(latest.filePath)
-    if (!record) {
-      await e.reply(`[Atlas] ${latest.name} 的数据文件缺失，请执行数据抓取`)
+    // 「本期」= 时间窗覆盖当前时间的期。图鉴数据常超前于线上版本，记录顺序里的最后一条
+    // 可能是尚未开放的未来期，故不能再用「取最后一条」当最新一期。
+    const { period, state, latest, next } = getCurrentPeriod(gameId, result.pageKey)
+    if (!period) {
+      // 已知未开期时只说「未开放」；连未开期都没有，说明数据停在最后一期之后，补上数据截止日
+      const tail = state === 'closed' && !next && latest?.end
+        ? `（数据截至 ${formatPeriodDate(latest.end)}）`
+        : ''
+      await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}`)
       return true
     }
-    const data = buildDetailData(gameId, { ...latest, record })
+
+    const record = loadRecord(period.filePath)
+    if (!record) {
+      await e.reply(`[Atlas] ${period.name} 的数据文件缺失，请执行数据抓取`)
+      return true
+    }
+    const data = buildDetailData(gameId, { name: period.name, filePath: period.filePath, record })
     const tpl = selectTemplate(result)
     const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
     if (img) await e.reply(img)

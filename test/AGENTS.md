@@ -42,9 +42,10 @@
 | `weapon-refine.test.mjs` | 精炼/叠影/音擎天赋合并的合成用例 + 全量 512 条往返无损 | 图鉴数据 |
 | `patches.test.mjs` | 补丁结构 / `_patch.upstream` 与上游一致 / 圣遗物补丁覆盖与误伤 / map 索引补丁 | 图鉴数据 |
 | `status-page.test.mjs` | `#图鉴状态` 状态页：真实 `buildStatusData()` + art-template 渲染一次，各游戏版本行齐全 | 图鉴数据 |
+| `challenge-index.test.mjs` | 终局挑战期索引（`model/ChallengePeriod.js`）：时间解析按本地时区（04:00 日切不错天）、期表构建（按开启时间升序 / 无时间期按 `detail.id` / 期序号连续）、占位期剔除（一天窗口、同窗口重复只留 `detail.id` 最大的一条）、本期判定（时间窗命中优先、**未来期不得当本期**、`closed` 时最近已开期与最早未开期分开给、全无日期回落最后一期、空表），以及真实数据下 9 个玩法的期数与占位剔除、**zzz 同名期不再被索引去重压掉**（危局 47 条同名「试炼」→ 44 期、式舆 62 条 → 60 期） | 图鉴数据 |
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
 | `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
-| `smoke-imports.test.mjs` | 18 个模块加载无环、导出面齐全 | 图鉴数据 |
+| `smoke-imports.test.mjs` | 19 个模块加载无环、导出面齐全 | 图鉴数据 |
 
 ## 不入库
 

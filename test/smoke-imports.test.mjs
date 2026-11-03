@@ -15,6 +15,7 @@ const targets = [
   ['model/AtlasService.js', null],
   ['model/AtlasRepository.js', 'loadRecord'],
   ['model/AtlasUpdater.js', null],
+  ['model/ChallengePeriod.js', 'getCurrentPeriod'],
   ['model/LinkResolver.js', null],
   ['model/MiaoParams.js', null],
   ['model/itemIndex/mapLoader.js', null],
