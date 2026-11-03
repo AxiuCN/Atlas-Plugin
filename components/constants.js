@@ -193,6 +193,54 @@ export const CHALLENGE_PAGE_KEYS = new Set([
   'boss'                // 危局强袭战
 ])
 
+/**
+ * 版本时间轴：锚点版本 + 该版本开启时间 + 版本周期（天）
+ *
+ * 用途：把「期开启日」换算成版本号（`#7.1a深渊` 之类查询的落地依据）。
+ * **锚点是一次性历史常量**，不随版本滚动更新——只有官方改了版本周期才需要动一个数。
+ * 版本序列按 `+0.1` 递推、`minor` 超过 `minorMaxByMajor[major]` 后进位（如 hsr 3.8→4.0），
+ * 该表只需覆盖锚点前后数十个版本，超出范围视为未知版本（查询侧提示不支持）。
+ */
+export const CHALLENGE_VERSION_TIMELINE = Object.freeze({
+  gi: {
+    anchorVersion: '5.7',
+    anchorStart: '2025-06-25 10:00',
+    cycleDays: 42,
+    minorMaxByMajor: { 1: 6, 2: 8, 3: 8, 4: 8, 5: 8, 6: 7, 7: 8 }
+  },
+  hsr: {
+    anchorVersion: '4.0',
+    anchorStart: '2026-02-13 06:00',
+    cycleDays: 42,
+    minorMaxByMajor: { 1: 6, 2: 7, 3: 8, 4: 8, 5: 8 }
+  },
+  zzz: {
+    anchorVersion: '3.0',
+    anchorStart: '2026-06-17 06:00',
+    cycleDays: 42,
+    minorMaxByMajor: { 1: 7, 2: 7, 3: 8, 4: 8 }
+  }
+})
+
+/**
+ * 挑战期估算锚点：记录 id + 该期开启时间 + 期长（天）
+ *
+ * 仅用于**记录完全没有 `begin/end`** 的玩法（星铁四个玩法全空）：以锚点那期为基准，
+ * 按「期序号差 × 期长」推算其余期。锚点取较近的一期，把等距外推的累积误差压到最小；
+ * 版本大更新后若发现窗口明显偏移，改这里的 `id` / `start` 即可（偶尔一次）。
+ *
+ * 原神三个玩法与绝区零两个玩法自带真实时间（zzz 大部分有），**不配锚点**——
+ * 缺日期的是早期老期，用 2026 年的锚点往前外推只会得到更错的日期。
+ *
+ * `id` 用 `map.json` 里的记录键（数字），键不是数字时退到条目 `content.detail.id`。
+ */
+export const CHALLENGE_PERIOD_ANCHORS = Object.freeze({
+  'hsr:maze': { id: 1032, start: '2026-05-25 04:00', days: 42 },        // 混沌回忆·值日行动
+  'hsr:maze_boss': { id: 3018, start: '2026-06-08 04:00', days: 42 },   // 末日幻影·遗忘冽风
+  'hsr:maze_extra': { id: 2023, start: '2026-05-11 04:00', days: 42 },  // 虚构叙事
+  'hsr:maze_peak': { id: 7, start: '2026-06-11 04:00', days: 42 }       // 异相仲裁
+})
+
 // 模板名常量
 export const TEMPLATE = {
   DETAIL: 'detail',

@@ -15,6 +15,11 @@
  * 「这个玩法有哪些期」与「哪一期正在开」。
  */
 import { loadMap, loadRecord } from './AtlasService.js'
+import { parseDataTime, getVersionAt } from './ChallengeVersion.js'
+import { CHALLENGE_PERIOD_ANCHORS } from '../components/constants.js'
+
+// 时间解析与版本时间轴都在 ChallengeVersion（本模块再导出，保持调用方 import 面不变）
+export { parseDataTime }
 
 /** 期表缓存：`${gameId}:${pageKey}` → 期数组（不含占位期） */
 const periodCache = new Map()
@@ -28,35 +33,18 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const PLACEHOLDER_MAX_DAYS = 3
 
 /**
- * 解析图鉴数据里的时间字符串（按本地时区）
+ * 期排序：先按记录 id（图鉴数据里的期就是按它递增的），再按开启时间，最后退原始顺序
  *
- * 数据形如 `2026-07-16 04:00:00`，是国服 04:00 日切口径的**本地时间**；
- * 直接交给 `new Date(str)` 会被按 UTC 解析，跨时区时日期会错一天，故手工拆字段。
- * @param {string} text
- * @returns {Date|null} 解析失败返回 null
- */
-export function parseDataTime (text) {
-  if (typeof text !== 'string') return null
-  const matched = text.trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/)
-  if (!matched) return null
-  const date = new Date(
-    Number(matched[1]),
-    Number(matched[2]) - 1,
-    Number(matched[3]),
-    Number(matched[4] || 0),
-    Number(matched[5] || 0),
-    Number(matched[6] || 0)
-  )
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-/**
- * 期排序：有时间按时间，无时间按 detail.id，再退原始顺序
+ * 记录 id 比时间更可靠：同一玩法的期 id 单调递增，而时间既可能缺失、也可能被占位记录污染
+ * （zzz 尾部那批 6205x1 的记录时间全是同一个窗口）。
  * @param {object} a
  * @param {object} b
  * @returns {number}
  */
 function comparePeriods (a, b) {
+  const keyA = a.identity ?? Number.MAX_SAFE_INTEGER
+  const keyB = b.identity ?? Number.MAX_SAFE_INTEGER
+  if (keyA !== keyB) return keyA - keyB
   if (a.begin && b.begin) {
     const diff = a.begin.getTime() - b.begin.getTime()
     if (diff !== 0) return diff
@@ -88,6 +76,7 @@ export function collectPeriods (entries) {
     begin: entry.begin || null,
     end: entry.end || null,
     detailId: Number.isFinite(entry.detailId) ? entry.detailId : null,
+    identity: Number.isFinite(entry.identity) ? entry.identity : null,
     orderIndex
   }))
 
@@ -162,19 +151,52 @@ export function getPeriods (gameId, pageKey) {
     try {
       meta = readPeriodMeta(entry.path)
     } catch {
-      // 记录读不出来时保留为「无时间期」，靠 detail.id / 原始顺序定位
+      // 记录读不出来时保留为「无时间期」，靠记录 id / 原始顺序定位
     }
+    // 期标识优先用 map.json 的记录键（同一玩法的期按它递增），键不是数字时退到条目 detail.id
+    const keyId = Number(recordId)
     entries.push({
       name: meta.name || entry.name || recordId,
       filePath: entry.path,
       begin: meta.begin,
       end: meta.end,
-      detailId: meta.detailId
+      detailId: meta.detailId,
+      identity: Number.isFinite(keyId) ? keyId : meta.detailId
     })
   }
 
-  const periods = collectPeriods(entries)
+  const periods = applyPeriodAnchors(gameId, pageKey, collectPeriods(entries))
   periodCache.set(cacheKey, periods)
+  return periods
+}
+
+/**
+ * 用静态锚点给「没有 begin/end」的期补出时间窗（原地修改并返回同一数组）
+ *
+ * 锚点见 `components/constants.js` 的 `CHALLENGE_PERIOD_ANCHORS`：以锚点那期为基准，
+ * 按「期序号差 × 期长」推算。等距外推会累积误差（实测期频有 35/42 混用），所以
+ * 锚点取较近的一期；补出来的期标 `estimated: true`，出图时可标注为推定。
+ * @param {string} gameId
+ * @param {string} pageKey
+ * @param {object[]} periods
+ * @returns {object[]}
+ */
+function applyPeriodAnchors (gameId, pageKey, periods) {
+  const anchor = CHALLENGE_PERIOD_ANCHORS[`${gameId}:${pageKey}`]
+  if (!anchor) return periods
+  const anchorStart = parseDataTime(anchor.start)
+  const anchorPeriod = periods.find(period => period.identity === Number(anchor.id))
+  if (!anchorStart || !anchorPeriod) return periods
+
+  const span = Number(anchor.days) * DAY_MS
+  if (!Number.isFinite(span) || span <= 0) return periods
+  for (const period of periods) {
+    if (period.begin && period.end) continue
+    const begin = new Date(anchorStart.getTime() + (period.no - anchorPeriod.no) * span)
+    period.begin = begin
+    period.end = new Date(begin.getTime() + span - 1000)
+    period.estimated = true
+  }
   return periods
 }
 
@@ -238,6 +260,19 @@ export function pickCurrent (periods, now) {
  */
 export function getCurrentPeriod (gameId, pageKey, now = new Date()) {
   return pickCurrent(getPeriods(gameId, pageKey), now)
+}
+
+/**
+ * 某一期属于哪个版本（口径：**期开启日落在哪个版本区间**）
+ *
+ * 一期只算"开启它的那个版本"，跨版本不重复计；时间窗是估算值时按估算值算。
+ * @param {string} gameId
+ * @param {object} period
+ * @returns {string|null} 版本号；无开启时间或早于版本序列起点返回 null
+ */
+export function getPeriodVersion (gameId, period) {
+  if (!period?.begin) return null
+  return getVersionAt(gameId, period.begin)
 }
 
 /**
