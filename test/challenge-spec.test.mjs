@@ -2,14 +2,20 @@
 //
 // 语序固定为 `<期修饰><挑战名>[图鉴]`：纯函数部分用合成期表，端到端部分走真实 handleQuery
 // （真实数据会随更新增长，故只断言稳定的性质，不写死期数与具体期名）。
-import { mod, requireAtlasData, installFrameworkStubs } from './_helper.mjs'
+import fs from 'node:fs'
+import path from 'node:path'
+import template from 'art-template'
+import { mod, pluginRoot, requireAtlasData, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 
 const {
-  parsePeriodSpec, resolvePeriodSpec, collectPeriods, parseDataTime, periodMissReply
+  parsePeriodSpec, resolvePeriodSpec, collectPeriods, parseDataTime, periodMissReply,
+  formatPeriodLabel, getPeriods
 } = await import(mod('model/ChallengePeriod.js'))
 const { handleQuery } = await import(mod('modules/atlasQuery.js'))
+const { buildDetailData } = await import(mod('components/queryUtils.js'))
+const { loadRecord } = await import(mod('model/AtlasService.js'))
 
 let pass = 0
 let fail = 0
@@ -101,7 +107,25 @@ check('该版本无期时给出 no-version',
   periodMissReply('深境螺旋', noPeriodInVersion) === '[Atlas] 深境螺旋 在 5.7 版本没有期')
 
 /* ============================================================
- *  四、端到端（真实 handleQuery + 真实数据）
+ *  四、期标识文案
+ * ============================================================ */
+
+console.log('\n=== 期标识 ===')
+const labelPeriod = { no: 3, begin: at('2026-01-05 04:00:00'), end: at('2026-01-26 03:59:59') }
+const label = formatPeriodLabel('gi', labelPeriod)
+check('期标识含期号与起止日期',
+  /第 3 期/.test(label) && /2026-01-05/.test(label) && /→ 01-26/.test(label), label)
+check('跨年时结束日期保留年份',
+  /→ 2027-01-26/.test(formatPeriodLabel('gi', {
+    ...labelPeriod,
+    end: at('2027-01-26 03:59:59')
+  })))
+check('期标识含版本', /版本/.test(label), label)
+check('估算期标注推定', /推定/.test(formatPeriodLabel('hsr', { ...labelPeriod, estimated: true })))
+check('空期返回空串', formatPeriodLabel('gi', null) === '')
+
+/* ============================================================
+ *  五、端到端（真实 handleQuery + 真实数据）
  * ============================================================ */
 
 requireAtlasData()
@@ -146,6 +170,27 @@ check('#本期深渊 要么出图、要么明确回未开放',
 const plainUnchanged = await run('gi', '深渊')
 check('#深渊（无期修饰）行为不变：出图或未开放',
   plainUnchanged.ret === true, plainUnchanged.text || '出图')
+
+console.log('\n=== 出图期标识 ===')
+const towerPeriods = getPeriods('gi', 'tower')
+const samplePeriod = towerPeriods[towerPeriods.length - 1]
+const sampleRecord = loadRecord(samplePeriod.filePath)
+const detailData = buildDetailData('gi', {
+  name: samplePeriod.name,
+  filePath: samplePeriod.filePath,
+  record: sampleRecord,
+  period: samplePeriod,
+  pageKey: 'tower',
+  pageTitle: '深境螺旋'
+})
+check('详情数据带期标识', !!detailData.periodLine && detailData.periodLine.includes('第 '), detailData.periodLine)
+
+const tplHtml = template.render(
+  fs.readFileSync(path.join(pluginRoot, 'resources/atlas/challenge.html'), 'utf8'),
+  { ...detailData, _res_path: 'file:///atlas-res', renderScale: 1.5 }
+)
+check('模板把期标识渲染进 hero', tplHtml.includes(detailData.periodLine) && tplHtml.includes('hero-subtitle'))
+check('模板不再残留未渲染标记', !tplHtml.includes('{{'))
 
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

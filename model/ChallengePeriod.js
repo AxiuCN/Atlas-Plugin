@@ -287,6 +287,30 @@ export function formatPeriodDate (date) {
 }
 
 /**
+ * 期的展示标题：`第 44 期 · 4.4 版本 · 2026-07-20 → 2026-08-31（推定）`
+ *
+ * 三段信息缺一不可——只给期名（zzz 全叫「试炼」）用户无法确认选中了哪一期。
+ * @param {string} gameId
+ * @param {object} period
+ * @returns {string} 空期返回空串
+ */
+export function formatPeriodLabel (gameId, period) {
+  if (!period) return ''
+  const parts = []
+  if (period.no) parts.push(`第 ${period.no} 期`)
+  const version = getPeriodVersion(gameId, period)
+  if (version) parts.push(`${version} 版本`)
+  if (period.begin && period.end) {
+    const from = formatPeriodDate(period.begin)
+    const to = formatPeriodDate(period.end)
+    // 同年时省略结束日期的年份，避免这一行在 900px 画布上折行
+    parts.push(`${from} → ${from.slice(0, 4) === to.slice(0, 4) ? to.slice(5) : to}`)
+  }
+  if (period.estimated) parts.push('（推定）')
+  return parts.join(' · ')
+}
+
+/**
  * 解析查询里的「期修饰」前缀（月份 / 版本 / 相对期）
  *
  * 语序固定为 `<期修饰><挑战名>[图鉴]`，只识别前缀，避免与挑战名内部数字打架：

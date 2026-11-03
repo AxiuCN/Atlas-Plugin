@@ -217,7 +217,7 @@ export async function handleSpecialQuery (e, gameId, result, periodSpec = null) 
       await e.reply(`[Atlas] ${period.name} 的数据文件缺失，请执行数据抓取`)
       return true
     }
-    const data = buildDetailData(gameId, { name: period.name, filePath: period.filePath, record })
+    const data = buildDetailData(gameId, { name: period.name, filePath: period.filePath, record, period })
     const tpl = selectTemplate(result)
     const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
     if (img) await e.reply(img)

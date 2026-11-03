@@ -13,6 +13,9 @@
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · {{pageTitle}}</div>
       <div class="hero-title">{{recordName}}</div>
+      {{if periodLine}}
+      <div class="hero-subtitle">{{periodLine}}</div>
+      {{/if}}
       {{if desc}}
       <div class="hero-subtitle">{{desc}}</div>
       {{/if}}

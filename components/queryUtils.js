@@ -4,6 +4,7 @@
  */
 import { resolveRecordImage, loadRecord } from '../model/AtlasService.js'
 import { stripLinks } from '../model/LinkResolver.js'
+import { formatPeriodLabel } from '../model/ChallengePeriod.js'
 import {
   GAME_NAMES,
   PAGE_LABELS,
@@ -225,6 +226,8 @@ export function buildDetailData (gameId, result) {
     recordName: meta.name || result.name,
     rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
     desc: desc.length > 200 ? '' : desc,
+    // 挑战页的期标识（第 N 期 · 版本 · 起止时间），只在按期查询/本期查询时才有
+    periodLine: result.period ? formatPeriodLabel(gameId, result.period) : '',
     image: resolveRecordImage(record),
     metaFields: [],
     sections: sections || [],
