@@ -1,14 +1,16 @@
-// 终局挑战期索引回归：期表构建（纯函数）+ 真实数据的期数与「本期」判定
+// 挑战期表回归：选期逻辑（纯函数）+ 真实 Hesperides 期表
 //
-// 背景：挑战页在 map.json 里同名多条（zzz 危局 47 条全叫「试炼」），索引层按「页 + 名」去重后
-// 只剩 1~4 条；且图鉴数据常超前于线上版本，`records[last]` 可能是尚未开放的未来期。
-// 本套件锁住两点：期表不再受同名去重影响、「本期」由时间窗判定而不是记录顺序。
+// 背景：期表由 Hesperides 产物提供（`periods.json` → `getHesperidesPeriods()`，
+// 已带 no/begin/end/version）。本套件锁住两件事：
+//   ① 选期只看时间窗，不看记录顺序（图鉴数据常超前于线上版本）；
+//   ② 真实期表的形态与「本期」判定在 9 个玩法上都站得住。
 import { mod, requireAtlasData, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 
-const { parseDataTime, collectPeriods, pickCurrent, getPeriods, getCurrentPeriod, getPeriodVersion, formatPeriodDate } =
+const { parseDataTime, pickCurrent, getPeriodVersion, formatPeriodDate, formatPeriodLabel, resolvePeriodSpec, periodMissReply } =
   await import(mod('model/ChallengePeriod.js'))
+const { getHesperidesPeriods } = await import(mod('model/Hesperides.js'))
 const { getVersionDistance } = await import(mod('model/ChallengeVersion.js'))
 
 let pass = 0
@@ -23,53 +25,31 @@ const check = (name, ok, extra = '') => {
  * ============================================================ */
 
 console.log('\n=== 时间解析 ===')
-const t1 = parseDataTime('2026-07-16 04:00:00')
+const at = (text) => parseDataTime(text)
+const t1 = at('2026-07-16 04:00:00')
 check('解析 04:00 日切口径', !!t1 &&
   t1.getFullYear() === 2026 && t1.getMonth() === 6 && t1.getDate() === 16 && t1.getHours() === 4,
   t1 ? t1.toString().slice(0, 24) : 'null')
-check('只给日期时补 00:00', parseDataTime('2026-07-16')?.getHours() === 0)
-check('空串与非法文本返回 null', parseDataTime('') === null && parseDataTime('abc') === null)
-check('01:59 不被算成前一天', parseDataTime('2026-07-16 01:59:00')?.getDate() === 16)
+check('只给日期时补 00:00', at('2026-07-16')?.getHours() === 0)
+check('空串与非法文本返回 null', at('') === null && at('abc') === null)
+check('01:59 不被算成前一天', at('2026-07-16 01:59:00')?.getDate() === 16)
 check('日期格式化用本地时区（04:00 不会退到前一天）',
-  formatPeriodDate(parseDataTime('2026-07-16 04:00:00')) === '2026-07-16',
-  formatPeriodDate(parseDataTime('2026-07-16 04:00:00')))
+  formatPeriodDate(at('2026-07-16 04:00:00')) === '2026-07-16',
+  formatPeriodDate(at('2026-07-16 04:00:00')))
 check('日期格式化为空值 → 空串', formatPeriodDate(null) === '')
 
 /* ============================================================
- *  二、期表构建：排序、占位剔除、去重
- * ============================================================ */
-
-console.log('\n=== 期表构建 ===')
-const at = (text) => parseDataTime(text)
-const synthetic = collectPeriods([
-  { name: 'b', filePath: 'b.json', begin: at('2026-02-01 04:00:00'), end: at('2026-02-28 03:59:59'), detailId: 2 },
-  { name: 'a', filePath: 'a.json', begin: at('2026-01-01 04:00:00'), end: at('2026-01-31 03:59:59'), detailId: 1 },
-  { name: 'nodate-late', filePath: 'x.json', begin: null, end: null, detailId: 9 },
-  { name: 'nodate-early', filePath: 'y.json', begin: null, end: null, detailId: 5 },
-  { name: 'placeholder', filePath: 's.json', begin: at('2026-03-01 04:00:00'), end: at('2026-03-01 20:00:00'), detailId: 3 },
-  { name: 'dup-old', filePath: 'd1.json', begin: at('2026-04-01 04:00:00'), end: at('2026-04-15 03:59:59'), detailId: 10 },
-  { name: 'dup-new', filePath: 'd2.json', begin: at('2026-04-01 04:00:00'), end: at('2026-04-15 03:59:59'), detailId: 11 }
-])
-
-check('按期启日升序，无时间期排最后', synthetic.map(p => p.name).join(',')
-  === 'a,b,dup-new,nodate-early,nodate-late', synthetic.map(p => p.name).join(','))
-check('期序号从 1 连续', synthetic.every((p, i) => p.no === i + 1))
-check('一天窗口的占位期被剔除', !synthetic.some(p => p.name === 'placeholder'))
-check('同窗口重复只保留 detail.id 最大的一条',
-  !synthetic.some(p => p.name === 'dup-old') && synthetic.some(p => p.name === 'dup-new'))
-check('无时间期按 detail.id 升序',
-  synthetic.findIndex(p => p.name === 'nodate-early') < synthetic.findIndex(p => p.name === 'nodate-late'))
-
-/* ============================================================
- *  三、本期判定：时间窗优先，未来期不得当本期
+ *  二、本期判定：时间窗优先，未来期不得当本期
  * ============================================================ */
 
 console.log('\n=== 本期判定 ===')
-const timeline = collectPeriods([
-  { name: 'jan', filePath: 'jan.json', begin: at('2026-01-01 04:00:00'), end: at('2026-01-31 03:59:59'), detailId: 1 },
-  { name: 'feb', filePath: 'feb.json', begin: at('2026-02-01 04:00:00'), end: at('2026-02-28 03:59:59'), detailId: 2 },
-  { name: 'future', filePath: 'future.json', begin: at('2026-12-01 04:00:00'), end: at('2026-12-31 03:59:59'), detailId: 3 }
-])
+// 期对象与 Hesperides 产出的形状一致：no / begin / end 为 Date
+const period = (name, no, begin, end) => ({ name, no, begin: at(begin), end: at(end) })
+const timeline = [
+  period('jan', 1, '2026-01-01 04:00:00', '2026-01-31 03:59:59'),
+  period('feb', 2, '2026-02-01 04:00:00', '2026-02-28 03:59:59'),
+  period('future', 3, '2026-12-01 04:00:00', '2026-12-31 03:59:59')
+]
 
 const inFeb = pickCurrent(timeline, at('2026-02-10 12:00:00'))
 check('落在窗口内的期被选中', inFeb.state === 'current' && inFeb.period?.name === 'feb', inFeb.period?.name || inFeb.state)
@@ -80,21 +60,54 @@ check('closed 时最近已开期与最早未开期分开给',
   between.last?.name === 'feb' && between.next?.name === 'future',
   `${between.last?.name || 'null'} / ${between.next?.name || 'null'}`)
 
-const nodateTimeline = collectPeriods([
-  { name: 'n1', filePath: 'n1.json', begin: null, end: null, detailId: 1 },
-  { name: 'n2', filePath: 'n2.json', begin: null, end: null, detailId: 2 }
-])
+const nodateTimeline = [{ name: 'n1', no: 1, begin: null, end: null }, { name: 'n2', no: 2, begin: null, end: null }]
 const nodate = pickCurrent(nodateTimeline, at('2026-06-15 12:00:00'))
 check('全无日期时回落最后一期并标记 nodate', nodate.state === 'nodate' && nodate.period?.name === 'n2', nodate.state)
 check('空期表返回 empty', pickCurrent([], at('2026-06-15 12:00:00')).state === 'empty')
 
+const febVersion = getPeriodVersion('gi', timeline[1])
+check('期标识含期号 / 版本 / 起止',
+  formatPeriodLabel('gi', timeline[1]) === `第 2 期 · ${febVersion} 版本 · 2026-02-01 → 02-28`,
+  formatPeriodLabel('gi', timeline[1]))
+check('估算期标「推定」', formatPeriodLabel('gi', { ...timeline[1], estimated: true }).endsWith('（推定）'))
+check('空期标识为空串', formatPeriodLabel('gi', null) === '')
+
 /* ============================================================
- *  四、真实数据：期数、占位剔除、「本期」与旧实现的差异
+ *  三、期修饰：按月份 / 版本 / 相对期挑期，未命中给不同状态
+ * ============================================================ */
+
+console.log('\n=== 期修饰 ===')
+const byMonth = resolvePeriodSpec('gi', 'tower', { kind: 'month', month: '202602' }, at('2026-06-15 12:00:00'), timeline)
+check('月份命中', byMonth.state === 'month' && byMonth.period?.name === 'feb', byMonth.state)
+const monthMiss = resolvePeriodSpec('gi', 'tower', { kind: 'month', month: '202501' }, at('2026-06-15 12:00:00'), timeline)
+check('月份未命中', monthMiss.state === 'no-month' && monthMiss.period === null)
+check('月份未命中有专属文案', /没有 2025 年 1 月 的期/.test(periodMissReply('深境螺旋', monthMiss) || ''))
+
+const byVersion = resolvePeriodSpec('gi', 'tower', { kind: 'version', version: febVersion, slot: 'a' }, at('2026-06-15 12:00:00'), timeline)
+check('版本命中', byVersion.state === 'version' && byVersion.period?.name === 'feb', byVersion.state)
+// 找一个肯定没有期的版本：版本时间轴里存在但 timeline 里没有对应期
+const versionMiss = resolvePeriodSpec('gi', 'tower', { kind: 'version', version: '1.0', slot: 'a' }, at('2026-06-15 12:00:00'), timeline)
+check('该版本没有期（时间轴上存在，期表里无）', versionMiss.state === 'no-version', versionMiss.state)
+const unknownVersion = resolvePeriodSpec('gi', 'tower', { kind: 'version', version: '99.9', slot: 'a' }, at('2026-06-15 12:00:00'), timeline)
+check('未知版本', unknownVersion.state === 'unknown-version')
+
+const thisPeriod = resolvePeriodSpec('gi', 'tower', { kind: 'relative', which: '本期' }, at('2026-02-10 12:00:00'), timeline)
+check('本期命中', thisPeriod.state === 'current' && thisPeriod.period?.name === 'feb')
+const thisClosed = resolvePeriodSpec('gi', 'tower', { kind: 'relative', which: '本期' }, at('2026-06-15 12:00:00'), timeline)
+check('本期未开放 → closed', thisClosed.state === 'closed' && thisClosed.period === null)
+const prevPeriod = resolvePeriodSpec('gi', 'tower', { kind: 'relative', which: '上期' }, at('2026-06-15 12:00:00'), timeline)
+check('本期未开放时上期 = 最近已开期', prevPeriod.state === 'relative' && prevPeriod.period?.name === 'feb')
+const nextPeriod = resolvePeriodSpec('gi', 'tower', { kind: 'relative', which: '下期' }, at('2026-06-15 12:00:00'), timeline)
+check('本期未开放时下期 = 最早未开期', nextPeriod.state === 'relative' && nextPeriod.period?.name === 'future')
+check('空期表 → empty', resolvePeriodSpec('gi', 'tower', { kind: 'relative', which: '本期' }, at('2026-01-01'), null).state === 'empty')
+
+/* ============================================================
+ *  四、真实期表：来自 Hesperides 产物（9 个玩法全覆盖）
  * ============================================================ */
 
 requireAtlasData()
 
-console.log('\n=== 真实期表 ===')
+console.log('\n=== 真实期表（Hesperides）===')
 const MODES = [
   ['gi', 'tower'], ['gi', 'rolecombat'], ['gi', 'leyline'],
   ['hsr', 'maze'], ['hsr', 'maze_boss'], ['hsr', 'maze_extra'], ['hsr', 'maze_peak'],
@@ -102,19 +115,20 @@ const MODES = [
 ]
 
 for (const [gameId, pageKey] of MODES) {
-  const periods = getPeriods(gameId, pageKey)
-  const dated = periods.filter(p => p.begin && p.end)
-  const estimated = periods.filter(p => p.estimated)
-  const current = getCurrentPeriod(gameId, pageKey)
+  const hes = getHesperidesPeriods(gameId, pageKey)
   const label = `${gameId}/${pageKey}`
+  check(`${label} 取到期表（源 ${hes?.source || '-'} / 页 ${hes?.page || '-'}）`, Boolean(hes?.periods?.length), hes ? `${hes.periods.length} 期` : 'null')
+  if (!hes) continue
 
-  check(`${label} 期数 ${periods.length}（有日期 ${dated.length}，估算 ${estimated.length}）`, periods.length > 0)
-  check(`${label} 期序号连续`, periods.every((p, i) => p.no === i + 1))
-  check(`${label} 无一天窗口的占位期`,
-    !periods.some(p => p.begin && p.end && p.end - p.begin < 3 * 86400000))
-  check(`${label} 没有结束早于开始的期`,
-    !periods.some(p => p.begin && p.end && p.end <= p.begin))
-  check(`${label} 至少有一条期带时间`, dated.length > 0)
+  const periods = hes.periods
+  check(`${label} 期序号从 1 连续`, periods.every((p, i) => p.no === i + 1))
+  check(`${label} 期对象带 Date 型 begin/end`,
+    periods.every(p => p.begin instanceof Date && p.end instanceof Date))
+  check(`${label} 没有结束早于开始的期`, !periods.some(p => p.end <= p.begin))
+  check(`${label} 按期序递增（begin 单调）`,
+    periods.every((p, i) => i === 0 || periods[i - 1].begin <= p.begin))
+
+  const current = pickCurrent(periods, new Date())
   check(`${label} 本期状态合法`, ['current', 'closed', 'nodate', 'empty'].includes(current.state), current.state)
   if (current.state === 'current') {
     const now = Date.now()
@@ -123,36 +137,22 @@ for (const [gameId, pageKey] of MODES) {
   } else if (current.state === 'closed') {
     check(`${label} 无本期时不回退到任何一期`, current.period === null)
   }
-  // 估算期的窗口长度必须等于锚点期长，且按序递增（等距外推的自检）
-  if (estimated.length) {
-    check(`${label} 估算期窗口长度一致`,
-      new Set(estimated.map(p => p.end - p.begin)).size === 1)
-    check(`${label} 估算期按序递增`,
-      estimated.every((p, i) => i === 0 || estimated[i - 1].begin < p.begin))
-  }
 
-  // 期 → 版本：带时间的期应尽量落在版本时间轴内，相邻期最多相差一个版本
-  // （早期期早于版本序列起点 → null；少数记录日期异常会与 id 顺序错位一个版本，均属已知偏差）
+  // 期 → 版本：带时间的期应尽量落在版本时间轴内
   const versions = periods.map(p => getPeriodVersion(gameId, p)).filter(Boolean)
-  check(`${label} 期→版本有可解析结果`, versions.length > 0, `${versions.length}/${dated.length}`)
-  // 估算出来的期由等距外推得到：期频与版本周期不完全相等（实测 35/42 混用），**允许跳版本**
-  // （远离婚点的一侧累积误差更大），因此只断言版本随期序非递减——跳版本属于已知偏差
-  if (estimated.length) {
-    check(`${label} 期→版本随期序非递减`, versions.every((version, i) => {
-      if (i === 0) return true
-      const distance = getVersionDistance(gameId, versions[i - 1], version)
-      return distance !== null && distance >= 0
-    }))
-  }
+  check(`${label} 期→版本有可解析结果`, versions.length > 0, `${versions.length}/${periods.length}`)
+  check(`${label} 期→版本随期序非递减`, versions.every((version, i) => {
+    if (i === 0) return true
+    const distance = getVersionDistance(gameId, versions[i - 1], version)
+    return distance !== null && distance >= 0
+  }))
 }
 
-// 同名去重曾把 zzz 危局压到 1 条、式舆压到 4 条；期表必须完全不受影响
-check('zzz/boss 期数 > 1（同名不再被去重压掉）', getPeriods('zzz', 'boss').length > 1,
-  String(getPeriods('zzz', 'boss').length))
-check('zzz/shiyu 期数 > 4（同名不再被去重压掉）', getPeriods('zzz', 'shiyu').length > 4,
-  String(getPeriods('zzz', 'shiyu').length))
-check('gi/tower 有超过 20 期可用', getPeriods('gi', 'tower').length > 20,
-  String(getPeriods('gi', 'tower').length))
+// 跨源同名页不再互相覆盖：gi/hsr 的终局页来自玉璃，zzz 来自 nanoka
+check('gi 终局页来自玉璃（alioth）', getHesperidesPeriods('gi', 'tower')?.source === 'alioth')
+check('hsr 终局页来自玉璃（alioth）', getHesperidesPeriods('hsr', 'maze')?.source === 'alioth')
+check('zzz 终局页来自 nanoka', getHesperidesPeriods('zzz', 'boss')?.source === 'nanoka')
+check('未知页返回 null', getHesperidesPeriods('gi', 'not-a-challenge-page') === null)
 
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

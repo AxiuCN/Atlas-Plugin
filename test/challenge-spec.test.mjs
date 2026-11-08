@@ -10,9 +10,11 @@ import { mod, pluginRoot, requireAtlasData, installFrameworkStubs } from './_hel
 installFrameworkStubs()
 
 const {
-  parsePeriodSpec, resolvePeriodSpec, collectPeriods, parseDataTime, periodMissReply,
-  formatPeriodLabel, getPeriods
+  parsePeriodSpec, resolvePeriodSpec, parseDataTime, periodMissReply,
+  formatPeriodLabel
 } = await import(mod('model/ChallengePeriod.js'))
+const { getHesperidesPeriods } = await import(mod('model/Hesperides.js'))
+const { syntheticPath } = await import(mod('model/HesperidesRepository.js'))
 const { handleQuery } = await import(mod('modules/atlasQuery.js'))
 const { buildDetailData } = await import(mod('components/queryUtils.js'))
 const { loadRecord } = await import(mod('model/AtlasService.js'))
@@ -63,11 +65,12 @@ check('期修饰后没剩挑战名时不生效（交给后续流程）',
  * ============================================================ */
 
 console.log('\n=== 选期 ===')
-const periods = collectPeriods([
-  { name: 'jan', filePath: 'jan.json', begin: at('2026-01-05 04:00:00'), end: at('2026-01-26 03:59:59'), identity: 1 },
-  { name: 'feb', filePath: 'feb.json', begin: at('2026-02-05 04:00:00'), end: at('2026-02-26 03:59:59'), identity: 2 },
-  { name: 'mar', filePath: 'mar.json', begin: at('2026-03-05 04:00:00'), end: at('2026-03-26 03:59:59'), identity: 3 }
-])
+// 期表来自 Hesperides 产物（形状与 getHesperidesPeriods 一致：no / begin / end）
+const periods = [
+  { id: '1', no: 1, name: 'jan', begin: at('2026-01-05 04:00:00'), end: at('2026-01-26 03:59:59') },
+  { id: '2', no: 2, name: 'feb', begin: at('2026-02-05 04:00:00'), end: at('2026-02-26 03:59:59') },
+  { id: '3', no: 3, name: 'mar', begin: at('2026-03-05 04:00:00'), end: at('2026-03-26 03:59:59') }
+]
 const now = at('2026-02-10 12:00:00')
 
 const monthHit = resolvePeriodSpec('gi', 'tower', { kind: 'month', month: '202602' }, now, periods)
@@ -172,12 +175,14 @@ check('#深渊（无期修饰）行为不变：出图或未开放',
   plainUnchanged.ret === true, plainUnchanged.text || '出图')
 
 console.log('\n=== 出图期标识 ===')
-const towerPeriods = getPeriods('gi', 'tower')
-const samplePeriod = towerPeriods[towerPeriods.length - 1]
-const sampleRecord = loadRecord(samplePeriod.filePath)
+const towerHes = getHesperidesPeriods('gi', 'tower')
+const samplePeriod = towerHes.periods[towerHes.periods.length - 1]
+// Hesperides 的期对象没有 filePath，记录路径由合成路径推导
+const sampleRecordPath = syntheticPath('gi', towerHes.source, towerHes.page, samplePeriod.id)
+const sampleRecord = loadRecord(sampleRecordPath)
 const detailData = buildDetailData('gi', {
   name: samplePeriod.name,
-  filePath: samplePeriod.filePath,
+  filePath: sampleRecordPath,
   record: sampleRecord,
   period: samplePeriod,
   pageKey: 'tower',

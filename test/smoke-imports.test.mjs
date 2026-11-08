@@ -18,7 +18,7 @@ const targets = [
   ['model/HesperidesIndex.js', 'getHesperidesMap'],
   ['model/HesperidesRepository.js', 'loadLegacyRecord'],
   ['model/AtlasUpdater.js', null],
-  ['model/ChallengePeriod.js', 'getCurrentPeriod'],
+  ['model/ChallengePeriod.js', 'pickCurrent'],
   ['model/ChallengeVersion.js', 'getVersionAt'],
   ['model/LinkResolver.js', null],
   ['model/MiaoParams.js', null],
