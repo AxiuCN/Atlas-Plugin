@@ -20,12 +20,8 @@ export const testDir = path.dirname(fileURLToPath(import.meta.url))
 export const pluginRoot = path.resolve(testDir, '..')
 /** bot 根目录（app/） */
 export const appRoot = path.resolve(pluginRoot, '../..')
-/** 图鉴数据引擎根目录（submodule，旧后端：迁移完成后删除） */
-export const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
-/** 旧后端数据目录（迁移期间仅供尚未迁移的套件取上游值，最终随子模块一起删除） */
-export const dataDir = path.join(backendRoot, 'data')
 /** Hesperides 产物目录（唯一数据源） */
-export const hesperidesDir = path.join(pluginRoot, 'tool/Hesperides/Hesperides/data/hesperides')
+export const hesperidesDir = path.join(pluginRoot, 'tool/Hesperides/Hesperides/data')
 /** 套件临时产物目录（gitignore） */
 export const tmpDir = path.join(testDir, '.test-tmp')
 
@@ -51,6 +47,16 @@ export function ensureTmpDir () {
  *  前置检查（缺则跳过）
  * ============================================================ */
 
+/**
+ * 合成路径 → Hesperides 记录文件绝对路径（套件里要 stat/改 mtime 时用）
+ * @param {string} relativePath - `hes/<game>/<source>/<page>/<id>.json`
+ * @returns {string}
+ */
+export function hesperidesRecordFile (relativePath) {
+  const rel = String(relativePath || '').replace(/^hes\//, '')
+  return path.join(hesperidesDir, 'records', rel)
+}
+
 /** 读 Hesperides `index.json`（读不到返回 null） */
 function readHesperidesIndex () {
   try {
@@ -75,7 +81,7 @@ export function hasHesperidesProducts () {
 export function hasAtlasData () {
   const index = readHesperidesIndex()
   if (!index?.games) return false
-  return ['gi', 'hsr', 'zzz'].every((game) => 'character' in (index.games[game]?.pages || {}))
+  return ['gi', 'hsr', 'zzz'].every((game) => 'character' in (index.games[game]?.sources?.nanoka?.pages || {}))
 }
 
 /**

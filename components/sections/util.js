@@ -3,11 +3,8 @@
  * 图标解析 / 文本清洗 / 数值格式化 / 标签映射
  * 供所有页面 builder 复用（character / weapon / relic / monster / bangboo / item）
  */
-import fs from 'node:fs'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { backendRoot } from '../../model/AtlasService.js'
 import { patchImageUrl, imageGameFolder } from '../patch.js'
+import { assetUrl, iconByAssetName } from '../../model/ItemAssets.js'
 
 // 元素/命途中文映射定义在 components/constants.js（索引层同样需要，避免循环依赖）
 export { elementLabel, hsrLabel } from '../constants.js'
@@ -25,13 +22,7 @@ export function imgUrl (images, fieldPath) {
   if (!img) return ''
   const patch = patchImageUrl(imageGameFolder(img, images), img.originalValue)
   if (patch) return patch
-  if (img.localPath) {
-    const fullPath = path.join(backendRoot, img.localPath)
-    if (fs.existsSync(fullPath)) {
-      return pathToFileURL(fullPath).href
-    }
-  }
-  return ''
+  return assetUrl(img.localPath)
 }
 
 /**
@@ -45,8 +36,7 @@ export function galleryUrl (gameId, fileName) {
   if (!gameId || !fileName) return ''
   const patch = patchImageUrl(gameId, fileName)
   if (patch) return patch
-  const fullPath = path.join(backendRoot, 'gallery', gameId, `${fileName}.webp`)
-  return fs.existsSync(fullPath) ? pathToFileURL(fullPath).href : ''
+  return iconByAssetName(gameId, fileName)
 }
 
 /**

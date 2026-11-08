@@ -7,7 +7,7 @@
 //   ⑥ 冻结诊断：ATLAS_SCAN_FREEZE=1 时实例被冻结且写入抛错
 import fs from 'node:fs'
 import path from 'node:path'
-import { mod, dataDir, requireAtlasData, checker, installFrameworkStubs } from './_helper.mjs'
+import { mod, hesperidesRecordFile, requireAtlasData, checker, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 requireAtlasData()
@@ -41,21 +41,22 @@ check('超过上限后最早一条被淘汰重读', firstAgain !== firstLoaded, 
 
 console.log('\n=== ④ 签名自愈（mtime 变化即重读）===')
 const sigTarget = paths[1]
-const stat0 = fs.statSync(path.join(dataDir, sigTarget))
+const stat0 = fs.statSync(hesperidesRecordFile(sigTarget))
 reloadIndex()
 const b1 = loadRecord(sigTarget)
-fs.utimesSync(path.join(dataDir, sigTarget), stat0.atime, new Date(stat0.mtimeMs + 2000))
+fs.utimesSync(hesperidesRecordFile(sigTarget), stat0.atime, new Date(stat0.mtimeMs + 2000))
 const b2 = loadRecord(sigTarget)
-fs.utimesSync(path.join(dataDir, sigTarget), stat0.atime, stat0.mtime)
+fs.utimesSync(hesperidesRecordFile(sigTarget), stat0.atime, stat0.mtime)
 const b3 = loadRecord(sigTarget)
 check('mtime 变化后重读', b2 !== b1)
 check('mtime 还原后再次重读（签名驱动，非一次性失效）', b3 !== b2)
-const stat1 = fs.statSync(path.join(dataDir, sigTarget))
+const stat1 = fs.statSync(hesperidesRecordFile(sigTarget))
 check('测试后 mtime 已还原', Math.abs(stat1.mtimeMs - stat0.mtimeMs) < 1500,
   `${new Date(stat0.mtimeMs).toISOString()} → ${new Date(stat1.mtimeMs).toISOString()}`)
 
 console.log('\n=== ⑤ 正确性（缓存实例 == 现读现套补丁）===')
-const patchedRel = listDataPatchFiles().find(p => weapons.includes(p) || chars.includes(p)) || listDataPatchFiles()[0]
+const patchFiles = listDataPatchFiles().map((p) => `hes/${p}`)
+const patchedRel = patchFiles.find((p) => weapons.includes(p) || chars.includes(p)) || patchFiles[0]
 for (const [label, rel] of [['无补丁条目', target], ['带补丁条目', patchedRel]]) {
   if (!rel) { check(`${label}（样本缺失，跳过）`, true); continue }
   const cached = loadRecord(rel)

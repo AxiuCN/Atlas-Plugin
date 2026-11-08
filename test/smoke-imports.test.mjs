@@ -22,7 +22,7 @@ const targets = [
   ['model/ChallengeVersion.js', 'getVersionAt'],
   ['model/LinkResolver.js', null],
   ['model/MiaoParams.js', null],
-  ['model/itemIndex/mapLoader.js', null],
+  ['model/ItemAssets.js', 'getItemName'],
   ['model/itemIndex/gi.js', null],
   ['model/itemIndex/hsr.js', null],
   ['model/itemIndex/zzz.js', null],

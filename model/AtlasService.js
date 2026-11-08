@@ -16,7 +16,7 @@ import {
 import { familyName, variantOf, variantDisplayName, variantAliases, familyGenderAliases, isProtagonistFamily } from '../components/protagonist.js'
 import { reloadLinkIndex } from './LinkResolver.js'
 import { clearMiaoParamCache } from './MiaoParams.js'
-import { resetItemMapCache } from './itemIndex/mapLoader.js'
+import { resetItemAssetCache } from './ItemAssets.js'
 import {
   loadMapPatch,
   mergePatch,
@@ -31,14 +31,14 @@ import {
   loadRawRecord,
   resolveRecordImage,
   recordSignature,
-  resetRecordCache,
-  backendRoot
+  resetRecordCache
 } from './AtlasRepository.js'
 import { getHesperidesMap, countIndex } from './HesperidesIndex.js'
+import { resetHesperidesCache } from './Hesperides.js'
+import { resetHesperidesRecordCache } from './HesperidesRepository.js'
 
-// 记录读取已迁到 AtlasRepository；这里保留原调用路径并转出（外部 13 个 import 方无需改动）
-// backendRoot 只剩图片用途（旧图库），随图片方案迁移后删除
-export { loadRecord, loadRawRecord, resolveRecordImage, backendRoot }
+// 记录读取已迁到 AtlasRepository；这里保留原调用路径并转出（外部 import 方无需改动）
+export { loadRecord, loadRawRecord, resolveRecordImage }
 
 /** @type {object|null} map.json 内容 */
 let mapCache = null
@@ -635,10 +635,12 @@ function findDetailFallbackMatches (flat, variants, seen) {
  */
 export function getPatchOverview () {
   const dataPatches = listDataPatchFiles().map(relPath => {
-    const patch = loadDataPatch(relPath) || {}
+    // 补丁文件相对 `resources/patch/records/`，记录按合成路径寻址（`hes/` 前缀）
+    const filePath = `hes/${relPath}`
+    const patch = loadDataPatch(filePath) || {}
     const meta = patch._patch || {}
     const upstream = meta.upstream || {}
-    const upstreamRecord = Object.keys(upstream).length ? loadRawRecord(relPath) : null
+    const upstreamRecord = Object.keys(upstream).length ? loadRawRecord(filePath) : null
     const changed = []
     for (const [dotPath, expect] of Object.entries(upstream)) {
       const current = getByPath(upstreamRecord, dotPath)
@@ -722,7 +724,7 @@ export function resolveEntryPageKey (gameId, keyword) {
  *
  * 失效分三类，**新增缓存必须归入其中一类**，否则会出现「更新成功但该模块仍按旧数据渲染」：
  * ① 显式失效（本函数直接清）：本模块 map / index / record / text 四份、补丁缓存（clearPatchCache）、
- *    LINK 索引与参数表（reloadLinkIndex）、物品页投影（resetItemMapCache）、miao 参数名（clearMiaoParamCache）
+ *    LINK 索引与参数表（reloadLinkIndex）、素材索引（resetItemAssetCache）、miao 参数名（clearMiaoParamCache）
  * ② map 对象身份失效：持有 map 引用并判 `cacheMap === map` 的模块（itemIndex/gi·hsr·zzz、
  *    monsterIndex/index·levelTable）——下面换新 map 对象即自动作废
  * ③ 无需失效（有意为之，不要顺手加进来）：monsterIndex/curve 读的是插件自有资源
@@ -735,10 +737,12 @@ export function reloadIndex () {
   mapCache = null
   indexCache = new Map()
   resetRecordCache() // 记录缓存同样按数据版本作废（补丁改动只有走到这里才会重新套用）
+  resetHesperidesRecordCache() // Hesperides 原始记录缓存（按文件签名自愈，但 reload 要立刻作废）
+  resetHesperidesCache() // index / periods / 页面图片引用缓存
   resetTextCache() // 兜底扫描用的归一文本同样作废
   clearPatchCache() // 补丁文件可能随更新变化，一并失效
   reloadLinkIndex()
-  resetItemMapCache()
+  resetItemAssetCache()
   clearMiaoParamCache()
   ensureIndex()
 }

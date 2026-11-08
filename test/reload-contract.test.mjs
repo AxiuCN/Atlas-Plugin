@@ -14,8 +14,8 @@ installFrameworkStubs()
 requireAtlasData()
 
 const { reloadIndex, loadRecord, loadRawRecord, loadMap, getPageRecords, search } = await import(mod('model/AtlasService.js'))
-const { PATCH_DATA_DIR, PATCH_MAP_FILE } = await import(mod('components/patch.js'))
-const mapLoader = await import(mod('model/itemIndex/mapLoader.js'))
+const { PATCH_RECORDS_DIR, PATCH_MAP_FILE } = await import(mod('components/patch.js'))
+const itemAssets = await import(mod('model/ItemAssets.js'))
 const monsterIndex = await import(mod('model/monsterIndex/index.js'))
 const curve = await import(mod('model/monsterIndex/curve.js'))
 const { check, finish } = checker()
@@ -39,7 +39,7 @@ function sweepLeftovers (dir) {
   return removed
 }
 
-const swept = sweepLeftovers(PATCH_DATA_DIR)
+const swept = sweepLeftovers(PATCH_RECORDS_DIR)
 if (swept) console.log(`（清理上次残留的临时补丁 ${swept} 个）`)
 
 /** H 节会临时改 resources/patch/map.json（入库文件）：先备份到 .test-tmp，跑崩了下次启动靠它字节级还原 */
@@ -58,7 +58,7 @@ function pickTarget () {
       const rel = rec?.path
       if (!rel?.endsWith('.json')) continue
       if (!loadRawRecord(rel)?.content) continue
-      if (fs.existsSync(path.join(PATCH_DATA_DIR, rel))) continue
+      if (fs.existsSync(path.join(PATCH_RECORDS_DIR, String(rel).slice(4)))) continue
       return rel
     }
   }
@@ -67,7 +67,7 @@ function pickTarget () {
 
 const target = pickTarget()
 if (!target) skip('找不到「无补丁的物品条目」样本，无法做补丁驱动的契约验证')
-const patchFile = path.join(PATCH_DATA_DIR, target)
+const patchFile = path.join(PATCH_RECORDS_DIR, target)
 
 /** 逐级创建补丁目录，返回本次新建的目录（浅→深），便于原样清理 */
 function makeDirs (file) {
@@ -128,7 +128,7 @@ const gen1 = {
   map: loadMap(),
   pages: getPageRecords('gi', 'character'),
   hit: search('gi', '胡桃')?.results?.[0],
-  items: mapLoader.getItemRecords('gi'),
+  items: itemAssets.pageEntries('gi', 'item'),
   monsters: monsterIndex.listMonsterEntries('zzz')
 }
 reloadIndex()
@@ -136,7 +136,7 @@ const gen2 = {
   map: loadMap(),
   pages: getPageRecords('gi', 'character'),
   hit: search('gi', '胡桃')?.results?.[0],
-  items: mapLoader.getItemRecords('gi'),
+  items: itemAssets.pageEntries('gi', 'item'),
   monsters: monsterIndex.listMonsterEntries('zzz')
 }
 check('map 对象换新', gen1.map !== gen2.map)
@@ -149,7 +149,7 @@ console.log('\n=== G. 幂等：连续两次 reload，结论必须一致 ===')
 const probe = () => ({
   top: search('gi', '胡桃')?.results?.[0]?.name || '',
   monsters: monsterIndex.listMonsterEntries('zzz').length,
-  items: Object.keys(mapLoader.getItemRecords('gi') || {}).length,
+  items: Object.keys(itemAssets.pageEntries('gi', 'item') || {}).length,
   curve: curve.giCurveValue('GROW_CURVE_HP')
 })
 reloadIndex()

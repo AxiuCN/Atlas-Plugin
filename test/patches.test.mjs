@@ -13,7 +13,7 @@ globalThis.logger.error = (m) => { warns.push('[err] ' + m); logs.push([m]) }
 requireAtlasData()
 
 const patchDataDir = path.join(pluginRoot, 'resources/patch/data')
-const { loadMap } = await import(mod('model/itemIndex/mapLoader.js'))
+const { getHesperidesMap } = await import(mod('model/HesperidesIndex.js'))
 const { loadRawRecord, loadRecord, loadMap: loadMapService, getPatchOverview } = await import(mod('model/AtlasService.js'))
 const { getByPath } = await import(mod('components/patch.js'))
 
@@ -114,7 +114,7 @@ else {
   const ids = Object.keys(recs)
   console.log(`  覆盖 ${ids.length} 套：${ids.join(',')}`)
   // 逐条：补丁声明改 rarity，合并后应只剩 rarity 与上游不同
-  const rawMap = loadMap()
+  const rawMap = getHesperidesMap()
   for (const [id, patchRec] of Object.entries(recs)) {
     const keys = Object.keys(patchRec)
     if (keys.length !== 1 || keys[0] !== 'rarity') problems.push(`[map 补丁字段多余] ${id}: ${keys.join(',')}`)

@@ -5,7 +5,7 @@
 //   ④ 结果不变：命中条目与条数与缓存前一致
 import fs from 'node:fs'
 import path from 'node:path'
-import { mod, dataDir, requireAtlasData, checker, installFrameworkStubs } from './_helper.mjs'
+import { mod, hesperidesRecordFile, requireAtlasData, checker, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 requireAtlasData()
@@ -18,7 +18,8 @@ const origRead = fs.readFileSync
 let reads = []
 fs.readFileSync = function (p, ...rest) {
   const s = String(p)
-  if (s.endsWith('.json') && s.includes('nanoka-atlas-backend')) reads.push(s)
+  // v2：记录在 Hesperides 产物下（records/<game>/<source>/<page>/<id>.json）
+  if (s.endsWith('.json') && s.includes('Hesperides') && s.includes('records')) reads.push(s)
   return origRead.call(fs, p, ...rest)
 }
 const count = (fn) => {
@@ -54,7 +55,7 @@ check('重载后重新读原文', third.n > 100, `${third.n} 次`)
 console.log('\n=== ④ mtime 变化 → 单条自愈 ===')
 // 取一条被扫描集覆盖的条目（武器页在 flat 前段，必然被扫到）
 const target = getPageRecords('gi', 'weapon')[0].filePath
-const abs = path.join(dataDir, target)
+const abs = hesperidesRecordFile(target)
 const stat0 = fs.statSync(abs)
 const warm = count(() => search('gi', KW)) // 先捂热（此时应 0 读）
 check('捂热后 0 读盘', warm.n === 0, `${warm.n} 次`)
@@ -62,7 +63,7 @@ fs.utimesSync(abs, stat0.atime, new Date(stat0.mtimeMs + 2000))
 const afterBump = count(() => search('gi', KW))
 fs.utimesSync(abs, stat0.atime, stat0.mtime)
 const afterRestore = count(() => search('gi', KW))
-check('mtime 变化后仅该条重读', afterBump.n === 1 && afterBump.files[0].split(path.sep).join('/').endsWith(target),
+check('mtime 变化后仅该条重读', afterBump.n === 1 && afterBump.files[0].split(path.sep).join('/').endsWith(target.replace(/^hes\//, '')),
   `${afterBump.n} 次：${afterBump.files.map(f => path.basename(f)).join(',') || '-'}`)
 check('mtime 还原后再次重读', afterRestore.n === 1 || afterRestore.n === 0,
   `${afterRestore.n} 次：${afterRestore.files.map(f => path.basename(f)).join(',') || '-'}`)

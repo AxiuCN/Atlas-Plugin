@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { backendRoot } from '../../model/AtlasService.js'
+import { getItemIconUrl, iconByAssetName, assetUrl } from '../../model/ItemAssets.js'
 
 /** 聚合材料数组：合并同名材料数量 + 摩拉 */
 export function aggregateMats (levels) {
@@ -80,37 +80,27 @@ export function sortMatItems (items, gameId) {
 }
 
 /**
- * 材料图标查询：先按命名约定直查 gallery，再在 meta.images 中精确文件名兜底
- * 命名约定：gi 为 UI_ItemIcon_<id>.webp，hsr 为 itemfigures/<id>.webp
+ * 材料图标查询：先按素材 id 查 Hesperides `item` 页的 `icon`，再按资源名兜底
  * 注意：meta.images 是条目自身图标集（角色/光锥立绘等），不能裸子串匹配——如 id=2 会被 "xx_2.webp" 误命中
  */
 function matIcon (images, materialId, gameId) {
   if (!materialId) return ''
 
-  // 约定文件名
-  let expectedName
-  if (gameId === 'hsr') {
-    expectedName = `${materialId}.webp`
-  } else {
-    expectedName = materialId === 'mora' ? 'UI_ItemIcon_202.webp' : `UI_ItemIcon_${materialId}.webp`
-  }
+  // 摩拉的素材 id 是字符串 'mora'，物品条目 id 才是 202
+  const itemId = materialId === 'mora' ? '202' : materialId
+  const byId = getItemIconUrl(gameId, itemId)
+  if (byId) return byId
 
-  // 1) 优先按命名约定直查 gallery（素材图都在各自约定目录）
-  const convPath = gameId === 'hsr'
-    ? path.join(backendRoot, 'gallery', 'hsr', 'itemfigures', expectedName)
-    : path.join(backendRoot, 'gallery', gameId, expectedName)
-  if (fs.existsSync(convPath)) return pathToFileURL(convPath).href
-
-  // 2) 兜底：在 meta.images 中找「文件名精确等于约定名」的条目（避免裸子串误命中）
+  // 兜底：条目自身 meta.images 里找文件名含该 id 的那张（只用来补 item 页缺条目的少数素材）
   if (Array.isArray(images)) {
-    const hit = images.find(i => i.localPath && path.basename(i.localPath) === expectedName)
+    const hit = images.find(i => i.localPath && path.basename(i.localPath).includes(String(itemId)))
     if (hit?.localPath) {
-      const fullPath = path.join(backendRoot, hit.localPath)
-      if (fs.existsSync(fullPath)) return pathToFileURL(fullPath).href
+      const url = assetUrl(hit.localPath)
+      if (url) return url
     }
   }
 
-  return ''
+  return iconByAssetName(gameId, String(itemId))
 }
 
 /** 构建材料列表项（含图标，按货币→Boss/周本→其余 id 升序排序） */

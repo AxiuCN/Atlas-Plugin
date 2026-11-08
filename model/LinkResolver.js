@@ -3,19 +3,12 @@
  * 解析角色技能/命座描述中的 {LINK#N...}、{LINK#S...} 标记，
  * 替换为高亮 HTML，并收集效果详述用于模板渲染。
  *
- * 数据源：nanoka-atlas-backend/data/items/简体中文/原神/文本链接/
+ * 数据源：Hesperides `nanoka/gi/hyperlink` 与 `nanoka/gi/hyperlinkparam` 两页
  * 仅原神(gi)有文本链接数据，星铁/绝区零无此数据。
  */
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const pluginRoot = path.resolve(__dirname, '..')
-const dataDir = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend/data')
-
-/** 游戏 ID → 数据目录中文名 */
-const GAME_FOLDER = { gi: '原神', hsr: '星铁', zzz: '绝区零' }
+import { getHesperidesPage, INDEX_SOURCE } from './Hesperides.js'
+import { syntheticPath } from './HesperidesRepository.js'
+import { readRawByPath } from './HesperidesRepository.js'
 
 /** @type {Map<string, Map<string, {name: string, desc: string, color: string}>>} gameId → recordId → entry */
 const linkIndexCache = new Map()
@@ -37,45 +30,29 @@ const PARAM_RE = /\{PARAM#P(\d+)\|(\d+)S(\d+)\}/g
  * ============================================================ */
 
 /**
- * 惰性加载文本链接索引
+ * 惰性加载文本链接索引（Hesperides `nanoka/<game>/hyperlink` 页）
+ *
+ * 只有原神有文本链接数据；星铁/绝区零该页不存在，返回空索引。
  * @param {string} gameId — 'gi' | 'hsr' | 'zzz'
- * @returns {Map<string, {name, desc, color}>}
+ * @returns {Map<string, {name, desc, color, param}>}
  */
 export function loadLinkIndex (gameId) {
   if (linkIndexCache.has(gameId)) return linkIndexCache.get(gameId)
 
-  const folder = GAME_FOLDER[gameId]
-  if (!folder) {
-    linkIndexCache.set(gameId, new Map())
-    return linkIndexCache.get(gameId)
-  }
-
-  const linkDir = path.join(dataDir, 'items', '简体中文', folder, '文本链接', '未分类')
   const index = new Map()
-
-  if (!fs.existsSync(linkDir)) {
-    linkIndexCache.set(gameId, index)
-    return index
+  const page = getHesperidesPage(gameId, INDEX_SOURCE, 'hyperlink')
+  for (const id of page?.ids || []) {
+    // 直接读源记录：hyperlink 记录就是 `{ name, desc, color, param }`，不经记录适配层
+    const list = readRawByPath(syntheticPath(gameId, INDEX_SOURCE, 'hyperlink', id)) || {}
+    const name = list.name || list.zh || ''
+    if (!name) continue
+    index.set(String(id), {
+      name,
+      desc: list.desc || '',
+      color: list.color || '',
+      param: Array.isArray(list.param) ? list.param : []
+    })
   }
-
-  try {
-    const files = fs.readdirSync(linkDir)
-    for (const file of files) {
-      if (!file.endsWith('.json')) continue
-      try {
-        const raw = fs.readFileSync(path.join(linkDir, file), 'utf8')
-        const data = JSON.parse(raw)
-        const list = data?.content?.list
-        if (!list || !list.name) continue
-        index.set(data.meta.recordId, {
-          name: list.name,
-          desc: list.desc || '',
-          color: list.color || '',
-          param: Array.isArray(list.param) ? list.param : []
-        })
-      } catch { /* skip malformed files */ }
-    }
-  } catch { /* dir read error — return empty index */ }
 
   linkIndexCache.set(gameId, index)
   return index
@@ -93,23 +70,12 @@ export function loadLinkIndex (gameId) {
 function loadParamArrays () {
   if (paramArrayCache) return paramArrayCache
   const map = new Map()
-  const paramDir = path.join(dataDir, 'items', '简体中文', '原神', '文本链接参数')
-  const scan = (dir) => {
-    if (!fs.existsSync(dir)) return
-    try {
-      for (const file of fs.readdirSync(dir)) {
-        const fp = path.join(dir, file)
-        if (fs.statSync(fp).isDirectory()) { scan(fp); continue }
-        if (!file.endsWith('.json')) continue
-        try {
-          const data = JSON.parse(fs.readFileSync(fp, 'utf8'))
-          const list = data?.content?.list
-          if (Array.isArray(list)) map.set(file.replace('.json', ''), list)
-        } catch { /* skip */ }
-      }
-    } catch { /* dir error */ }
+  const page = getHesperidesPage('gi', INDEX_SOURCE, 'hyperlinkparam')
+  for (const id of page?.ids || []) {
+    // 参数页的记录本身就是数值数组
+    const value = readRawByPath(syntheticPath('gi', INDEX_SOURCE, 'hyperlinkparam', id))
+    if (Array.isArray(value)) map.set(String(id), value)
   }
-  scan(paramDir)
   paramArrayCache = map
   return map
 }

@@ -7,7 +7,8 @@ installFrameworkStubs()
 requireAtlasData()
 
 const { reloadIndex, search } = await import(mod('model/AtlasService.js'))
-const mapLoader = await import(mod('model/itemIndex/mapLoader.js'))
+const itemAssets = await import(mod('model/ItemAssets.js'))
+const { getHesperidesMap } = await import(mod('model/HesperidesIndex.js'))
 const gi = await import(mod('model/itemIndex/gi.js'))
 const zzz = await import(mod('model/itemIndex/zzz.js'))
 const monsterIndex = await import(mod('model/monsterIndex/index.js'))
@@ -17,12 +18,12 @@ const { check, finish } = checker()
 
 /** 取一轮「可观测身份」的缓存快照 */
 const snapshot = () => {
-  const map = mapLoader.loadMap()
+  const map = getHesperidesMap()
   const monsterPath = Object.values(map?.games?.gi?.locales?.zh?.pages?.monster?.records || {})[0]?.path || ''
   return {
     mapLoaderMap: map,
-    itemRecords: mapLoader.getItemRecords('gi'),
-    itemAllRecords: mapLoader.getItemAllRecords('gi'),
+    itemRecords: itemAssets.pageEntries('gi', 'item'),
+    itemAllRecords: itemAssets.pageEntries('gi', 'item-all'),
     relicIcon: gi.getGIRelicByIcon('UI_RelicIcon_10005_4'),
     zzzIcon: zzz.getZZZItemIcon(100),
     monsterVariants: monsterIndex.getMonsterVariants('gi', monsterPath),
@@ -41,7 +42,7 @@ const first = snapshot()
 
 console.log('=== ① 未触发重载：缓存应被复用（不会每次重建）===')
 const again = snapshot()
-check('mapLoader.loadMap() 复用同一对象', first.mapLoaderMap === again.mapLoaderMap)
+check('item 条目对象复用（同一索引对象）', first.itemRecords === again.itemRecords)
 check('item records 复用', first.itemRecords === again.itemRecords)
 check('圣遗物部件图标表复用', first.relicIcon === again.relicIcon)
 check('文本链接索引复用', first.linkIndex === again.linkIndex)
@@ -50,7 +51,7 @@ check('怪物变体数组复用', first.monsterVariants === again.monsterVariant
 console.log('\n=== ② reloadIndex()：全部派生缓存必须换新 ===')
 reloadIndex()
 const after = snapshot()
-check('mapLoader.loadMap() 换新', first.mapLoaderMap !== after.mapLoaderMap)
+check('reload 后 item 条目对象换新', first.itemRecords !== after.itemRecords)
 check('item records 换新', first.itemRecords !== after.itemRecords)
 check('item_all records 换新', first.itemAllRecords !== after.itemAllRecords)
 check('圣遗物部件图标表换新', first.relicIcon !== after.relicIcon && Boolean(after.relicIcon))

@@ -6,7 +6,9 @@
  * `{ HardLevelGroup, Level, AttackRatio, DefenceRatio, HPRatio, SpeedRatio, StanceRatio, CombatPowerList }`。
  * 全 2648 个变体的 `hard_level_group` 均为 1（已核），故只按组 1 取值；整页惰性读一次并缓存。
  */
-import { loadMap } from '../itemIndex/mapLoader.js'
+import { pageEntries } from '../ItemAssets.js'
+import { syntheticPath } from '../HesperidesRepository.js'
+import { INDEX_SOURCE } from '../Hesperides.js'
 import { loadRecord } from '../AtlasService.js'
 
 /** @type {Map<number, Map<number, object>>|null} 组 → 等级 → 比率 */
@@ -20,16 +22,14 @@ let cacheMap = null
  * @returns {Map<number, Map<number, object>>}
  */
 function loadTable () {
-  const map = loadMap()
-  if (cache && cacheMap === map) return cache
-  cacheMap = map
+  const entries = pageEntries('hsr', 'HardLevelGroup')
+  if (cache && cacheMap === entries) return cache
+  cacheMap = entries
   cache = new Map()
-  const records = map?.games?.hsr?.locales?.zh?.pages?.HardLevelGroup?.records || {}
-  for (const rec of Object.values(records)) {
-    if (!rec?.path) continue
+  for (const id of Object.keys(entries)) {
     let list
     try {
-      list = loadRecord(rec.path)?.content?.list
+      list = loadRecord(syntheticPath('hsr', INDEX_SOURCE, 'HardLevelGroup', id))?.content?.list
     } catch {
       continue
     }

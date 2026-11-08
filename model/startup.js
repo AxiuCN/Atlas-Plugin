@@ -91,7 +91,7 @@ export async function initAtlas (deps = {}) {
     } catch (err) {
       // 与改动前 index.js 的行为一致：建索引失败只告警，由首次查询惰性重建兜底
       log?.warn?.(`[Atlas] 索引加载失败: ${err.message}`)
-      log?.warn?.('[Atlas] 请确保已执行 nanoka-atlas-backend 数据抓取')
+      log?.warn?.('[Atlas] 请先执行 #图鉴初始化（Hesperides 数据抓取）')
       return false
     }
   }

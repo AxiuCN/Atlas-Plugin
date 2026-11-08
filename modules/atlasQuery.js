@@ -4,7 +4,7 @@
  * 未来若更换搜索方式，只需替换此模块，不影响 components/queryUtils.js 的数据构建器。
  */
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
-import { getPeriods, getCurrentPeriod, formatPeriodDate, parsePeriodSpec, resolvePeriodSpec, periodMissReply } from '../model/ChallengePeriod.js'
+import { parsePeriodSpec } from '../model/ChallengePeriod.js'
 import { getHesperidesPeriods } from '../model/Hesperides.js'
 import { handleHesperidesChallenge } from './challengeHesperides.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
@@ -180,56 +180,15 @@ export async function handleSpecialQuery (e, gameId, result, periodSpec = null) 
   }
 
   if (result.specialType === 'page_detail') {
-    // 优先走 Hesperides（玉璃/nanoka 归一化产物）：期与条目都更完整；缺失时回退旧数据路径
+    // 挑战页只有 Hesperides 一条路（期表 + 条目）；没有就是没有，不回退任何旧数据
     const hes = getHesperidesPeriods(gameId, result.pageKey)
-    if (hes) return handleHesperidesChallenge(e, gameId, result, hes, periodSpec)
-
-    const periods = getPeriods(gameId, result.pageKey)
-    if (periods.length === 0) {
-      await e.reply(`[Atlas] ${result.pageTitle}数据为空`)
+    if (!hes) {
+      await e.reply(`[Atlas] ${result.pageTitle} 暂无数据，请执行 #图鉴初始化`)
       return true
     }
-
-    // 「本期」= 时间窗覆盖当前时间的期。图鉴数据常超前于线上版本，记录顺序里的最后一条
-    // 可能是尚未开放的未来期，故不能再用「取最后一条」当最新一期。
-    let period = null
-    if (periodSpec) {
-      const resolved = resolvePeriodSpec(gameId, result.pageKey, periodSpec)
-      if (resolved.state === 'closed') {
-        await e.reply(`[Atlas] ${result.pageTitle} 本期未开放`)
-        return true
-      }
-      const miss = periodMissReply(result.pageTitle, resolved)
-      if (miss) {
-        await e.reply(miss)
-        return true
-      }
-      period = resolved.period
-    } else {
-      const current = getCurrentPeriod(gameId, result.pageKey)
-      period = current.period
-      if (!period) {
-        // 已知未开期时只说「未开放」；连未开期都没有，说明数据停在最后一期之后，补上数据截止日
-        const tail = current.state === 'closed' && !current.next && current.latest?.end
-          ? `（数据截至 ${formatPeriodDate(current.latest.end)}）`
-          : ''
-        await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}`)
-        return true
-      }
-    }
-
-    const record = loadRecord(period.filePath)
-    if (!record) {
-      await e.reply(`[Atlas] ${period.name} 的数据文件缺失，请执行数据抓取`)
-      return true
-    }
-    const data = buildDetailData(gameId, { name: period.name, filePath: period.filePath, record, period })
-    const tpl = selectTemplate(result)
-    const img = await renderAtlas(tpl, data, { imgType: 'jpeg' })
-    if (img) await e.reply(img)
-    else await e.reply(`[Atlas] ${data.recordName} — 渲染失败`)
-    return true
+    return handleHesperidesChallenge(e, gameId, result, hes, periodSpec)
   }
+
 
   return false
 }

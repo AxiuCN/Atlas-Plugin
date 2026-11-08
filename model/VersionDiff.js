@@ -1,7 +1,7 @@
 /**
  * VersionDiff — 版本更新记录数据层
  *
- * 读取后端 scrape-diff.mjs 落盘的 data/diffs/{gameId}.json，
+ * 读取 Hesperides `nanoka/<game>/diff` 单文件频道（上游 nanoka 的版本差异 JSON），
  * 归一化为 update-log.html 模板数据。只读本地文件，不发起任何网络请求。
  *
  * diff 结构（后端原文）：
@@ -12,9 +12,7 @@
  *                                   before, after, status, contextOnly, valueKind }]
  *       }] } }
  */
-import fs from 'node:fs'
-import path from 'node:path'
-import { BACKEND_DIR } from './AtlasUpdater.js'
+import { getHesperidesSingleFile } from './Hesperides.js'
 
 /** entity → 中文分组名（diff 的 entity 字段） */
 const ENTITY_LABELS = {
@@ -97,10 +95,10 @@ function labelKeyLabel (key) {
  */
 export function loadVersionDiff (gameId) {
   try {
-    const filePath = path.join(BACKEND_DIR, 'data', 'diffs', `${gameId}.json`)
-    if (!fs.existsSync(filePath)) return null
-    const record = JSON.parse(fs.readFileSync(filePath, 'utf8'))
-    return buildDiffData(gameId, record)
+    // Hesperides `nanoka/<game>/diff` 单文件频道：整份上游 diff JSON
+    const raw = getHesperidesSingleFile(gameId, 'nanoka', 'diff')
+    if (!raw) return null
+    return buildDiffData(gameId, { diff: raw, version: raw.toVersion || '' })
   } catch (err) {
     logger?.warn(`[Atlas][版本记录] 读取 diff 失败: ${err.message}`)
     return null

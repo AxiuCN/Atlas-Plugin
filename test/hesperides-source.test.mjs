@@ -4,8 +4,9 @@ import { installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 
-const { getHesperidesPeriods, readHesperidesRecord, hasHesperidesData, getHesperidesChannels } =
+const { getHesperidesPeriods, hasHesperidesData, getHesperidesChannels } =
   await import(mod('model/Hesperides.js'))
+const { syntheticPath, readRawByPath } = await import(mod('model/HesperidesRepository.js'))
 const { buildHesperidesChallengeSections, pickHesperidesTitle } = await import(mod('components/hesperidesChallenge.js'))
 
 let pass = 0
@@ -46,25 +47,25 @@ if (!hasHesperidesData()) {
   check('zzz 走 nanoka 源', getHesperidesPeriods('zzz', 'boss')?.source === 'nanoka')
   check('未知页返回 null', getHesperidesPeriods('gi', 'character') === null)
   const last = tower.periods.at(-1)
-  const record = readHesperidesRecord('gi', 'tower', last.id)
+  const record = readRawByPath(syntheticPath('gi', tower.source, tower.page, last.id))
   check('按 id 读到记录', !!record && typeof record === 'object', last.id)
-  check('读不存在的 id 返回 null', readHesperidesRecord('gi', 'tower', '0') === null)
+  check('读不存在的 id 返回 null', readRawByPath(syntheticPath('gi', tower.source, tower.page, '0')) === null)
   check('频道状态可读', !!getHesperidesChannels()?.gi)
 }
 
 console.log('\n=== 记录仓库与旧结构适配 ===')
-const { syntheticPath, parseSyntheticPath, adaptToLegacyRecord, loadLegacyRecord, resetHesperidesRecordCache } =
+const { parseSyntheticPath, adaptToLegacyRecord, loadLegacyRecord, resetHesperidesRecordCache } =
   await import(mod('model/HesperidesRepository.js'))
-check('合成路径生成', syntheticPath('gi', 'artifact', '15019') === 'hes/gi/artifact/15019.json')
-check('合成路径解析', JSON.stringify(parseSyntheticPath('hes/zzz/boss/69001.json')) === '{"gameId":"zzz","page":"boss","id":"69001"}')
+check('合成路径生成（含源）', syntheticPath('gi', 'nanoka', 'artifact', '15019') === 'hes/gi/nanoka/artifact/15019.json')
+check('合成路径解析（含源）', JSON.stringify(parseSyntheticPath('hes/zzz/nanoka/boss/69001.json')) === '{"gameId":"zzz","source":"nanoka","page":"boss","id":"69001"}')
 check('非合成路径返回 null', parseSyntheticPath('items/简体中文/原神/圣遗物/15019.json') === null)
-const legacy = adaptToLegacyRecord('hes/gi/artifact/15019.json', { id: 15019, rank: [4, 5], detail: { parts: [] }, zh: '追忆之注连' })
+const legacy = adaptToLegacyRecord('hes/gi/nanoka/artifact/15019.json', { id: 15019, rank: [4, 5], detail: { parts: [] }, zh: '追忆之注连' })
 check('适配出旧结构', !!legacy.content.list && !!legacy.content.detail && legacy.meta.name === '追忆之注连')
 check('稀有度取数组最大值', legacy.meta.rarity === 5, String(legacy.meta.rarity))
-check('detail 缺失给空对象', Object.keys(adaptToLegacyRecord('hes/gi/artifact/1.json', { zh: 'x' }).content.detail).length === 0)
+check('detail 缺失给空对象', Object.keys(adaptToLegacyRecord('hes/gi/nanoka/artifact/1.json', { zh: 'x' }).content.detail).length === 0)
 if (hasHesperidesData()) {
   resetHesperidesRecordCache()
-  const real = loadLegacyRecord('hes/zzz/boss/69001.json')
+  const real = loadLegacyRecord('hes/zzz/nanoka/boss/69001.json')
   check('真实记录可适配', !!real && !!real.content.list && !!real.meta.name, real?.meta?.name)
 }
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)

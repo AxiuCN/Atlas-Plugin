@@ -1,15 +1,16 @@
 /**
- * Hesperides 记录仓库：合成路径 ↔ 原始记录 ↔ 旧结构适配
+ * Hesperides 记录仓库：合成路径 ↔ 记录 ↔ 插件记录结构
  *
- * 插件原有代码都通过「相对路径 + loadRecord()」访问记录（`items/简体中文/原神/…`）。
- * 切到 Hesperides 后不再保留那套目录，改用**合成路径**（不进磁盘，只作 key）：
- *
- *     hes/<game>/<page>/<id>.json
+ * 插件原有代码都通过「路径 + loadRecord()」访问记录，切到 Hesperides 后不保留旧目录，
+ * 改用**合成路径**（不进磁盘，只作 key），v2 起带源：
+
+ *     hes/<game>/<source>/<page>/<id>.json
  *
  * 好处：① 消费者（搜索、构建器、补丁层）代码不用改；② 路径天然是 recordId 定位，补丁层可平移。
  *
- * 旧结构适配：原后端把每条记录导出为 `{ meta, content: { list, detail } }`，
- * 而 Hesperides 存的是**源原始记录**（nanoka 页面记录 + 可选 `detail` 字段）。适配层只做一层包装。
+ * 记录结构：Hesperides 存的是**源原始记录**（nanoka 页面记录 + 可选 `detail` 字段），
+ * 本模块只做一层包装成 `{ meta, content: { list, detail } }`——构建器按这个形状写，
+ * 图片也从 `imagerefs` 还原成 `meta.images`。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -21,24 +22,25 @@ export const HES_PATH_PREFIX = 'hes/'
 /**
  * 生成合成路径
  * @param {string} gameId
+ * @param {string} source - alioth / nanoka
  * @param {string} page
  * @param {string|number} id
- * @returns {string} `hes/gi/character/10000002.json`
+ * @returns {string} `hes/gi/nanoka/character/10000002.json`
  */
-export function syntheticPath (gameId, page, id) {
-  return `${HES_PATH_PREFIX}${gameId}/${page}/${id}.json`
+export function syntheticPath (gameId, source, page, id) {
+  return `${HES_PATH_PREFIX}${gameId}/${source}/${page}/${id}.json`
 }
 
 /**
  * 解析合成路径
  * @param {string} filePath
- * @returns {{gameId: string, page: string, id: string}|null}
+ * @returns {{gameId: string, source: string, page: string, id: string}|null}
  */
 export function parseSyntheticPath (filePath) {
   if (typeof filePath !== 'string' || !filePath.startsWith(HES_PATH_PREFIX)) return null
-  const matched = filePath.slice(HES_PATH_PREFIX.length).match(/^([^/]+)\/([^/]+)\/(.+)\.json$/)
+  const matched = filePath.slice(HES_PATH_PREFIX.length).match(/^([^/]+)\/([^/]+)\/([^/]+)\/(.+)\.json$/)
   if (!matched) return null
-  return { gameId: matched[1], page: matched[2], id: matched[3] }
+  return { gameId: matched[1], source: matched[2], page: matched[3], id: matched[4] }
 }
 
 /**
@@ -63,7 +65,7 @@ export function resetHesperidesRecordCache () {
 export function hesperidesRecordFile (filePath) {
   const parsed = parseSyntheticPath(filePath)
   if (!parsed) return ''
-  return path.join(HESPERIDES_DIR, 'records', parsed.gameId, parsed.page, `${parsed.id}.json`)
+  return path.join(HESPERIDES_DIR, 'records', parsed.gameId, parsed.source, parsed.page, `${parsed.id}.json`)
 }
 
 /**
@@ -84,7 +86,7 @@ export function hesperidesRecordSignature (filePath) {
 
 /**
  * 按合成路径读取 Hesperides 原始记录
- * @param {string} filePath - `hes/<game>/<page>/<id>.json`
+ * @param {string} filePath - `hes/<game>/<source>/<page>/<id>.json`
  * @returns {object|null}
  */
 export function readRawByPath (filePath) {
@@ -106,11 +108,11 @@ export function readRawByPath (filePath) {
 }
 
 /**
- * 原始记录 → 旧结构（`{ meta, content: { list, detail } }`）
+ * 原始记录 → 插件记录结构（`{ meta, content: { list, detail } }`）
  *
  * `list` 取页面记录本身（去掉 `detail` 字段），`detail` 取详情（没有则为空对象），
- * `images` 取 `images.json` 里该记录的引用并**还原成旧后端的形状**（`originalValue` /
- * `localPath` / `status` / `placeholder`），这样 `resolveRecordImage()` 与图片补丁都不必改。
+ * `images` 取 `imagerefs` 里该记录的引用并还原成旧后端同形（`originalValue` / `localPath` /
+ * `status` / `placeholder`），这样 `resolveRecordImage()` 与图片补丁都不必改。
  * @param {string} filePath
  * @param {object} raw
  * @returns {object}
@@ -120,6 +122,7 @@ export function adaptToLegacyRecord (filePath, raw) {
   const parsed = parseSyntheticPath(filePath)
   const meta = {
     gameId: parsed?.gameId || '',
+    source: parsed?.source || '',
     pageId: parsed?.page || '',
     id: parsed?.id || '',
     name: pickName(list),
@@ -138,14 +141,15 @@ export function adaptToLegacyRecord (filePath, raw) {
 
 /**
  * 图片引用 → 旧后端 `meta.images` 形状
- * @param {{gameId: string, page: string, id: string}|null} parsed
+ * @param {{gameId: string, source: string, page: string, id: string}|null} parsed
  * @returns {object[]}
  */
 function recordImages (parsed) {
   if (!parsed) return []
-  return getHesperidesRecordImages(parsed.gameId, parsed.page, parsed.id).map((ref) => ({
+  return getHesperidesRecordImages(parsed.gameId, parsed.source, parsed.page, parsed.id).map((ref) => ({
+    // 构建器按 fieldPath 精确取图（如 detail.skills.0.promote.0.icon），必须保留
+    fieldPath: ref.fieldPath || '',
     originalValue: ref.originalValue || '',
-    // 产物写 posix 路径；早期产物可能带反斜杠，读时统一，避免下游拼路径时平台相关
     localPath: String(ref.localPath || '').replace(/\\/g, '/'),
     // 旧后端只区分 downloaded / 其它；占位图单独标记，选主图时要跳过
     status: ref.status === 'downloaded' ? 'downloaded' : 'missing',
@@ -177,7 +181,7 @@ function pickRarity (record) {
 }
 
 /**
- * 按合成路径读取并适配成旧结构
+ * 按合成路径读取并适配成插件记录结构
  * @param {string} filePath
  * @returns {object|null}
  */

@@ -1,28 +1,32 @@
 /**
- * Hesperides 只读客户端
+ * Hesperides 只读客户端（产物 schema v2）
  *
- * Hesperides 是独立的数据子模块（`tool/Hesperides/Hesperides`），产物：
- *   data/hesperides/index.json   频道状态 + 记录 id
- *   data/hesperides/periods.json 期索引
- *   data/hesperides/records/<game>/<page>/<id>.json
+ * 产物（`tool/Hesperides/Hesperides/data/`）：
+ *   index.json          频道状态 + `games.<game>.sources.<source>.pages.<page>`（ids / records / entries）
+ *   periods.json        期索引，`games.<game>.<source>.<page>`
+ *   records/<game>/<source>/<page>/<id>.json
+ *   imagerefs/<game>/<source>/<page>.json   该页的记录级图片引用（按页读，不整份加载）
  *
  * 本模块只读文件、不触发抓取——抓取时机与范围由 `#图鉴更新` / 定时任务通过 AtlasUpdater 决定。
- * 数据缺失或 schema 不兼容时返回 null，调用方回退到旧数据路径。
+ * 数据缺失或 schema 不兼容时返回 null / 空，调用方按「未初始化」处理（**没有旧后端兜底**）。
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseDataTime } from './ChallengeVersion.js'
 
-/** 插件支持的 Hesperides schemaVersion（不兼容就整体回退旧数据路径） */
-const SCHEMA_SUPPORTED = [1]
+/** 插件支持的 Hesperides schemaVersion（不兼容就整体视为无数据） */
+const SCHEMA_SUPPORTED = [2]
+
+/** 插件建索引时读取的源：内容页统一取 nanoka（构建器按 nanoka 字段写） */
+export const INDEX_SOURCE = 'nanoka'
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** Hesperides 产物根目录 */
-export const HESPERIDES_DIR = path.join(pluginRoot, 'tool/Hesperides/Hesperides/data/hesperides')
+export const HESPERIDES_DIR = path.join(pluginRoot, 'tool/Hesperides/Hesperides/data')
 
-/** 插件 pageKey → Hesperides 的「源 + 页面」 */
+/** 插件 pageKey → [源, 页目录]（挑战页只有这些组合有期数据） */
 const CHALLENGE_PAGE_MAP = {
   gi: {
     tower: ['alioth', 'abyss'],
@@ -54,52 +58,6 @@ function cacheKey () {
   }
 }
 
-/**
- * 图片产物缓存：`images.json` 的 mtime + size 作键，`games` 原样持有
- * @type {{key: string, games: object}|null}
- */
-let imagesCache = null
-
-/**
- * 取 Hesperides 图片产物（`images.json` 的 `games` 字段）
- *
- * `games.<game>.<pageDir>.<recordId>` → 引用数组；记录不存在或产物缺失返回 null。
- * 与 `index.json` 分开缓存：抓图是独立一轮，图片更新不该让整份索引重读。
- * @returns {object|null}
- */
-export function getHesperidesImages () {
-  const file = path.join(HESPERIDES_DIR, 'images.json')
-  let key = ''
-  try {
-    const stat = fs.statSync(file)
-    key = `${stat.mtimeMs}:${stat.size}`
-  } catch {
-    return null
-  }
-  if (imagesCache?.key === key) return imagesCache.games
-  try {
-    const product = JSON.parse(fs.readFileSync(file, 'utf8'))
-    if (!SCHEMA_SUPPORTED.includes(product?.schemaVersion)) return null
-    imagesCache = { key, games: product.games || {} }
-    return imagesCache.games
-  } catch {
-    return null
-  }
-}
-
-/**
- * 取一条记录的图片引用
- * @param {string} gameId
- * @param {string} pageDir - 记录所在页目录（如 `lightcone`）
- * @param {string|number} recordId
- * @returns {object[]} 没有图片时返回空数组
- */
-export function getHesperidesRecordImages (gameId, pageDir, recordId) {
-  const games = getHesperidesImages()
-  const list = games?.[gameId]?.[pageDir]?.[String(recordId)]
-  return Array.isArray(list) ? list : []
-}
-
 /** 读并校验产物（失败返回 null） */
 function load () {
   const key = cacheKey()
@@ -109,6 +67,7 @@ function load () {
     const index = JSON.parse(fs.readFileSync(path.join(HESPERIDES_DIR, 'index.json'), 'utf8'))
     if (!SCHEMA_SUPPORTED.includes(index?.schemaVersion)) return null
     const periods = JSON.parse(fs.readFileSync(path.join(HESPERIDES_DIR, 'periods.json'), 'utf8'))
+    if (!SCHEMA_SUPPORTED.includes(periods?.schemaVersion)) return null
     cache = { key, index, periods }
     return cache
   } catch {
@@ -119,7 +78,8 @@ function load () {
 /** 清空缓存（reloadIndex / 测试用） */
 export function resetHesperidesCache () {
   cache = null
-  imagesCache = null
+  imagesCache.clear()
+  singleFileCache.clear()
 }
 
 /**
@@ -131,15 +91,23 @@ export function hasHesperidesData () {
 }
 
 /**
- * 取 Hesperides 的 page 索引（`index.json` 的 `games` 字段）
- *
- * 消费者（`HesperidesIndex`）据此不用读全量记录就能建搜索索引：`pages[page]` 里有
- * `ids`（记录 id 列表）、`records`（条数）与 `entries`（记录级 `{ name, rarity }`）。
- * @returns {object|null} 产物缺失 / schema 不兼容时返回 null
+ * 取 `index.json` 的 `games`（v2：`games.<game>.sources.<source>.pages`）
+ * @returns {object|null}
  */
 export function getHesperidesIndex () {
   const data = load()
   return data ? data.index.games : null
+}
+
+/**
+ * 取某源某页的索引（ids / records / entries）
+ * @param {string} gameId
+ * @param {string} source
+ * @param {string} pageDir
+ * @returns {{ids: string[], records: number, entries: object}|null}
+ */
+export function getHesperidesPage (gameId, source, pageDir) {
+  return getHesperidesIndex()?.[gameId]?.sources?.[source]?.pages?.[pageDir] || null
 }
 
 /**
@@ -156,7 +124,7 @@ export function getHesperidesPeriods (gameId, pageKey) {
   const data = load()
   if (!mapped || !data) return null
   const [source, page] = mapped
-  const list = data.periods?.games?.[gameId]?.[page]
+  const list = data.periods?.games?.[gameId]?.[source]?.[page]
   if (!Array.isArray(list) || !list.length) return null
   const periods = list.map((entry) => ({
     id: entry.id,
@@ -171,23 +139,102 @@ export function getHesperidesPeriods (gameId, pageKey) {
   return { source, page, periods }
 }
 
+/* ============================================================
+ *  页面图片引用（一页一份文件，LRU 限定常驻内存）
+ * ============================================================ */
+
+/** 图片引用缓存：`<game>/<source>/<page>` → { key, records }（LRU，容量见 IMAGE_PAGE_CACHE_MAX） */
+const imagesCache = new Map()
+
 /**
- * 读一条 Hesperides 记录（原始结构，不做规范化）
+ * 常驻的图片引用页数上限
+ *
+ * 最大的一页（zzz item）约 6000 条记录、几 MB；详情页渲染通常只碰 1~2 页，搜索全文兜底会跨 4~6 页。
+ * 定为 8 页：够覆盖一次查询的工作集，又不至于把整棵产物（100+ 页）留在内存里。
+ */
+const IMAGE_PAGE_CACHE_MAX = 8
+
+/**
+ * 读一页的图片引用（按需加载 + LRU）
  * @param {string} gameId
- * @param {string} pageKey - 插件页键
- * @param {string} id - 期/条目 id
+ * @param {string} source
+ * @param {string} pageDir
+ * @returns {Record<string, object[]>} 没有该页图片时返回空对象
+ */
+export function getHesperidesPageImages (gameId, source, pageDir) {
+  const key = `${gameId}/${source}/${pageDir}`
+  const hit = imagesCache.get(key)
+  let sig = ''
+  try {
+    const stat = fs.statSync(path.join(HESPERIDES_DIR, 'imagerefs', gameId, source, `${pageDir}.json`))
+    sig = `${stat.mtimeMs}:${stat.size}`
+  } catch {
+    return hit?.records || {}
+  }
+  if (hit && hit.sig === sig) {
+    imagesCache.delete(key)
+    imagesCache.set(key, hit)
+    return hit.records
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(HESPERIDES_DIR, 'imagerefs', gameId, source, `${pageDir}.json`), 'utf8'))
+    const records = SCHEMA_SUPPORTED.includes(data?.schemaVersion) ? (data.records || {}) : {}
+    imagesCache.set(key, { sig, records })
+    while (imagesCache.size > IMAGE_PAGE_CACHE_MAX) {
+      imagesCache.delete(imagesCache.keys().next().value)
+    }
+    return records
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * 取一条记录的图片引用
+ * @param {string} gameId
+ * @param {string} source
+ * @param {string} pageDir
+ * @param {string|number} recordId
+ * @returns {object[]}
+ */
+export function getHesperidesRecordImages (gameId, source, pageDir, recordId) {
+  const records = getHesperidesPageImages(gameId, source, pageDir)
+  const list = records[String(recordId)]
+  return Array.isArray(list) ? list : []
+}
+
+/**
+ * 读单文件频道的整份 JSON（如 nanoka 的 `diff` 页 → `records/<game>/nanoka/diff/__index.json`）
+ *
+ * 单文件频道没有记录拆分，整份内容按 `__index.json` 落盘；带 mtime 缓存，重抓后自愈。
+ * @param {string} gameId
+ * @param {string} source
+ * @param {string} pageDir
  * @returns {object|null}
  */
-export function readHesperidesRecord (gameId, pageKey, id) {
-  const mapped = CHALLENGE_PAGE_MAP[gameId]?.[pageKey]
-  if (!mapped) return null
-  const [, page] = mapped
+export function getHesperidesSingleFile (gameId, source, pageDir) {
+  const key = `${gameId}/${source}/${pageDir}`
+  const file = path.join(HESPERIDES_DIR, 'records', gameId, source, pageDir, '__index.json')
+  let sig = ''
   try {
-    return JSON.parse(fs.readFileSync(path.join(HESPERIDES_DIR, 'records', gameId, page, `${id}.json`), 'utf8'))
+    const stat = fs.statSync(file)
+    sig = `${stat.mtimeMs}:${stat.size}`
+  } catch {
+    return null
+  }
+  const hit = singleFileCache.get(key)
+  if (hit && hit.sig === sig) return hit.data
+  try {
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+    singleFileCache.set(key, { sig, data })
+    return data
   } catch {
     return null
   }
 }
+
+/** 单文件频道缓存：`<game>/<source>/<page>` → { sig, data } */
+const singleFileCache = new Map()
 
 /**
  * 频道状态（供 `#图鉴状态` 展示）

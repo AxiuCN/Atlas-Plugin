@@ -35,7 +35,7 @@ const {
 } = await import(mod('model/HesperidesIndex.js'))
 const { PAGE_LABELS } = await import(mod('components/constants.js'))
 const { syntheticPath, parseSyntheticPath } = await import(mod('model/HesperidesRepository.js'))
-const { hasHesperidesData, getHesperidesIndex, getHesperidesImages } = await import(mod('model/Hesperides.js'))
+const { hasHesperidesData, getHesperidesIndex, getHesperidesPageImages } = await import(mod('model/Hesperides.js'))
 const { loadRecord, loadRawRecord, recordSignature, isHesperidesPath, resolveRecordImage, resetRecordCache } = await import(mod('model/AtlasRepository.js'))
 
 /* ============================================================
@@ -65,7 +65,7 @@ const fixturePage = {
 }
 const records = pageToMapRecords('gi', 'character', fixturePage)
 check('只按 ids 生成', Object.keys(records).sort().join(',') === '10000002,10000003')
-check('合成路径', records['10000002'].path === syntheticPath('gi', 'character', '10000002'))
+check('合成路径（含源）', records['10000002'].path === syntheticPath('gi', 'nanoka', 'character', '10000002'))
 check('合成路径可反向解析', parseSyntheticPath(records['10000002'].path)?.id === '10000002')
 check('名字与稀有度透传', records['10000002'].name === '神里绫华' && records['10000002'].rarity === 5)
 check('缺名字退化到 id', records['10000003'].name === '10000003')
@@ -87,20 +87,25 @@ check('空页返回空表', Object.keys(pageToMapRecords('gi', 'character', {}))
 console.log('=== ③ buildMapPages ===')
 const FIXTURE_GAMES = {
   gi: {
-    pages: {
-      character: { ids: ['1'], entries: { 1: { name: '甲' } } },
-      abyss: { ids: ['9'], entries: { 9: { name: '' } } },
-      'item-all': { ids: ['7'], entries: { 7: { name: '物品' } } }
+    sources: {
+      nanoka: {
+        pages: {
+          character: { key: 'character', ids: ['1'], entries: { 1: { name: '甲' } } },
+          'item-all': { key: 'item_all', ids: ['7'], entries: { 7: { name: '物品' } } },
+          'currency-role': { key: 'currency/role', ids: ['8'], entries: { 8: { name: '开拓者' } } }
+        }
+      },
+      alioth: { pages: { abyss: { key: 'abyss', ids: ['9'], entries: { 9: { name: '' } } } } }
     }
   },
-  zzz: { pages: { boss: { ids: ['69001'], entries: {} }, 'hollow-tpp': { ids: ['1'], entries: {} } } },
-  hsr: { pages: {} }
+  zzz: { sources: { nanoka: { pages: { boss: { key: 'boss', ids: ['69001'], entries: {} }, 'hollow-tpp': { key: 'hollow/tpp', ids: ['1'], entries: {} } } } } },
+  hsr: { sources: { nanoka: { pages: {} } } }
 }
 const built = buildMapPages(FIXTURE_GAMES)
-check('只保留插件认识的页', Object.keys(built.gi || {}).join(',') === 'character')
-check('绝区零同名页被索引、非常规页被排除', Object.keys(built.zzz || {}).join(',') === 'boss' && !('hollow-tpp' in built.zzz))
+check('索引 nanoka 源的全部页', Object.keys(built.gi || {}).sort().join(',') === 'character,currency/role,item_all')
+check('绝区零页按产物 pageKey 索引', Object.keys(built.zzz || {}).sort().join(',') === 'boss,hollow/tpp')
 check('没有可索引页的游戏不出现在结果里', !('hsr' in built))
-check('终局页目录名被排除', !('abyss' in (built.gi || {})))
+check('玉璃源不进搜索索引', !('abyss' in (built.gi || {})))
 check('空 games 容错', Object.keys(buildMapPages(null)).length === 0 && Object.keys(buildMapPages({})).length === 0)
 
 /* ============================================================
@@ -112,11 +117,11 @@ check('索引对象形状与 ensureIndex 消费的一致',
   builtIndex?.games?.gi?.locales?.zh?.pages?.character?.records?.['1']?.name === '甲')
 check('页标题留空由 PAGE_LABELS 兜底', builtIndex.games.gi.locales.zh.pages.character.title === '')
 check('记录数是 ids 条数', Object.keys(builtIndex.games.gi.locales.zh.pages.character.records).length === 1)
-check('只有终局页时索引为 null', buildHesperidesMap({ gi: { pages: { abyss: { ids: ['1'], entries: { 1: { name: '' } } } } } }) === null)
+check('只有玉璃页（无 nanoka 源）时索引为 null', buildHesperidesMap({ gi: { sources: { alioth: { pages: { abyss: { ids: ['1'], entries: {} } } } } } }) === null)
 check('空产物为 null', buildHesperidesMap(null) === null && buildHesperidesMap({}) === null)
 check('小计页数与记录数', (() => {
   const counted = countIndex(builtIndex)
-  return counted.pages === 2 && counted.records === 2
+  return counted.pages === 5 && counted.records === 5
 })())
 check('空索引小计为 0', (() => {
   const counted = countIndex(null)
@@ -127,7 +132,7 @@ check('空索引小计为 0', (() => {
  *  ⑤ 合成路径分发（真实产物，缺失则跳过）
  * ============================================================ */
 console.log('=== ⑤ 合成路径分发 ===')
-check('合成路径识别', isHesperidesPath('hes/gi/character/1.json') === true)
+check('合成路径识别', isHesperidesPath('hes/gi/nanoka/character/1.json') === true)
 check('非合成路径不识别', isHesperidesPath('map.json') === false && isHesperidesPath('') === false)
 
 if (!hasHesperidesData()) {
@@ -140,7 +145,7 @@ if (realMap) {
   const pages = Object.entries(realMap.games).flatMap(([gameId, game]) =>
     Object.entries(game.locales.zh.pages).map(([pageKey, page]) => ({ gameId, pageKey, page }))
   )
-  check('索引页都落在 PAGE_LABELS 内', pages.every(p => p.pageKey in PAGE_LABELS))
+  check('索引页都有 pageKey', pages.every(p => typeof p.pageKey === 'string' && p.pageKey.length > 0))
   check('索引记录都是合成路径', pages.every(p => Object.values(p.page.records).every(r => isHesperidesPath(r.path))))
   check('小计与索引内容一致', (() => {
     const counted = countIndex(realMap)
@@ -155,9 +160,11 @@ if (realMap) {
 const index = getHesperidesIndex()
 const sample = (() => {
   for (const [gameId, game] of Object.entries(index || {})) {
-    for (const [dir, page] of Object.entries(game?.pages || {})) {
-      const id = Array.isArray(page?.ids) ? page.ids[0] : undefined
-      if (id !== undefined && page?.records > 0) return { gameId, dir, id: String(id) }
+    for (const [source, group] of Object.entries(game?.sources || {})) {
+      for (const [dir, page] of Object.entries(group?.pages || {})) {
+        const id = Array.isArray(page?.ids) ? page.ids[0] : undefined
+        if (id !== undefined && page?.records > 0) return { gameId, source, dir, id: String(id) }
+      }
     }
   }
   return null
@@ -165,12 +172,12 @@ const sample = (() => {
 check('产物里有可取样记录', Boolean(sample))
 
 if (sample) {
-  const filePath = syntheticPath(sample.gameId, sample.dir, sample.id)
+  const filePath = syntheticPath(sample.gameId, sample.source, sample.dir, sample.id)
   check('签名可判活', Boolean(recordSignature(filePath)))
   const adapted = loadRawRecord(filePath)
   check('适配成旧结构（meta + content.list/detail）',
     Boolean(adapted?.meta) && typeof adapted.content?.list === 'object' && typeof adapted.content?.detail === 'object')
-  check('meta 带游戏/页/id', adapted.meta.gameId === sample.gameId && adapted.meta.pageId === sample.dir && adapted.meta.id === sample.id)
+  check('meta 带游戏/源/页/id', adapted.meta.gameId === sample.gameId && adapted.meta.source === sample.source && adapted.meta.pageId === sample.dir && adapted.meta.id === sample.id)
   check('记录里没有 detail 字段残留', !('detail' in adapted.content.list))
 
   resetRecordCache()
@@ -178,11 +185,11 @@ if (sample) {
   check('loadRecord 返回适配后的记录', Boolean(read?.content?.list))
   check('无补丁时与 loadRawRecord 一致', JSON.stringify(read) === JSON.stringify(adapted))
 
-  const rawFile = path.join(hesperidesDir, 'records', sample.gameId, sample.dir, `${sample.id}.json`)
+  const rawFile = path.join(hesperidesDir, 'records', sample.gameId, sample.source, sample.dir, `${sample.id}.json`)
   check('原始记录确实来自 Hesperides 数据目录', fs.existsSync(rawFile))
 }
 
-check('不存在的合成路径返回 null', loadRecord('hes/gi/__none__/0.json') === null && loadRecord('hes/__none__/abyss/0.json') === null)
+check('不存在的合成路径返回 null', loadRecord('hes/gi/nanoka/__none__/0.json') === null && loadRecord('hes/__none__/nanoka/abyss/0.json') === null)
 
 // 旧路径不再有读取通路（单一数据源）
 check('旧数据路径读不出记录', loadRecord('items/简体中文/原神/角色/甲.json') === null)
@@ -191,13 +198,12 @@ check('旧数据路径读不出记录', loadRecord('items/简体中文/原神/�
  *  ⑥ 图片还原（真实产物，缺图数据则跳过）
  * ============================================================ */
 console.log('=== ⑥ 图片还原 ===')
-const imagesProduct = getHesperidesImages()
+
 const imageSample = (() => {
-  for (const [gameId, pages] of Object.entries(imagesProduct || {})) {
-    for (const [pageDir, records2] of Object.entries(pages)) {
-      for (const [recordId, list] of Object.entries(records2)) {
-        if (list.some((ref) => ref.status === 'downloaded' && ref.localPath)) return { gameId, pageDir, recordId }
-      }
+  for (const [gameId, pageDir] of [['gi', 'artifact'], ['gi', 'character'], ['zzz', 'character']]) {
+    const pages = getHesperidesPageImages(gameId, 'nanoka', pageDir)
+    for (const [recordId, list] of Object.entries(pages || {})) {
+      if (list.some((ref) => ref.status === 'downloaded' && ref.localPath)) return { gameId, pageDir, recordId }
     }
   }
   return null
@@ -206,7 +212,7 @@ const imageSample = (() => {
 if (!imageSample) {
   console.log('⏭ 没有抓到图片的记录，跳过图片还原断言')
 } else {
-  const filePath = syntheticPath(imageSample.gameId, imageSample.pageDir, imageSample.recordId)
+  const filePath = syntheticPath(imageSample.gameId, 'nanoka', imageSample.pageDir, imageSample.recordId)
   const record = loadRecord(filePath)
   const images = record?.meta?.images || []
   const downloaded = images.filter((image) => image.status === 'downloaded' && !image.placeholder)
@@ -217,7 +223,7 @@ if (!imageSample) {
 
   const url = resolveRecordImage(record)
   check('resolveRecordImage 给出 file:// 地址', url.startsWith('file://'))
-  check('图片落在 Hesperides 产物目录', decodeURIComponent(url).replace(/\\/g, '/').includes('/tool/Hesperides/Hesperides/data/hesperides/images/'))
+  check('图片落在 Hesperides 产物目录', decodeURIComponent(url).replace(/\\/g, '/').includes('/tool/Hesperides/Hesperides/data/images/'))
   const abs = decodeURIComponent(new URL(url).pathname).replace(/^\//, '')
   check('图片文件真实存在且非空', fs.existsSync(abs) && fs.statSync(abs).size > 0)
 }

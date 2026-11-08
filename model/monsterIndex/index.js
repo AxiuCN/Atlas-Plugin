@@ -5,12 +5,13 @@
  * 避免各自解析「怪物 id → 名称/图标/变体」的口径漂移。
  *
  * 两级索引（都惰性、进程内缓存）：
- * - 浅索引：直接取 map.json 的 monster 页 record 键。三游戏的 record 键都是有效主 id
+ * - 浅索引：直接取 Hesperides `nanoka/<game>/monster` 页的 entries 键。三游戏的键都是有效主 id
  *   （GI 是代表 child id、HSR/ZZZ 是 detail.id），零文件读取即可覆盖终局绝大多数引用。
  * - 深索引：读条目 JSON 收集全部变体 id（GI 无 detail.id，只有 child 键；ZZZ 还有 monster_info 键），
  *   仅在浅索引查不到时按需构建。
  */
-import { loadMap } from '../itemIndex/mapLoader.js'
+import { getHesperidesIndex, getHesperidesPage, INDEX_SOURCE } from '../Hesperides.js'
+import { syntheticPath } from '../HesperidesRepository.js'
 import { loadRecord } from '../AtlasService.js'
 import { HSR_MONSTER_CAMP_LABEL, HSR_MONSTER_CAMP_OTHER } from '../../components/constants.js'
 import { giIndexIds, giVariants } from './gi.js'
@@ -35,7 +36,7 @@ let cacheMap = null
  * 顶层缓存只判 `has()` 就返回，不按 map 身份判断的话，更新数据后仍会按旧索引解析怪物 id
  */
 function ensureCacheMap () {
-  const map = loadMap()
+  const map = getHesperidesIndex()
   if (cacheMap === map) return
   cacheMap = map
   shallowCache.clear()
@@ -53,9 +54,31 @@ const GAMES = {
   zzz: { ids: zzzIndexIds, variants: zzzVariants }
 }
 
-/** 取某游戏 monster 页的 map records（不存在返回 {}） */
+/**
+ * 取某游戏 monster 页的记录表（不存在返回 {}）
+ *
+ * 形状与搜索索引的 records 一致：`{ [id]: { name, rarity, path, ... } }`，
+ * 让上层（浅/深索引）不必区分数据来源。
+ * @param {string} gameId
+ * @returns {Record<string, object>}
+ */
 function monsterRecords (gameId) {
-  return loadMap()?.games?.[gameId]?.locales?.zh?.pages?.monster?.records || {}
+  const page = getHesperidesPage(gameId, INDEX_SOURCE, 'monster')
+  if (!page) return {}
+  const entries = page.entries || {}
+  const ids = Array.isArray(page.ids) && page.ids.length ? page.ids : Object.keys(entries)
+  const records = {}
+  for (const id of ids) {
+    const label = entries[id] || {}
+    records[id] = {
+      name: label.name ? String(label.name) : String(id),
+      rarity: label.rarity ?? '',
+      path: syntheticPath(gameId, INDEX_SOURCE, 'monster', id),
+      hasDetail: Boolean(label.hasDetail),
+      imageCount: Number(label.imageCount) || 0
+    }
+  }
+  return records
 }
 
 /**

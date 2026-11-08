@@ -1,10 +1,10 @@
 /**
  * 本地补丁层：随插件一起分发的数据 / 图片修正
  *
- * 数据源 submodule（nanoka-atlas-backend）会在 `#图鉴更新` 时被覆盖，所以修正一律放本插件 `resources/patch/`：
+ * 数据源（Hesperides 产物）会在 `#图鉴更新` 时被覆盖，所以修正一律放本插件 `resources/patch/`：
  * - `resources/patch/gallery/<game>/<资源名>.webp` —— 图片补丁，按资源名匹配，补缺图或覆盖错图
- * - `resources/patch/data/<与 data/ 相同的相对路径>.json` —— 条目补丁，读取时深合并
- * - `resources/patch/map.json` —— 索引补丁，结构同 `data/map.json`（可修条目名 / 稀有度等索引字段）
+ * - `resources/patch/records/<game>/<source>/<page>/<id>.json` —— 记录补丁，读取时深合并
+ * - `resources/patch/map.json` —— 索引补丁（可修条目名 / 稀有度等索引字段）
  *
  * 本模块只做「读补丁 + 合并」，不拼数据源路径：调用方（sections/util.js、model/AtlasService.js）各自拼，
  * 从而避免 model ⇄ components 循环依赖
@@ -18,8 +18,8 @@ const pluginRoot = path.resolve(__dirname, '..')
 
 /** 图片补丁根目录 */
 export const PATCH_GALLERY_DIR = path.join(pluginRoot, 'resources', 'patch', 'gallery')
-/** 条目补丁根目录（其下相对路径与 submodule data/ 一致） */
-export const PATCH_DATA_DIR = path.join(pluginRoot, 'resources', 'patch', 'data')
+/** 记录补丁根目录：`<game>/<source>/<page>/<id>.json`，与合成路径去掉 `hes/` 前缀后一致 */
+export const PATCH_RECORDS_DIR = path.join(pluginRoot, 'resources', 'patch', 'records')
 /** 索引补丁文件 */
 export const PATCH_MAP_FILE = path.join(pluginRoot, 'resources', 'patch', 'map.json')
 
@@ -59,25 +59,25 @@ export function patchImageUrl (gameId, fileName) {
  */
 export function imageGameFolder (img, images) {
   const segs = String(img?.localPath || '').split('/')
-  if (segs.length > 1 && segs[0] === 'gallery' && segs[1] !== '_placeholder') return segs[1]
+  if (segs.length > 1 && segs[0] === 'images' && segs[1] !== '_placeholder') return segs[1]
   const match = /\/assets\/([a-z]+)\//.exec(String(img?.remoteUrl || ''))
   if (match) return match[1]
   for (const other of images || []) {
     const otherSegs = String(other?.localPath || '').split('/')
-    if (otherSegs.length > 1 && otherSegs[0] === 'gallery' && otherSegs[1] !== '_placeholder') return otherSegs[1]
+    if (otherSegs.length > 1 && otherSegs[0] === 'images' && otherSegs[1] !== '_placeholder') return otherSegs[1]
   }
   return ''
 }
 
 /**
- * 读取条目补丁（带缓存）
- * @param {string} relPath - 与 data/ 下一致的相对路径
+ * 读取记录补丁（带缓存）
+ * @param {string} relPath - 合成路径 `hes/<game>/<source>/<page>/<id>.json`
  * @returns {object|null} 补丁对象（含可选 `_patch` 元数据）
  */
 export function loadDataPatch (relPath) {
-  if (!relPath) return null
+  if (!relPath || !relPath.startsWith('hes/')) return null
   if (dataPatchCache.has(relPath)) return dataPatchCache.get(relPath)
-  const fullPath = path.join(PATCH_DATA_DIR, relPath)
+  const fullPath = path.join(PATCH_RECORDS_DIR, relPath.slice(4))
   const patch = fs.existsSync(fullPath) ? readJson(fullPath) : null
   dataPatchCache.set(relPath, patch)
   return patch
@@ -168,7 +168,7 @@ export function listDataPatchFiles () {
       else if (entry.name.endsWith('.json')) result.push(childRel)
     }
   }
-  walk(PATCH_DATA_DIR, '')
+  walk(PATCH_RECORDS_DIR, '')
   return result.sort()
 }
 

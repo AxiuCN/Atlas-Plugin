@@ -2,8 +2,8 @@
  * 物品/材料索引统一入口
  * 按游戏分发到各游戏索引实现（id → 名称/图标解析）
  *
- * 名称数据源：data/map.json → games.<game>.locales.zh.pages.item.records（三游戏通用，共享 mapLoader）
- * 图标规则差异：gi UI_ItemIcon_<id> 直拼 / hsr itemfigures/<id> 直拼 / zzz 需查 localPath
+ * 数据源统一为 Hesperides `nanoka/<game>/item` 页的 `entries`（`name` / `icon`），
+ * 见 `model/ItemAssets.js`；不再有按 id 拼文件名的旧图库约定。
  */
 import { getGIItemName, getGIItemIcon } from './gi.js'
 import { getHsrItemName, getHsrItemIcon } from './hsr.js'

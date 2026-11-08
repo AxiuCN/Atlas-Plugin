@@ -406,8 +406,5 @@ export function hsrLabel (value) {
   return HSR_DAMAGE_CN[value] || HSR_PATH_CN[value] || value
 }
 
-// Data 目录路径（相对于 submodule）
-export const DATA_DIR = 'tool/nanoka-atlas-backend/nanoka-atlas-backend/data'
-
 // 搜索结果上限
 export const MAX_RESULTS = 30

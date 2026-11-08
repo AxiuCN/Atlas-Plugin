@@ -13,7 +13,7 @@
  * 本模块只是调用方——不把补丁实现吸进来。
  */
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { applyDataPatch, patchImageUrl, imageGameFolder } from '../components/patch.js'
 import {
   HES_PATH_PREFIX,
@@ -22,11 +22,6 @@ import {
   hesperidesRecordSignature
 } from './HesperidesRepository.js'
 import { HESPERIDES_DIR } from './Hesperides.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const pluginRoot = path.resolve(__dirname, '..')
-/** 旧图库根目录（图片尚未迁到 Hesperides，见 docs/数据源与后端.md 的图片缺口） */
-const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
 
 /**
  * 记录缓存：相对路径 → { sig, record }（LRU，上限见 RECORD_CACHE_MAX）
@@ -111,10 +106,9 @@ export function resolveRecordImage (record) {
   const patch = patchImageUrl(record?.meta?.gameId || imageGameFolder(picked, images), picked.originalValue)
   if (patch) return patch
   if (!picked.localPath) return ''
-  // 产物里是 posix 相对路径；旧产物可能带 Windows 反斜杠，统一后再判前缀
+  // 产物里是 posix 相对路径；早期产物可能带 Windows 反斜杠，统一后再拼
   const localPath = String(picked.localPath).replace(/\\/g, '/')
-  const root = localPath.startsWith('images/') ? HESPERIDES_DIR : backendRoot
-  return pathToFileURL(path.join(root, localPath)).href
+  return pathToFileURL(path.join(HESPERIDES_DIR, localPath)).href
 }
 
 /**
@@ -158,4 +152,4 @@ export function loadRecord (relativePath) {
   return record
 }
 
-export { backendRoot }
+
