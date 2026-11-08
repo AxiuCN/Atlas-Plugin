@@ -1,6 +1,6 @@
 # Atlas-Plugin / 图鉴插件
 
-TRSS-Yunzai v3 多游戏图鉴查询插件，支持原神、星穹铁道、绝区零的关键词搜索与详情/列表渲染。数据来源于 [nanoka.cc](https://nanoka.cc/)，通过 [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend)（git 子模块）抓取为本地 JSON。
+TRSS-Yunzai v3 多游戏图鉴查询插件，支持原神、星穹铁道、绝区零的关键词搜索与详情/列表渲染。数据由 [Hesperides](https://github.com/AxiuCN/Hesperides)（git 子模块）多源抓取为本地 JSON——[玉璃 alioth.wiki](https://alioth.wiki/) 提供原神/星铁终局，[nanoka.cc](https://nanoka.cc/) 覆盖上游全部页面。
 
 > 角色攻略模块已迁移至独立插件 [Meta-Plugin](https://github.com/Hyposelenia-Moon/Meta-Plugin)。
 
@@ -84,7 +84,7 @@ pnpm install --filter=Atlas-Plugin
 
 没有期覆盖当前时间时回「本期未开放」；如果连数据都停在更早的期，会补上「数据截至 YYYY-MM-DD」，跑一次 `#图鉴更新` 即可恢复。
 
-出图的标题下方会标出这一期的身份：`第 25 期 · 7.0 版本 · 2026-08-25 → 2026-09-16`；星铁四个玩法的期没有原始日期，用锚点推算出来的会额外标「（推定）」。
+出图的标题下方会标出这一期的身份：`第 25 期 · 7.0 版本 · 2026-08-25 → 2026-09-16`。期表与日期由数据引擎直接提供（星铁四个玩法的日期由抓取侧补出），插件侧不再自行估算。
 
 ### 管理指令
 

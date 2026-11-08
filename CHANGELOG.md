@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.0
+
+**数据引擎换代：nanoka-atlas-backend → Hesperides（多源），产物升到 schema v2**
+
+- **引擎替换**：数据来源改为新引擎 [Hesperides](https://github.com/AxiuCN/Hesperides)（子模块 `tool/Hesperides/Hesperides`，多源：玉璃 alioth.wiki + nanoka.cc）。旧引擎 `nanoka-atlas-backend` 的子模块条目、目录与全部读取通路删除，插件**不做任何旧数据回退**——产不出数据就明确提示「请先执行 #图鉴初始化」。
+- **抓取范围固化**：运行期只抓 **nanoka 全部页 + 玉璃终局 7 频道**（`model/AtlasUpdater.js` 的 `runtimeChannelIds()` 是唯一口径）。玉璃的非终局页与 nanoka 同名同页既不用也不抓。启动时同步子模块，提交没变则回 `skipped`、不重复重建索引。
+- **产物 schema v2：源成为路径维度**：`records/<game>/<source>/<page>/<id>.json`、`imagerefs/<game>/<source>/<page>.json`。跨源同名页（`weapon`/`monster`/`item`）各写各的，不再靠抓取顺序保证。产物路径拍平到 `data/`，上游根清单快照独立在 `data/upstream/nanoka.json`。
+- **图片按源分派（本次最大修复）**：候选 URL 由 `SOURCE_IMAGE_RULES` 按源生成——玉璃 `img.alioth.wiki`（**星铁的游戏路径段是 `sr`，不是 `hsr`**）、nanoka `static.nanoka.cc/assets`；本源优先、另一源兜底。此前所有源都拼 nanoka 域名，玉璃的星铁怪物图标在 nanoka 根本不存在，导致**玉璃占位率 51.3%**；修复后玉璃占位率 **0%**，全库 6.1% → **2.9%**。落盘时 URL 里的 `sr` 段归一成 `hsr`，同一游戏的图不会拆成两个目录。
+- **新命令 `#版本新增内容`**（另 `#新增内容` / `#新版本内容`，`*` `%` 前缀切游戏）：读 nanoka 根 manifest 的 `new` 字段（本版本新增条目 id），按实体分组并补出名称——角色 / 武器 / 光锥 / 圣遗物 / 驱动盘 / 邦布 / 敌人 / 物品 / 七圣召唤 / 摆设 / 时装…。原神圣遗物页的名称是数字 id，会回落到记录里的套装名；同名多条（时装配色变体）展示时去重、计数保留。
+- **`#版本更新记录` 改数据源**：读 Hesperides 的 `nanoka/<game>/diff` 单文件频道，不再依赖旧后端的 diff 产物。
+- **死代码清理**：`model/ChallengePeriod.js` **443 → 242 行**。期表统一由 Hesperides `periods.json` 提供（9 个玩法都有真实日期，`getHesperidesPeriods()` 适配成 `{no, name, begin, end, version, source}`），删掉 `getPeriods` / `collectPeriods` / `applyPeriodAnchors` / `getCurrentPeriod` / `resetPeriodCache` 与 `components/constants.js` 的 `CHALLENGE_PERIOD_ANCHORS`（静态锚点估算随之移除，星铁四个玩法不再需要外推）。
+- **临时机制集中到一处**：`model/LegacyCleanup.js` 收纳两处一次性清理——攻略剥离遗留的 `tool/Character-Codex-Data/`（2026-12-14 到期）与退役子模块的三处残留（工作目录 / `.git/config` 段 / `.git/modules` 对象，2026-12-31 到期）。`model/Submodules.js` 只负责子模块同步。
+- **升级须知（1.4.x → 1.5.0）**：
+  1. `git pull` 不会删除旧引擎的子模块工作目录（它带自己的 `.git`），插件启动时会自动清理，外层目录里你自己的内容不动；
+  2. 必须重新执行一次 `#图鉴初始化`（首次全量含图片，约 760 MB / 1.8 万张）；
+  3. 新产物在 `tool/Hesperides/Hesperides/data/`。
+- 测试：全量 **25 套件通过**（新增 `new-content`、`submodules`、`legacy-cleanup`；`challenge-index` 重写为「选期纯函数 + 真实 Hesperides 期表」）。
+- 文档：`README.md`、`AGENTS.md`、`docs/` 各册与 `test/AGENTS.md` 同步到多源口径与 v2 产物结构。文档站 `guide/yunzai/plugins/Atlas-Plugin.md` 另行处理。
+
 ## 1.4.0
 
 **终局挑战图鉴：挑战页从「只能看最新一期」变成「按期查询」**
