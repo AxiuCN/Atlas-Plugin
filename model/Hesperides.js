@@ -238,14 +238,16 @@ export function getHesperidesSingleFile (gameId, source, pageDir) {
 const singleFileCache = new Map()
 
 /**
- * 读 nanoka 根 manifest 快照（`data/nanoka-manifest.json`，抓取时落盘）
+ * 读 nanoka 根 manifest 快照（`data/upstream/nanoka.json`，抓取时落盘）
  *
- * 里面是上游的 `latest` / `live` 与 `new`（本版本新增条目 id 列表），供 `#版本新增内容` 使用。
+ * 快照放在 `upstream/` 下，表示它是**上游响应的原样副本**（输入素材），不是本引擎的产物。
+ * 只有提供根清单的源才有这个文件：目前仅 nanoka；玉璃上游没有根清单，版本在期表的 `Ver` 里。
+ * 内容含 `latest` / `live` 与 `new`（本版本新增条目 id），供 `#版本新增内容` 使用。
  * 带 mtime 缓存，重抓后自愈。
  * @returns {{games: object, generatedAt: string}|null}
  */
 export function getHesperidesUpstreamManifest () {
-  const file = path.join(HESPERIDES_DIR, 'nanoka-manifest.json')
+  const file = path.join(HESPERIDES_DIR, 'upstream', 'nanoka.json')
   let sig = ''
   try {
     const stat = fs.statSync(file)

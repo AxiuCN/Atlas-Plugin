@@ -97,7 +97,7 @@ check('空模型给空串', formatNewContent(null) === '')
 console.log('\n=== ⑤ 真实产物（缺失则跳过）===')
 const realManifest = getHesperidesUpstreamManifest()
 if (!realManifest) {
-  console.log('  ⏭ 还没有 nanoka-manifest.json 快照，跳过真实数据断言')
+  console.log('  ⏭ 还没有 upstream/nanoka.json 快照，跳过真实数据断言')
 } else {
   const real = buildNewContentModel('gi', realManifest, getHesperidesIndex())
   check('真实 manifest 能组装出模型', Boolean(real?.groups?.length), real ? `共 ${real.total} 项` : '(null)')
