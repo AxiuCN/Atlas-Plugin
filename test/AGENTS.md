@@ -35,7 +35,7 @@
 | `record-cache.test.mjs` | `loadRecord` LRU 上限、签名自愈、冻结诊断、缓存实例与现读现套补丁逐字一致 | 图鉴数据 |
 | `text-cache.test.mjs` | 全文兜底文本缓存：二次查询 0 读盘、`reloadIndex` 作废、单条 mtime 自愈、结果不变 | 图鉴数据 |
 | `cache-reload.test.mjs` | `reloadIndex()` 后各模块派生缓存（itemIndex / monsterIndex / LinkResolver / mapLoader）全部换新 | 图鉴数据 |
-| `startup-lifecycle.test.mjs` | 启动编排契约：已同步只重建一次 / 子模块切换后重建 / sync 与 reload 异常都不阻断（注入假依赖）+ 启动清理遗留攻略目录（临时机制，2026-12-14 后随该机制一起删） | 无（数据无关） |
+| `startup-lifecycle.test.mjs` | 启动编排契约：已同步只重建一次 / 子模块切换后重建 / sync 与 reload 异常都不阻断（注入假依赖） | 无（数据无关） |
 | `reload-contract.test.mjs` | reload 契约：临时补丁驱动的行为级验证（未 reload 不生效 → reload 后生效 → 可逆）+ 消费侧换新 + 幂等 | 图鉴数据 |
 | `scrape-lock.test.mjs` | 抓取锁（Hesperides `data/_scraping.lock`）：活跃锁拒绝 / 僵尸锁与过期锁清理 / 8 进程竞争下「`wx` 原子创建」恰好 1 个成功 | 图鉴数据 |
 | `render-scale.test.mjs` | `renderScale` 端到端：模板 zoom 注入 + 1 与 1.5 输出尺寸成比例 + 配置按原字节还原 | 图鉴数据 + 浏览器 |
@@ -43,6 +43,8 @@
 | `patches.test.mjs` | 补丁结构 / `_patch.upstream` 与上游一致 / 圣遗物补丁覆盖与误伤 / map 索引补丁 | 图鉴数据 |
 | `status-page.test.mjs` | `#图鉴状态` 状态页：真实 `buildStatusData()` + art-template 渲染一次，各游戏版本行齐全 | 图鉴数据 |
 | `challenge-spec.test.mjs` | 期修饰（**`parsePeriodSpec` 纯函数 + 真实 `handleQuery` 端到端**）：月份/版本（含 `a`/`b` 与缺 `b` 回落 `a`）/本期·上期·下期的前缀解析、非法前缀不误判（`202613`、`2026`、`4星武器`）、选期（月份命中与未命中文案、本期未开放时上期=最近已开期/下期=最早未开期、无更晚期回 `no-next`、未知版本与空版本区间的文案）、端到端 `#202001深渊`（未命中）/`#99.9深渊`（不支持）/`#7.0深渊` 与 `#7.0b深渊`（出图）/`#本期深渊`（出图或未开放）/`#深渊`（无期修饰行为不变）、**期标识**（`formatPeriodLabel` 含期号/版本/起止、估算标推定、空期空串）与模板渲染（`challenge.html` 把 `periodLine` 渲染进 hero 且无残留 `{{`） | 图鉴数据 |
+| `submodules.test.mjs` | 子模块同步（`model/Submodules.js`，注入 runner）：`.gitmodules` 路径解析（url 不误当 path）、登记校验（未登记的子模块不同步、没有 `.gitmodules` 不跑 git）、提交未变回 skipped 且 `updated` 为空、提交变化时指出变化路径、失败透传 stderr、HEAD 读取容错 | 无（只读文件） |
+| `legacy-cleanup.test.mjs` | 历史遗留清理（`model/LegacyCleanup.js`，**整套对应临时机制**）：攻略目录整目录删除 / 同级目录不受影响 / 幂等 / 符号链接只摘链接、退役子模块三处残留清理 / 外层目录保留 / 幂等 / `dryRun` 只报计划、仍登记在 `.gitmodules` 时跳过、统一入口两处都跑 | 无（只读文件） |
 | `new-content.test.mjs` | 版本新增内容（`model/NewContent.js`，**数据无关**）：实体→页目录映射（hsr 武器走光锥页）、按 manifest `new` 组装分组（固定顺序 / 空组丢弃 / 未知实体追加）、名称从索引补出与退回 id、边界（无该游戏 / 无 new / 无索引）、文案（首行版本与总数、每组一行、超长「等 N 个」截断） | 无（真实产物存在时补一条端到端） |
 | `hesperides-source.test.mjs` | Hesperides 数据源：通用挑战渲染器（增益/列表/数字/数组/截断/空记录/标题）、真实产物的期表映射（gi tower→alioth abyss、zzz boss→nanoka、未知页 null）、期对象带 Date、按 id 读记录与缺失返回 null、频道状态 | Hesperides 产物（缺失则跳真实数据部分） |
 | `hesperides-index.test.mjs` | Hesperides 索引适配（`model/HesperidesIndex.js`）：页目录名 ↔ pageKey（`achievement-achievement` 反推、`item-all`/`hollow-tpp` 不误映射、终局页目录名不进索引）、记录合成（合成路径 / 名字退化 id / 稀有度透传 / 只按 `ids` / `ids` 缺失退 `entries` / `hasDetail`·`imageCount` 退化）、索引对象形状与小计（空产物为 null、只有终局页时也为 null、`countIndex` 页数/记录数）、`AtlasRepository` 合成路径分发（签名可判活、适配成 `{meta,content:{list,detail}}`、无补丁时与 `loadRawRecord` 一致、缺失返回 null、旧数据路径读不出记录） | Hesperides 产物（缺失则跳真实数据部分） |
@@ -50,7 +52,7 @@
 | `challenge-version.test.mjs` | 版本时间轴（`model/ChallengeVersion.js`，**数据无关**）：序列按 `minorMaxByMajor` 正确进位（gi 5.8→6.0、hsr 3.8→4.0、zzz 2.7→3.0，且不生成 5.9/3.9/2.8）、日期→版本（锚点当日命中锚点版本、早于序列起点与非法日期返回 null）、版本→区间（开启日 = 锚点 + N 周期、区间到下一版本前 1 秒、未知版本 null）、版本距离（跨代按实际版本数、反向为负） | 无（只读常量） |
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
 | `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
-| `smoke-imports.test.mjs` | 24 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
+| `smoke-imports.test.mjs` | 26 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
 
 ## 不入库
 

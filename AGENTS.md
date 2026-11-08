@@ -8,7 +8,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
-- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 23 套件
+- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 25 套件
 - **别名基础设施**：`modules/aliasApi.js` 对其它插件提供只读别名查询（四层来源合并 + 统一归一化 + 版本号），接入方见 [`docs/别名接入文档.md`](docs/别名接入文档.md)（已接入：ProfileImg-Plugin）
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
 - **数据准备**：`#图鉴初始化`（同步子模块 → 全量抓取，后台异步；Hesperides 零依赖）；抓取范围固定为 **nanoka 全部页 + 玉璃终局**，见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
@@ -72,7 +72,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 ## 测试
 
-回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **23 套件**。
+回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **25 套件**。
 
 ```bash
 cd plugins/Atlas-Plugin
@@ -87,5 +87,7 @@ pnpm test -- --filter=cache   # 只跑文件名含 cache 的
 
 ## 待办（摘要）
 
-- **临时机制到期清理（2026-12-14）**：`model/startup.js` 的 `cleanupLegacyCodexDir()` 与 `index.js` 里的调用 —— 启动时清除攻略剥离前遗留的 `tool/Character-Codex-Data/`，**保留两个月后连同调用点与 `test/startup-lifecycle.test.mjs` 的 G 节一起删除**
+- **临时机制集中在一处：`model/LegacyCleanup.js`（整份文件都是临时的）**，收纳两处一次性磁盘清理，到期处理方式统一为「删文件 + `index.js` 一行调用 + `test/legacy-cleanup.test.mjs` + 各册对应段落」：
+  - **2026-12-14 到期**：`cleanupLegacyCodexDir()` —— 清除攻略剥离前遗留的 `tool/Character-Codex-Data/`
+  - **2026-12-31 到期**：`pruneRetiredSubmodules()` —— 清退役子模块的三处残留（工作目录 / `.git/config` 段 / `.git/modules` 对象；`git pull` 不会删子模块工作目录，留着几百 MB 死数据）
 - 数据缺口与增强项（素材经验口径、武器 / 圣遗物故事正文不在数据源内、怪物数据缺口 …）、ATLAS 架构审计登记（`ATLAS-015`/`023`/`025`/`026`/`027`）与长期观察项（`OBS-J2`/`OBS-J3`）：见 [`docs/待办与规划.md`](docs/待办与规划.md)

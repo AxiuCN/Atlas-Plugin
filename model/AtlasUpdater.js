@@ -14,6 +14,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { ALL_CHANNELS, ENDGAME_CHANNEL_IDS } from '../tool/Hesperides/Hesperides/src/sources/registry.mjs'
+import { syncSubmodules, submoduleCommit } from './Submodules.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -548,58 +549,29 @@ export async function repairMissingGames (games = GAMES) {
  *  子模块
  * ============================================================ */
 
-/** git 子模块目录里是否已 checkout */
-function hasSubmodule () {
-  return fs.existsSync(path.join(BACKEND_DIR, '.git')) || fs.existsSync(path.join(BACKEND_DIR, 'src', 'cli.mjs'))
-}
-
 /**
  * 初始化子模块（`git submodule update --init`）
- * @returns {Promise<{ok: boolean, error?: string}>}
+ *
+ * 与同步是同一条 git 命令（`--init` 幂等），实现都在 `model/Submodules.js`；
+ * 这里只保留 `#图鉴初始化` 侧的历史入口名。
+ * @returns {Promise<{ok: boolean, skipped?: boolean, error?: string}>}
  */
 export async function initSubmodule () {
-  if (hasSubmodule()) return { ok: true }
-  return runGit(['submodule', 'update', '--init', '--depth', '1', 'tool/Hesperides/Hesperides'])
+  return syncSubmodule()
 }
 
 /**
- * 同步子模块（拉取最新提交）
- * @returns {Promise<{ok: boolean, error?: string}>}
+ * 同步子模块（拉取最新提交；提交没变或没登记时回 skipped）
+ *
+ * 「有没有登记在 .gitmodules」由 `Submodules.syncSubmodules()` 自己校验，这里不重复判断。
+ * @returns {Promise<{ok: boolean, skipped?: boolean, updated?: string[], error?: string}>}
  */
 export async function syncSubmodule () {
-  if (!fs.existsSync(path.join(pluginRoot, '.gitmodules'))) return { ok: true }
-  // 记住同步前的子模块提交：没变就回 skipped，启动编排据此少重建一次索引
-  const before = await currentSubmoduleCommit()
-  const result = await runGit(['submodule', 'update', '--init', '--remote', 'tool/Hesperides/Hesperides'])
-  if (!result.ok) return result
-  const after = await currentSubmoduleCommit()
-  return { ok: true, skipped: Boolean(before) && before === after }
+  return syncSubmodules()
 }
 
-/**
- * 当前子模块 HEAD（读不到返回空串）
- * @returns {Promise<string>}
- */
-async function currentSubmoduleCommit () {
-  const result = await runGit(['-C', 'tool/Hesperides/Hesperides', 'rev-parse', 'HEAD'])
-  return result.ok ? String(result.stdout || '').trim() : ''
+/** 供外部排查：子模块当前 HEAD */
+export async function currentSubmoduleCommit () {
+  return submoduleCommit('tool/Hesperides/Hesperides')
 }
 
-/**
- * 在插件根执行 git 命令
- * @param {string[]} args
- * @returns {Promise<{ok: boolean, error?: string, stdout?: string}>}
- */
-function runGit (args) {
-  return new Promise((resolve) => {
-    const child = spawn('git', args, { cwd: pluginRoot, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    let stdout = ''
-    let stderr = ''
-    child.stdout?.on('data', (chunk) => { if (stdout.length < OUTPUT_LIMIT) stdout += chunk.toString() })
-    child.stderr?.on('data', (chunk) => { if (stderr.length < OUTPUT_LIMIT) stderr += chunk.toString() })
-    child.on('error', (err) => resolve({ ok: false, error: err.message }))
-    child.on('close', (code) => resolve(code === 0
-      ? { ok: true, stdout }
-      : { ok: false, error: (stderr || stdout || `git 退出码 ${code}`).trim().slice(0, 500) }))
-  })
-}

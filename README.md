@@ -105,12 +105,13 @@ pnpm install --filter=Atlas-Plugin
 
 ### 子模块自动同步
 
-图鉴引擎 `nanoka-atlas-backend` 以 git 子模块引入。插件启动时会自动将子模块同步到插件仓库记录的版本（gitlink），保证引擎代码与插件版本匹配：
+图鉴引擎 **Hesperides** 以 git 子模块引入（`tool/Hesperides/Hesperides`，多源采集：玉璃 alioth.wiki + nanoka）。插件启动时会自动把子模块同步到插件仓库记录的版本（gitlink），保证引擎代码与插件版本匹配：
 
 - 更新插件（锅巴面板更新 / `git pull`）后重启 Bot，即自动完成子模块同步，无需手动执行 `git submodule update`
 - 首次安装即使未运行 `#图鉴初始化`，启动时也会自动拉取子模块
 - 同步失败不影响插件使用，下次启动自动重试
 - 仅同步代码，数据目录 `data/` 不受影响
+- 旧引擎 `nanoka-atlas-backend` 已退役：若你的插件目录里还残留它的子模块（`tool/nanoka-atlas-backend/nanoka-atlas-backend/`），启动时会连同 `.git/config` 残留段与 `.git/modules` 对象一起清掉（临时机制，计划 2026-12-31 后删除）
 
 ## 别名基础设施（对外 API）
 
@@ -174,19 +175,19 @@ notifyMode: 'all'     # all=全部主人+群聊 / master_only=全部主人 / fir
 
 ## 数据维护
 
-图鉴数据存储在 `tool/nanoka-atlas-backend/nanoka-atlas-backend/data/`，可通过子模块手动管理：
+图鉴数据存储在 `tool/Hesperides/Hesperides/data/`（`index.json` / `periods.json` / `records/` / `imagerefs/` / `images/`），也可在子模块里手动抓取：
 
 ```bash
-cd plugins/Atlas-Plugin/tool/nanoka-atlas-backend/nanoka-atlas-backend
+cd plugins/Atlas-Plugin/tool/Hesperides/Hesperides
 
-# 仅更新 JSON（不含图片，快速）
-node src/scrape.mjs --game gi,hsr,zzz --locales zh --no-images
+# 只抓记录（快速，不带图片）
+node src/cli.mjs --all --no-textmap --with-details
 
-# 全量抓取（含图片，耗时）
-node src/scrape.mjs --game gi,hsr,zzz --locales zh
+# 记录 + 图片（与 #图鉴更新 同一口径：nanoka 全量 + 玉璃终局）
+node src/cli.mjs --all --no-textmap --with-details --images
 
-# 查看可用版本
-corepack yarn versions
+# 只重建 index.json / periods.json
+node src/cli.mjs --export
 ```
 
 ## 交流与讨论
@@ -196,7 +197,8 @@ corepack yarn versions
 ## 鸣谢
 
 - [nanoka.cc](https://nanoka.cc/) — 图鉴数据源
-- [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend) — 数据抓取引擎，以子模块引入
+- [Hesperides](https://github.com/AxiuCN/Hesperides) — 数据抓取引擎（多源：玉璃 alioth.wiki + nanoka），以子模块引入
+- [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend) — 上一代数据引擎（已归档，`tool/nanoka-atlas-backend/README.md` 保留了迁移记录）
 - [Lotus-ReFactor](https://github.com/MOPELotus/Lotus-ReFactor) — 搜索评分系统与别名机制参考
 
 ## 许可

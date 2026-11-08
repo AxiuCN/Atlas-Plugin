@@ -30,6 +30,7 @@ const MANIFEST = {
   }
 }
 
+// index 就是 getHesperidesIndex() 的返回形状（keys = gameId）
 const INDEX = {
   gi: {
     sources: {

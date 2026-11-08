@@ -92,10 +92,34 @@ function sortEntities (entities) {
 }
 
 /**
+ * 解析一条新增记录的名字
+ *
+ * 优先用索引 entries 的 name；但原神圣遗物页的 name 就是数字 id，这时读记录取套装名
+ * （`content.list.set[].name.zh`）。都取不到才退回 id。
+ * @param {string} gameId
+ * @param {string} page - 该实体对应的页目录
+ * @param {string} entity
+ * @param {string|number} id
+ * @param {object} entries - 该页的 entries
+ * @returns {string}
+ */
+function resolveName (gameId, page, entity, id, entries) {
+  const key = String(id)
+  const label = entries[key]?.name ? String(entries[key].name) : ''
+  if (label && label !== key) return label
+  if (entity === 'artifact' && page) {
+    const record = loadRecord(syntheticPath(gameId, INDEX_SOURCE, page, key))
+    const setName = Object.values(record?.content?.list?.set || {})[0]?.name?.zh
+    if (setName) return String(setName)
+  }
+  return label || key
+}
+
+/**
  * 组装某游戏的「版本新增内容」
  * @param {string} gameId
  * @param {{games: object}|null} manifest - `getHesperidesUpstreamManifest()` 的返回值
- * @param {object|null} index - `getHesperidesIndex()` 的返回值
+ * @param {object|null} index - `getHesperidesIndex()` 的返回值（keys = gameId）
  * @returns {{gameId: string, latest: string, live: string, groups: object[], total: number}|null}
  *          上游没有该游戏或没有新增时返回 null
  */
@@ -136,30 +160,6 @@ export function buildNewContentModel (gameId, manifest, index) {
 }
 
 /**
- * 解析一条新增记录的名字
- *
- * 优先用索引 entries 的 name；但原神圣遗物页的 name 就是数字 id，这时读记录取套装名
- * （`content.list.set[].name.zh`）。都取不到才退回 id。
- * @param {string} gameId
- * @param {string} page - 该实体对应的页目录
- * @param {string} entity
- * @param {string|number} id
- * @param {object} entries - 该页的 entries
- * @returns {string}
- */
-function resolveName (gameId, page, entity, id, entries) {
-  const key = String(id)
-  const label = entries[key]?.name ? String(entries[key].name) : ''
-  if (label && label !== key) return label
-  if (entity === 'artifact' && page) {
-    const record = loadRecord(syntheticPath(gameId, INDEX_SOURCE, page, key))
-    const setName = Object.values(record?.content?.list?.set || {})[0]?.name?.zh
-    if (setName) return String(setName)
-  }
-  return label || key
-}
-
-/**
  * 读真实产物组装
  * @param {string} gameId
  * @returns {object|null}
@@ -172,7 +172,7 @@ export function loadNewContent (gameId) {
  * 渲染成回复文本
  * @param {object} data - `buildNewContentModel()` 的返回值
  * @param {object} [options]
- * @param {number} [options.maxNames] - 每组最多列几个名字（超出用「等 N 个」）
+ * @param {number} [options.maxNames] - 每组最多列几个名字（超出用「等 N 项」）
  * @param {string} [options.gameName]
  * @returns {string}
  */

@@ -24,6 +24,8 @@ const targets = [
   ['model/MiaoParams.js', null],
   ['model/ItemAssets.js', 'getItemName'],
   ['model/NewContent.js', 'buildNewContentModel'],
+  ['model/Submodules.js', 'syncSubmodules'],
+  ['model/LegacyCleanup.js', 'runLegacyCleanup'],
   ['model/itemIndex/gi.js', null],
   ['model/itemIndex/hsr.js', null],
   ['model/itemIndex/zzz.js', null],
