@@ -5,6 +5,8 @@
  */
 import { search, getPageRecords, loadRecord } from '../model/AtlasService.js'
 import { getPeriods, getCurrentPeriod, formatPeriodDate, parsePeriodSpec, resolvePeriodSpec, periodMissReply } from '../model/ChallengePeriod.js'
+import { getHesperidesPeriods } from '../model/Hesperides.js'
+import { handleHesperidesChallenge } from './challengeHesperides.js'
 import { renderAtlas, selectTemplate } from '../components/render.js'
 import { buildDetailData, buildListData } from '../components/queryUtils.js'
 import { GAME_NAMES, SHORTCUT_SUFFIXES, SUFFIX_TO_SUBVIEW, PAGE_TYPE_SUFFIXES, SET_SUFFIX, SET_PAGE_TYPE_BY_GAME, SIGNATURE_SUFFIX, SIGNATURE_SHORT_SUFFIX } from '../components/constants.js'
@@ -178,6 +180,10 @@ export async function handleSpecialQuery (e, gameId, result, periodSpec = null) 
   }
 
   if (result.specialType === 'page_detail') {
+    // 优先走 Hesperides（玉璃/nanoka 归一化产物）：期与条目都更完整；缺失时回退旧数据路径
+    const hes = getHesperidesPeriods(gameId, result.pageKey)
+    if (hes) return handleHesperidesChallenge(e, gameId, result, hes, periodSpec)
+
     const periods = getPeriods(gameId, result.pageKey)
     if (periods.length === 0) {
       await e.reply(`[Atlas] ${result.pageTitle}数据为空`)

@@ -135,13 +135,13 @@ for (const [gameId, pageKey] of MODES) {
   // （早期期早于版本序列起点 → null；少数记录日期异常会与 id 顺序错位一个版本，均属已知偏差）
   const versions = periods.map(p => getPeriodVersion(gameId, p)).filter(Boolean)
   check(`${label} 期→版本有可解析结果`, versions.length > 0, `${versions.length}/${dated.length}`)
-  // 估算出来的期由等距外推得到，相邻期最多差一个版本；真实日期数据里有整段缺期（zzz 式舆
-  // 2024-08 之后直接跳到 2025-12），相邻差可以很大，故只对估算模式断言
+  // 估算出来的期由等距外推得到：期频与版本周期不完全相等（实测 35/42 混用），**允许跳版本**
+  // （远离婚点的一侧累积误差更大），因此只断言版本随期序非递减——跳版本属于已知偏差
   if (estimated.length) {
-    check(`${label} 期→版本相邻差不超过一个版本`, versions.every((version, i) => {
+    check(`${label} 期→版本随期序非递减`, versions.every((version, i) => {
       if (i === 0) return true
       const distance = getVersionDistance(gameId, versions[i - 1], version)
-      return distance !== null && Math.abs(distance) <= 1
+      return distance !== null && distance >= 0
     }))
   }
 }
