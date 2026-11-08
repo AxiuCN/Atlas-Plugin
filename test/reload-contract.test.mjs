@@ -67,7 +67,7 @@ function pickTarget () {
 
 const target = pickTarget()
 if (!target) skip('找不到「无补丁的物品条目」样本，无法做补丁驱动的契约验证')
-const patchFile = path.join(PATCH_RECORDS_DIR, target)
+const patchFile = path.join(PATCH_RECORDS_DIR, target.slice(4))
 
 /** 逐级创建补丁目录，返回本次新建的目录（浅→深），便于原样清理 */
 function makeDirs (file) {

@@ -37,7 +37,7 @@
 | `cache-reload.test.mjs` | `reloadIndex()` 后各模块派生缓存（itemIndex / monsterIndex / LinkResolver / mapLoader）全部换新 | 图鉴数据 |
 | `startup-lifecycle.test.mjs` | 启动编排契约：已同步只重建一次 / 子模块切换后重建 / sync 与 reload 异常都不阻断（注入假依赖）+ 启动清理遗留攻略目录（临时机制，2026-12-14 后随该机制一起删） | 无（数据无关） |
 | `reload-contract.test.mjs` | reload 契约：临时补丁驱动的行为级验证（未 reload 不生效 → reload 后生效 → 可逆）+ 消费侧换新 + 幂等 | 图鉴数据 |
-| `scrape-lock.test.mjs` | 抓取锁：活跃锁拒绝 / 僵尸锁与过期锁清理 / 8 进程竞争下「`wx` 原子创建」恰好 1 个成功 | 图鉴数据 |
+| `scrape-lock.test.mjs` | 抓取锁（Hesperides `data/_scraping.lock`）：活跃锁拒绝 / 僵尸锁与过期锁清理 / 8 进程竞争下「`wx` 原子创建」恰好 1 个成功 | 图鉴数据 |
 | `render-scale.test.mjs` | `renderScale` 端到端：模板 zoom 注入 + 1 与 1.5 输出尺寸成比例 + 配置按原字节还原 | 图鉴数据 + 浏览器 |
 | `weapon-refine.test.mjs` | 精炼/叠影/音擎天赋合并的合成用例 + 全量 512 条往返无损 | 图鉴数据 |
 | `patches.test.mjs` | 补丁结构 / `_patch.upstream` 与上游一致 / 圣遗物补丁覆盖与误伤 / map 索引补丁 | 图鉴数据 |

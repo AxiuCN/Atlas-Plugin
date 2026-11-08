@@ -6,7 +6,6 @@ import {
   isInitialized,
   isDataIntact,
   initSubmodule,
-  installDeps,
   runScrapeAsync,
   checkAndUpdate,
   checkRemoteVersions,
@@ -83,15 +82,7 @@ export class AtlasAdmin extends plugin {
       }
     }
 
-    const nmDir = path.join(BACKEND_DIR, 'node_modules')
-    if (!fs.existsSync(nmDir)) {
-      await e.reply('[Atlas] 正在安装依赖，请稍候...', false)
-      const depRet = installDeps()
-      if (!depRet.ok) {
-        await e.reply(`[Atlas] 依赖安装失败：${depRet.error}`, false)
-        return true
-      }
-    }
+    // Hesperides 零依赖，不需要安装步骤
 
     // 阶段一完成，发确认消息，启动后台抓取
     const cfg = getPluginConfig()
@@ -101,10 +92,10 @@ export class AtlasAdmin extends plugin {
     const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
       ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
       : hasGroups ? '主人和配置群' : '主人'
-    await e.reply(`[Atlas] 环境准备完成，开始后台抓取图鉴数据（含图片），完成后将通知${notifyHint}`, false)
+    await e.reply(`[Atlas] 环境准备完成，开始后台抓取（nanoka 全量 + 玉璃终局，含图片），完成后将通知${notifyHint}`, false)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
-    runScrapeAsync(cfg?.autoUpdate?.timeoutMs).then(async (ret) => {
+    runScrapeAsync({ mode: 'full', timeoutMs: cfg?.autoUpdate?.timeoutMs }).then(async (ret) => {
       if (!ret.ok) {
         this._notifyResult(`[Atlas] 图鉴初始化失败：${ret.error}`)
         return
@@ -152,7 +143,7 @@ export class AtlasAdmin extends plugin {
    * #图鉴强制初始化 — 跳过完整性检查，直接全量抓取
    */
   async handleForceInit (e) {
-    await e.reply('[Atlas] 强制重新初始化：跳过完整性检查，将清空现有数据并全量重建（含图片）...', false)
+    await e.reply('[Atlas] 强制重新初始化：跳过完整性检查，按全量模式重抓记录与图片（不清空现有产物）...', false)
     // 直接走完整流程（不检查 isInitialized）
     await this._doInit(e)
     return true
@@ -210,8 +201,8 @@ export class AtlasAdmin extends plugin {
         return
       }
 
-      // 空缺检查 + 补抓（仅针对缺失游戏，子模块默认 manifest.latest）
-      const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'], ['zh'])
+      // 空缺检查 + 补抓（仅针对缺失游戏）
+      const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'])
       if (repairRet.missing?.length > 0) {
         if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
         else logger?.error(`[Atlas][管理] 数据空缺修复失败: ${repairRet.missing.join(', ')}`)
@@ -326,8 +317,8 @@ export class AtlasAdmin extends plugin {
         return
       }
 
-      // 空缺检查 + 补抓（仅针对缺失游戏，子模块默认 manifest.latest）
-      const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'], ['zh'])
+      // 空缺检查 + 补抓（仅针对缺失游戏）
+      const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'])
       if (repairRet.missing?.length > 0) {
         if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
         else logger?.error(`[Atlas][管理] 数据空缺修复失败: ${repairRet.missing.join(', ')}`)

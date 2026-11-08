@@ -11,7 +11,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 - **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 22 套件
 - **别名基础设施**：`modules/aliasApi.js` 对其它插件提供只读别名查询（四层来源合并 + 统一归一化 + 版本号），接入方见 [`docs/别名接入文档.md`](docs/别名接入文档.md)（已接入：ProfileImg-Plugin）
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
-- **数据准备**：`#图鉴初始化`（拉子模块 → 装依赖 → 全量抓取，后台异步）；只想抓 JSON 见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
+- **数据准备**：`#图鉴初始化`（同步子模块 → 全量抓取，后台异步；Hesperides 零依赖）；抓取范围固定为 **nanoka 全部页 + 玉璃终局**，见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
 
 > **迁移说明**：角色攻略模块已剥离至独立插件 [Meta-Plugin](https://github.com/Hyposelenia-Moon/Meta-Plugin)（1.1.0）——本插件不再收录攻略页、攻略数据仓库同步与 `codex.enabled` 配置。
 
@@ -24,7 +24,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 | 别名管理 | `apps/alias.js`（8000） | `#图鉴别名设置` / `#图鉴别名删除` / `#图鉴别名列表` | 双闸权限（rule master + `config.yaml → alias.*`） |
 | 版本更新记录 | `apps/updateLog.js`（9000） | `#版本更新记录` / `#变更项目` / `#新版本改动` | 必须早于常规查询 |
 | 状态 / 帮助 / 管理 | `apps/status.js` · `apps/help.js` · `apps/admin.js` | `#图鉴状态` / `#图鉴帮助` / `#图鉴初始化` / `#图鉴强制初始化` / `#图鉴更新` / `#图鉴补丁` | 管理指令 master |
-| 定时任务 | `apps/admin.js` | 每日 5:00 | 版本检查 → 增量 → 重试 → 全量兜底 → diff 抓取 |
+| 定时任务 | `apps/admin.js` | 每日 5:00 | 版本检查 → 增量（nanoka 全量 + 玉璃终局）→ 重试 → 全量兜底 → diff 抓取 |
 
 子视图（7 种）、页面类型后缀（3 种）、专武后缀（`<角色>专武` / `<角色>专` / `<角色>新专武` / `<角色>新专`）、special 触发与怪物页后缀的完整清单见 [`docs/功能与命令.md`](docs/功能与命令.md)。
 
@@ -64,7 +64,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 3. **模板必须保留 `<body style="zoom:{{renderScale}}">`** — 删掉会让 `renderScale` 静默失效（输出尺寸不再缩放）
 4. **子模块不可手改** — `tool/Hesperides/**` 会在 `#图鉴更新` 时整体覆盖；数据修正一律走 `resources/patch/**`（条目 / 图片 / 索引三层）
 5. **缓存只在 `reloadIndex()` 或重启后失效** — 改补丁、改数据、改 `resources/data/*` 后，进程内缓存不会自己更新
-6. **抓取锁是原子创建** — `data/_scraping.lock` 用 `flag: 'wx'`；不要退回 `existsSync → writeFileSync` 两步（有并发双进窗口）
+6. **抓取锁是原子创建** — `tool/Hesperides/Hesperides/data/_scraping.lock` 用 `flag: 'wx'`（`AtlasUpdater` 负责）；不要退回 `existsSync → writeFileSync` 两步（有并发双进窗口）
 7. **entry shape 不是公开契约**（ATLAS-026 / 决策 D1）— 消费侧只读自己需要的字段，别把 `{...entry}` 当稳定接口
 8. **渲染尺寸随 `renderScale`** — 改它会直接改变所有图的像素尺寸与体积（默认 1.5 → 900×4340 / 639 KB）
 9. **攻略后缀已移除** — `#<角色>攻略` / `指南` 不再由图鉴接管；未安装 Meta-Plugin 时这类查询会按普通关键词落到角色页

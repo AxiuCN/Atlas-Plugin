@@ -7,14 +7,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { mod, backendRoot, tmpDir, ensureTmpDir, requireAtlasData, installFrameworkStubs } from './_helper.mjs'
+import { mod, hesperidesDir, tmpDir, ensureTmpDir, requireAtlasData, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 requireAtlasData()
 ensureTmpDir()
 
 const { runScrapeAsync } = await import(mod('model/AtlasUpdater.js'))
-const LOCK = path.join(backendRoot, 'data', '_scraping.lock')
+const LOCK = path.join(hesperidesDir, '_scraping.lock')
 
 let pass = 0
 let fail = 0
@@ -32,9 +32,9 @@ fs.rmSync(LOCK, { force: true })
 writeLock({ pid: process.pid, time: new Date().toISOString() })
 {
   const t0 = Date.now()
-  const ret = await runScrapeAsync(30000)
+  const ret = await runScrapeAsync({ timeoutMs: 30000 })
   const ms = Date.now() - t0
-  check('活跃锁被拒绝（提示锁文件占用）', ret.ok === false && /锁文件检测/.test(String(ret.error)), JSON.stringify(ret))
+  check('活跃锁被拒绝（提示已有抓取任务）', ret.ok === false && /已有抓取任务|抓取锁/.test(String(ret.error)), JSON.stringify(ret))
   check('未进入抓取流程（立即返回）', ms < 500, `${ms}ms`)
   check('活跃锁文件保持存在', fs.existsSync(LOCK))
 }
@@ -43,16 +43,16 @@ console.log('\n=== ② 僵尸锁（pid 已死）===')
 fs.rmSync(LOCK, { force: true })
 writeLock({ pid: 999999, time: new Date().toISOString() })
 {
-  const ret = await runScrapeAsync(1) // 1ms 超时：锁被清理并进入抓取后立即掐断，不会真跑抓取
-  check('僵尸锁被清理后继续（报错不再是锁占用）', !/锁文件检测/.test(String(ret.error)), JSON.stringify(ret).slice(0, 120))
+  const ret = await runScrapeAsync({ timeoutMs: 1 }) // 1ms 超时：锁被清理并进入抓取后立即掐断，不会真跑抓取
+  check('僵尸锁被清理后继续（报错不再是锁占用）', !/已有抓取任务|抓取锁/.test(String(ret.error)), JSON.stringify(ret).slice(0, 120))
   check('流程结束后锁已释放', !fs.existsSync(LOCK))
 }
 
 console.log('\n=== ③ 过期锁（pid 存活但超 TTL）===')
 writeLock({ pid: process.pid, time: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() })
 {
-  const ret = await runScrapeAsync(1)
-  check('过期锁视为残留并继续', !/锁文件检测/.test(String(ret.error)), JSON.stringify(ret).slice(0, 120))
+  const ret = await runScrapeAsync({ timeoutMs: 1 })
+  check('过期锁视为残留并继续', !/已有抓取任务|抓取锁/.test(String(ret.error)), JSON.stringify(ret).slice(0, 120))
   check('流程结束后锁已释放', !fs.existsSync(LOCK))
 }
 fs.rmSync(LOCK, { force: true })

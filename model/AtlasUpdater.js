@@ -1,927 +1,605 @@
+/**
+ * 图鉴数据更新：驱动 Hesperides 采集，管理抓取锁与版本检查
+ *
+ * **抓取范围（运行时口径）**：nanoka 的全部页 + 玉璃（alioth）的终局频道。
+ * 不是为了省流量才这么定——插件的内容页（角色/武器/圣遗物/怪物/物品…）按 nanoka 字段写，
+ * 玉璃只在终局提供更完整的期与条目；玉璃的非终局页与 nanoka 同名（`weapon`/`monster`/`item`），
+ * 既用不上也是重活。
+ *
+ * 本模块只做「什么时候抓、抓哪些、失败怎么办、状态怎么读」；
+ * 「怎么抓」全部在 Hesperides（`tool/Hesperides/Hesperides`），用其 CLI 执行。
+ */
 import fs from 'node:fs'
 import path from 'node:path'
-import { execSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { ALL_CHANNELS, ENDGAME_CHANNEL_IDS } from '../tool/Hesperides/Hesperides/src/sources/registry.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
 
-/** nanoka-atlas-backend 子模块目录 */
-export const BACKEND_DIR = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
-
-/** 子模块相对插件根目录的路径（gitlink 记录路径） */
-const SUBMODULE_PATH = 'tool/nanoka-atlas-backend/nanoka-atlas-backend'
-
-/** 数据目录 */
+/** Hesperides 子模块根目录 */
+export const BACKEND_DIR = path.join(pluginRoot, 'tool', 'Hesperides', 'Hesperides')
+/** 产物目录（index.json / periods.json / records / imagerefs / images） */
 const DATA_DIR = path.join(BACKEND_DIR, 'data')
-
-/** 抓取锁文件，防止并发 + 标记异常中断 */
+/** CLI 入口 */
+const CLI_PATH = path.join(BACKEND_DIR, 'src', 'cli.mjs')
+/** 抓取锁（产物目录内，已 gitignore） */
 const LOCK_FILE = path.join(DATA_DIR, '_scraping.lock')
 
-/** 并发保护：更新任务是否正在运行 */
-let _updateRunning = false
-
-/** 上次抓取完成时间戳，防止短时间内重复抓取（如初始化后立即被定时任务触发） */
-let _lastScrapeTime = 0
-
-/** 抓取冷却期（毫秒），此时间内拒绝新的抓取 */
-const SCRAPE_COOLDOWN = 5 * 60 * 1000 // 5 分钟
-
-/** 抓取超时（2小时，适配 5Mbps 带宽 + 含图片） */
+/** 抓取冷却（两次抓取的最小间隔，防抖） */
+const SCRAPE_COOLDOWN = 5 * 60 * 1000
+/** 单次抓取超时 */
 const SCRAPE_TIMEOUT_MS = 2 * 60 * 60 * 1000
-/** 锁文件有效期（毫秒）：超过此时间即使 pid 存活也视为残留
- *  正常抓取由 runSpawn 超时兜底（SCRAPE_TIMEOUT_MS 后杀子进程并释放锁），
- *  因此有效锁不会超过 SCRAPE_TIMEOUT_MS，留 30 分钟余量防边缘误判 */
+/** 锁的过期时间（超时时间 + 余量） */
 const LOCK_TTL_MS = SCRAPE_TIMEOUT_MS + 30 * 60 * 1000
-
 /** 版本检查超时 */
 const VERSION_CHECK_TIMEOUT_MS = 30 * 1000
-
-/** 最大输出缓冲区（sdtout/stderr） */
-const OUTPUT_LIMIT = 50 * 1024 * 1024
+/** 子进程输出上限（防止把整份日志读进内存） */
+const OUTPUT_LIMIT = 8 * 1024 * 1024
+/** nanoka 上游 manifest（版本与「本版本新增」都在这里） */
+const NANOKA_MANIFEST_URL = 'https://static.nanoka.cc/manifest.json'
+/** 三游戏 */
+const GAMES = ['gi', 'hsr', 'zzz']
 
 /* ============================================================
- *  锁文件管理
+ *  抓取范围
  * ============================================================ */
 
-/** 判断锁文件是否过期（无 time 字段或解析失败 → 不过期，交由 pid 判断） */
-function _lockStale (data) {
-  const t = data?.time ? Date.parse(data.time) : 0
-  return t > 0 && Date.now() - t > LOCK_TTL_MS
+/** 三游戏的 nanoka 频道 + 玉璃终局频道（运行时口径） */
+const RUNTIME_CHANNELS = ALL_CHANNELS.filter(
+  (channel) => channel.source === 'nanoka' || ENDGAME_CHANNEL_IDS.includes(channel.id)
+)
+
+/**
+ * 运行时抓取的频道 id
+ * @param {string[]} [games]
+ * @returns {string[]}
+ */
+export function runtimeChannelIds (games = GAMES) {
+  return RUNTIME_CHANNELS.filter((channel) => games.includes(channel.game)).map((channel) => channel.id)
 }
 
 /**
- * 启动时清理残留锁文件
- * 如果锁文件存在但原进程已死，kill 整个进程树（含孤儿 spawn 子进程）
+ * 版本差异频道 id（`nanoka/<game>/diff`）
+ * @param {string[]} [games]
+ * @returns {string[]}
  */
-function _cleanupStaleLock () {
-  if (!fs.existsSync(LOCK_FILE)) return
-  let data = null
+export function diffChannelIds (games = GAMES) {
+  return RUNTIME_CHANNELS.filter((channel) => channel.page === 'diff' && games.includes(channel.game)).map((channel) => channel.id)
+}
+
+/* ============================================================
+ *  抓取锁
+ * ============================================================ */
+
+/** 进程是否还活着 */
+function isProcessAlive (pid) {
+  if (!Number.isFinite(pid) || pid <= 0) return false
   try {
-    data = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
-  } catch { /* 锁文件损坏 */ }
-
-  // 过期锁（超过 LOCK_TTL_MS）直接视为残留，跳过 pid 存活判断
-  if (_lockStale(data)) {
-    try { fs.unlinkSync(LOCK_FILE) } catch {}
-    logger?.warn('[Atlas][Updater] 检测到过期锁文件，已清理')
-    return
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    return err.code === 'EPERM'
   }
-
-  if (data?.pid) {
-    try {
-      process.kill(data.pid, 0) // 检查进程是否存活
-      logger?.info(`[Atlas][Updater] 检测到活跃抓取进程 (PID ${data.pid})，保留锁文件`)
-      return // 进程仍在运行，保留锁
-    } catch {
-      // 原进程已死，杀残留进程树
-      try {
-        execSync(`taskkill /PID ${data.pid} /T /F`, { timeout: 5000, windowsHide: true })
-        logger?.info('[Atlas][Updater] 已终止残留抓取进程树')
-      } catch { /* taskkill 失败也继续清理锁 */ }
-    }
-  }
-  try { fs.unlinkSync(LOCK_FILE) } catch {}
-  logger?.info('[Atlas][Updater] 启动时清理残留锁文件')
 }
 
-/** 模块加载时自动清理残留锁 */
-_cleanupStaleLock()
-
-/** 锁文件内容（持有进程 pid + 时间，供残留判定） */
-function _lockPayload () {
-  return JSON.stringify({ pid: process.pid, time: new Date().toISOString() })
-}
-
-/**
- * 获取抓取锁（文件锁）
- *
- * 用 `flag: 'wx'`（存在即失败）一步完成「检查 + 创建」：原先 `existsSync` → `writeFileSync`
- * 是两步，两个进程可能同时通过检查、双双进入抓取（TOCTOU）。
- * 创建失败且锁属残留（pid 已死或超过 LOCK_TTL_MS）时清掉重试一次；仍是活跃锁则拒绝。
- * @returns {boolean}
- */
-function _acquireLock () {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      fs.mkdirSync(DATA_DIR, { recursive: true }) // data 目录可能尚未创建（首次初始化），确保锁文件可写
-      fs.writeFileSync(LOCK_FILE, _lockPayload(), { encoding: 'utf8', flag: 'wx' })
-      return true
-    } catch (err) {
-      if (err.code !== 'EEXIST') {
-        logger?.error('[Atlas][Updater] 无法创建锁文件:', err.message)
-        return false
-      }
-    }
-
-    // 锁已存在：解析后区分「活跃锁」与「残留锁」
-    let data = null
-    try {
-      data = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
-    } catch { /* 锁文件损坏 */ }
-
-    // 过期锁（超过 LOCK_TTL_MS）直接清理；未过期则依赖 pid 存活判断
-    if (!_lockStale(data)) {
-      try {
-        process.kill(data?.pid, 0)
-        logger?.warn('[Atlas][Updater] 抓取锁文件存在且进程活跃，拒绝重复启动')
-        return false
-      } catch { /* pid 已死 → 僵尸锁，继续清理后重试 */ }
-    }
-    try { fs.unlinkSync(LOCK_FILE) } catch {}
-  }
-
-  logger?.warn('[Atlas][Updater] 抓取锁竞争失败，请稍后再试')
-  return false
-}
-
-/**
- * 释放抓取锁
- */
-function _releaseLock () {
-  try { if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE) } catch {}
-}
-
-/* ============================================================
- *  spawn 封装（永不 reject，错误通过 { ok: false } 返回）
- * ============================================================ */
-
-/**
- * 运行子进程，捕获所有错误，永不 reject
- * @param {string} command - 可执行文件
- * @param {string[]} args - 参数数组
- * @param {object} options
- * @param {string} options.cwd - 工作目录
- * @param {number} [options.timeoutMs] - 超时 ms
- * @param {number} [options.outputLimit] - stdout/stderr 最大长度
- * @param {string} [options.label] - 日志标签（如"全量抓取"）
- * @returns {Promise<{ ok: boolean, code?: number, stdout: string, stderr: string,
- *                     reason?: string, timedOut?: boolean }>}
- */
-function runSpawn (command, args, options = {}) {
-  const {
-    cwd = BACKEND_DIR,
-    timeoutMs = SCRAPE_TIMEOUT_MS,
-    outputLimit = OUTPUT_LIMIT,
-    label = 'spawn'
-  } = options
-
-  return new Promise((resolve) => {
-    logger?.info(`[Atlas][Updater] ${label}: ${command} ${args.join(' ')}`)
-
-    const child = spawn(command, args, {
-      cwd,
-      windowsHide: true
-    })
-
-    let stdout = ''
-    let stderr = ''
-    let timedOut = false
-
-    const timer = setTimeout(() => {
-      timedOut = true
-      child.kill('SIGTERM')
-      // 若 SIGTERM 未生效，强制 kill
-      setTimeout(() => {
-        try { child.kill('SIGKILL') } catch {}
-      }, 10000)
-    }, timeoutMs)
-
-    child.stdout?.on('data', (chunk) => {
-      stdout = _cap(stdout + chunk.toString(), outputLimit)
-    })
-    child.stderr?.on('data', (chunk) => {
-      stderr = _cap(stderr + chunk.toString(), outputLimit)
-    })
-
-    child.on('error', (err) => {
-      clearTimeout(timer)
-      logger?.error(`[Atlas][Updater] ${label} 进程错误:`, err.message)
-      resolve({
-        ok: false,
-        reason: err.message,
-        stdout,
-        stderr
-      })
-    })
-
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      if (timedOut) {
-        logger?.error(`[Atlas][Updater] ${label} 超时 (${timeoutMs}ms)`)
-        resolve({
-          ok: false,
-          code,
-          timedOut: true,
-          reason: 'timeout',
-          stdout,
-          stderr
-        })
-      } else if (code === 0) {
-        logger?.info(`[Atlas][Updater] ${label} 完成`)
-        resolve({ ok: true, code, stdout, stderr })
-      } else {
-        const msg = stderr || `退出码 ${code}`
-        logger?.error(`[Atlas][Updater] ${label} 失败:`, msg)
-        resolve({
-          ok: false,
-          code,
-          reason: 'non_zero_exit',
-          stdout,
-          stderr
-        })
-      }
-    })
-  })
-}
-
-function _cap (value, limit) {
-  if (value.length <= limit) return value
-  return `${value.slice(0, limit)}\n...[truncated]`
-}
-
-/* ============================================================
- *  版本检查
- * ============================================================ */
-
-/**
- * 获取远端可用版本（运行 --list-versions）
- * @param {string[]} [games] — 限定游戏，默认全部
- * @returns {Promise<{ ok: boolean, versions?: object, reason?: string }>}
- */
-export async function checkRemoteVersions (games = ['gi', 'hsr', 'zzz']) {
-  const result = await runSpawn('node', ['src/scrape.mjs', '--list-versions', '--game', games.join(',')], {
-    cwd: BACKEND_DIR,
-    timeoutMs: VERSION_CHECK_TIMEOUT_MS,
-    label: '版本检查'
-  })
-
-  if (!result.ok) {
-    return { ok: false, reason: result.reason || 'version_check_failed' }
-  }
-
-  const allVersions = _parseVersionOutput(result.stdout)
-  if (!allVersions || Object.keys(allVersions).length === 0) {
-    return { ok: false, reason: 'version_parse_failed', versions: {} }
-  }
-
-  // 滤掉不需要的游戏（如 nte），只保留请求的
-  const versions = {}
-  for (const g of games) {
-    if (allVersions[g]) versions[g] = allVersions[g]
-  }
-
-  return { ok: true, versions }
-}
-
-/**
- * 解析 --list-versions 的 JSON 输出
- */
-function _parseVersionOutput (stdout = '') {
-  const text = String(stdout || '').trim()
-  if (!text) return null
-
-  // 尝试提取 JSON 块
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start >= 0 && end > start) {
-    try {
-      const parsed = JSON.parse(text.slice(start, end + 1))
-      // 标准化：{ gi: {latest, live}, hsr: {...}, ... }
-      const versions = {}
-      for (const [gameId, value] of Object.entries(parsed)) {
-        versions[gameId] = {
-          latest: String(value?.latest || ''),
-          live: String(value?.live || '')
-        }
-      }
-      return versions
-    } catch {
-      // JSON 解析失败 → 尝试逐行匹配
-    }
-  }
-
-  // 回退：逐行解析 gi: 6.7.52 格式
-  const versions = {}
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/\b(gi|hsr|zzz|nte)\b\s*[:=]\s*([^\s,]+)/i)
-    if (match) versions[match[1].toLowerCase()] = { latest: match[2], live: '' }
-  }
-  return Object.keys(versions).length > 0 ? versions : null
-}
-
-/**
- * 读取本地 map.json 中的版本信息
- * @returns {{ ready: boolean, fetchedAt?: string, versions: object }}
- */
-export function readLocalVersions () {
-  const mapPath = path.join(DATA_DIR, 'map.json')
-  if (!fs.existsSync(mapPath)) {
-    return { ready: false, versions: {} }
-  }
-
+/** 读锁文件 */
+function readLock () {
   try {
-    const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'))
-    const versions = {}
-    if (map.games) {
-      for (const [gameId, gameData] of Object.entries(map.games)) {
-        versions[gameId] = {
-          latest: String(gameData?.game?.latestVersion || ''),
-          live: String(gameData?.game?.liveVersion || '')
-        }
-      }
-    }
-
-    return {
-      ready: !!map.meta?.fetchedAt,
-      fetchedAt: map.meta?.fetchedAt || '',
-      versions
-    }
+    return JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'))
   } catch {
-    return { ready: false, versions: {} }
+    return null
   }
 }
 
 /**
- * 比较版本差异
- * @param {object} local — readLocalVersions().versions
- * @param {object} remote — checkRemoteVersions().versions
- * @returns {{ changed: boolean, changes: Array<{game: string, local: object, remote: object}> }}
+ * 清理残留锁（pid 已死或超过 TTL）
+ * @returns {boolean} 是否清理过
  */
-export function compareAtlasVersions (local = {}, remote = {}) {
-  const changes = []
-  const games = new Set([...Object.keys(local), ...Object.keys(remote)])
-  for (const game of games) {
-    const lv = local[game] || {}
-    const rv = remote[game] || {}
-    if (!rv.latest && !rv.live) continue
-    if ((rv.latest || '') !== (lv.latest || '') || (rv.live || '') !== (lv.live || '')) {
-      changes.push({ game, local: lv, remote: rv })
+function cleanupStaleLock () {
+  const data = readLock()
+  if (!data) {
+    if (fs.existsSync(LOCK_FILE)) {
+      try { fs.unlinkSync(LOCK_FILE) } catch { /* ignore */ }
+      return true
     }
+    return false
   }
-  return { changed: changes.length > 0, changes }
-}
-
-/* ============================================================
- *  版本变更记录（diff）抓取
- * ============================================================ */
-
-/**
- * 抓取版本变更记录（最新版 vs 前一版，覆盖写本地一份）
- * 作为初始化/更新流程的最后一个步骤调用；失败仅记录日志，不阻断主流程。
- * @param {string[]} [games] — 限定游戏，默认全部
- * @returns {Promise<{ ok: boolean, reason?: string }>}
- */
-export async function runDiffScrape (games = ['gi', 'hsr', 'zzz']) {
-  try {
-    const result = await runSpawn('node', ['src/scrape-diff.mjs', '--game', games.join(',')], {
-      cwd: BACKEND_DIR,
-      timeoutMs: 120000,
-      outputLimit: 4000,
-      label: '版本记录抓取'
-    })
-    if (!result.ok) {
-      logger?.warn(`[Atlas][Updater] 版本记录抓取失败（不影响本次更新）: ${result.reason || result.stderr || result.code}`)
-      return { ok: false, reason: result.reason || 'diff_failed' }
-    }
-    return { ok: true }
-  } catch (err) {
-    logger?.warn(`[Atlas][Updater] 版本记录抓取异常（不影响本次更新）: ${err.message}`)
-    return { ok: false, reason: err.message }
-  }
-}
-
-/* ============================================================
- *  抓取命令（底层 spawn 封装）
- * ============================================================ */
-
-/**
- * 全量抓取
- * @param {string[]} games
- * @param {string[]} locales
- * @param {number} [timeoutMs] - 超时 ms，默认 SCRAPE_TIMEOUT_MS（2h）
- * @returns {Promise<{ ok: boolean, error?: string, stdout?: string }>}
- */
-export function runScrape (games = ['gi', 'hsr', 'zzz'], locales = ['zh'], timeoutMs = SCRAPE_TIMEOUT_MS) {
-  const gameArg = games.join(',')
-  const localeArg = locales.join(',')
-  return runSpawn('node', [
-    'src/scrape.mjs',
-    '--game', gameArg,
-    '--locales', localeArg,
-    '--mode', 'full'
-  ], {
-    cwd: BACKEND_DIR,
-    timeoutMs,
-    label: '全量抓取'
-  }).then(r => ({
-    ok: r.ok,
-    error: r.ok ? undefined : (r.stderr || r.reason),
-    stdout: r.stdout
-  }))
+  // time 兼容毫秒数与 ISO 字符串（套件与手工排查两种写法都可能出现）
+  const written = typeof data.time === 'number' ? data.time : (Date.parse(data.time) || 0)
+  const stale = !isProcessAlive(Number(data.pid)) || Date.now() - written > LOCK_TTL_MS
+  if (!stale) return false
+  try { fs.unlinkSync(LOCK_FILE) } catch { /* ignore */ }
+  return true
 }
 
 /**
- * 增量抓取
- * @param {string[]} games
- * @param {string[]} locales
- * @param {number} [timeoutMs] - 超时 ms，默认 SCRAPE_TIMEOUT_MS（2h）
- * @returns {Promise<{ ok: boolean, error?: string, stdout?: string }>}
- */
-export function runIncrementalScrape (games = ['gi', 'hsr', 'zzz'], locales = ['zh'], timeoutMs = SCRAPE_TIMEOUT_MS) {
-  const gameArg = games.join(',')
-  const localeArg = locales.join(',')
-  return runSpawn('node', [
-    'src/scrape.mjs',
-    '--game', gameArg,
-    '--locales', localeArg,
-    '--mode', 'incremental'
-  ], {
-    cwd: BACKEND_DIR,
-    timeoutMs,
-    label: '增量抓取'
-  }).then(r => ({
-    ok: r.ok,
-    error: r.ok ? undefined : (r.stderr || r.reason),
-    stdout: r.stdout
-  }))
-}
-
-/* ============================================================
- *  带并发保护的异步包装（保留旧接口兼容）
- * ============================================================ */
-
-/**
- * 带并发保护的全量抓取（用于初始化）
- * @param {number} [timeoutMs] - 超时 ms，默认 SCRAPE_TIMEOUT_MS
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
-export async function runScrapeAsync (timeoutMs = SCRAPE_TIMEOUT_MS) {
-  if (_updateRunning) {
-    logger?.warn('[Atlas][Updater] 抓取任务已在运行中，跳过重复触发')
-    return { ok: false, error: '抓取任务已在运行中，请稍后再试' }
-  }
-
-  if (!_acquireLock()) {
-    return { ok: false, error: '抓取任务已在运行中（锁文件检测），请稍后再试' }
-  }
-
-  if (_lastScrapeTime > 0) {
-    const elapsed = Date.now() - _lastScrapeTime
-    if (elapsed < SCRAPE_COOLDOWN) {
-      const remainMin = Math.ceil((SCRAPE_COOLDOWN - elapsed) / 60000)
-      logger?.info(`[Atlas][Updater] 距上次抓取仅 ${Math.floor(elapsed / 1000)}s，冷却中，剩余约 ${remainMin} 分钟`)
-      _releaseLock()
-      return { ok: false, error: `抓取冷却中，剩余约 ${remainMin} 分钟` }
-    }
-  }
-
-  _updateRunning = true
-  try {
-    const result = await runScrape(['gi', 'hsr', 'zzz'], ['zh'], timeoutMs)
-    if (result.ok) _lastScrapeTime = Date.now()
-    return result
-  } finally {
-    _updateRunning = false
-    _releaseLock()
-  }
-}
-
-/**
- * 带并发保护的异步增量抓取
- * @param {number} [timeoutMs] - 超时 ms，默认 SCRAPE_TIMEOUT_MS
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
-export async function runIncrementalScrapeAsync (timeoutMs = SCRAPE_TIMEOUT_MS) {
-  if (_updateRunning) {
-    logger?.warn('[Atlas][Updater] 更新任务已在运行中，跳过重复触发')
-    return { ok: false, error: '更新任务已在运行中，请稍后再试' }
-  }
-
-  if (!_acquireLock()) {
-    return { ok: false, error: '更新任务已在运行中（锁文件检测），请稍后再试' }
-  }
-
-  if (_lastScrapeTime > 0) {
-    const elapsed = Date.now() - _lastScrapeTime
-    if (elapsed < SCRAPE_COOLDOWN) {
-      const remainMin = Math.ceil((SCRAPE_COOLDOWN - elapsed) / 60000)
-      logger?.info(`[Atlas][Updater] 距上次抓取仅 ${Math.floor(elapsed / 1000)}s，冷却中，剩余约 ${remainMin} 分钟`)
-      _releaseLock()
-      return { ok: false, error: `抓取冷却中，剩余约 ${remainMin} 分钟` }
-    }
-  }
-
-  _updateRunning = true
-  try {
-    const result = await runIncrementalScrape(['gi', 'hsr', 'zzz'], ['zh'], timeoutMs)
-    if (result.ok) _lastScrapeTime = Date.now()
-    return result
-  } finally {
-    _updateRunning = false
-    _releaseLock()
-  }
-}
-
-/* ============================================================
- *  checkAndUpdate — 智能更新：版本检查 → 增量 → 重试 → 全量兜底
- * ============================================================ */
-
-/**
- * 检查版本并执行更新
- *
- * 流程：
- * 1. 读本地版本 → 无数据/不完整 → 全量抓取
- * 2. 查远端版本 → 失败 → 返回错误
- * 3. 比较版本 → 没变化 → 跳过
- * 4. 版本有变化 → 增量抓取（含图片）
- * 5. 增量失败 → 等 retryDelayMs → 重试
- * 6. 重试仍失败 → fallbackToFull 时降级全量
- *
- * @param {object} [options]
- * @param {string[]} [options.games] — 限定游戏，默认全部
- * @param {string[]} [options.locales] — 语言，默认 ['zh']
- * @param {number} [options.retries] — 失败重试次数，默认 1
- * @param {number} [options.retryDelayMs] — 重试等待 ms，默认 30000
- * @param {boolean} [options.fallbackToFull] — 增量失败后降级全量，默认 true
- * @param {number} [options.timeoutMs] — 抓取超时 ms，默认 SCRAPE_TIMEOUT_MS（2h）
- * @returns {Promise<{ ok: boolean, skipped?: boolean, mode?: string,
- *                     reason?: string, error?: string, check?: object }>}
- */
-export async function checkAndUpdate (options = {}) {
-  const {
-    games = ['gi', 'hsr', 'zzz'],
-    locales = ['zh'],
-    retries = 1,
-    retryDelayMs = 30000,
-    fallbackToFull = true,
-    timeoutMs = SCRAPE_TIMEOUT_MS
-  } = options
-
-  if (!_acquireLock()) {
-    return { ok: false, reason: 'lock_busy', error: '更新任务已在运行中（锁文件检测），请稍后再试' }
-  }
-
-  if (_lastScrapeTime > 0) {
-    const elapsed = Date.now() - _lastScrapeTime
-    if (elapsed < SCRAPE_COOLDOWN) {
-      const remainMin = Math.ceil((SCRAPE_COOLDOWN - elapsed) / 60000)
-      _releaseLock()
-      return { ok: false, reason: 'cooldown', error: `抓取冷却中，剩余约 ${remainMin} 分钟` }
-    }
-  }
-
-  _updateRunning = true
-  try {
-    // ── 步骤 1：读本地版本 ──
-    const local = readLocalVersions()
-    if (!local.ready) {
-      logger?.info('[Atlas][Updater] 本地数据不完整，自动全量抓取')
-      const result = await runScrape(games, locales, timeoutMs)
-      if (result.ok) _lastScrapeTime = Date.now()
-      return {
-        ...result,
-        mode: 'full',
-        check: { reason: 'local_data_missing', local }
-      }
-    }
-
-    // ── 步骤 2：查远端版本 ──
-    const remote = await checkRemoteVersions(games)
-    if (!remote.ok) {
-      return {
-        ok: false,
-        reason: 'version_check_failed',
-        error: remote.reason || '远端版本检查失败，请检查网络后重试',
-        check: { local, remote }
-      }
-    }
-
-    // ── 步骤 3：比较版本 ──
-    const diff = compareAtlasVersions(local.versions, remote.versions)
-    if (!diff.changed) {
-      logger?.info('[Atlas][Updater] 版本未变化，跳过抓取')
-      return {
-        ok: true,
-        skipped: true,
-        reason: 'versions_unchanged',
-        check: { local, remote, diff }
-      }
-    }
-
-    const changedGames = diff.changes.map(c => c.game)
-    logger?.info(`[Atlas][Updater] 检测到版本变化: ${changedGames.join(', ')}`)
-
-    // ── 步骤 4：增量抓取（含重试） ──
-    let incResult = await runIncrementalScrape(games, locales, timeoutMs)
-
-    for (let i = 0; i < retries && !incResult.ok; i++) {
-      logger?.warn(`[Atlas][Updater] 增量抓取失败，${(retryDelayMs / 1000)}s 后重试 (${i + 1}/${retries})`)
-      await _sleep(retryDelayMs)
-      incResult = await runIncrementalScrape(games, locales, timeoutMs)
-    }
-
-    if (incResult.ok) {
-      _lastScrapeTime = Date.now()
-      return {
-        ...incResult,
-        mode: 'incremental',
-        check: { local, remote, diff }
-      }
-    }
-
-    // ── 步骤 5：增量失败 → 降级全量 ──
-    if (fallbackToFull) {
-      logger?.warn('[Atlas][Updater] 增量抓取失败，降级全量抓取')
-      const fullResult = await runScrape(games, locales, timeoutMs)
-      if (fullResult.ok) _lastScrapeTime = Date.now()
-      return {
-        ...fullResult,
-        mode: 'full_fallback',
-        check: { local, remote, diff }
-      }
-    }
-
-    return {
-      ok: false,
-      reason: 'incremental_failed',
-      error: incResult.error || '增量抓取失败',
-      check: { local, remote, diff }
-    }
-  } catch (err) {
-    logger?.error('[Atlas][Updater] checkAndUpdate 异常:', err)
-    return { ok: false, reason: 'exception', error: err.message }
-  } finally {
-    _updateRunning = false
-    _releaseLock()
-  }
-}
-
-/**
- * 检查本地数据空缺，对缺失游戏重新增量抓取
- *
- * 用于更新完成后兜底：抓取中断/异常等场景下，某游戏可能产出空数据
- * （recordCount 为 0 或游戏在状态中消失）。检测到空缺后直接增量补抓，
- * 子模块已默认以 manifest.latest 为目标版本，无需再显式指定版本。
- * @param {string[]} games - 需检查的游戏列表
- * @param {string[]} locales
- * @returns {Promise<{ok: boolean, skipped?: boolean, reason?: string, missing: string[],
- *                     results?: Array<{game: string, ok: boolean, error?: string}>}>}
- */
-export async function repairMissingGames (games = ['gi', 'hsr', 'zzz'], locales = ['zh']) {
-  // ① 空缺检测：getDataStatus 只统计有 locales.zh 的游戏，空骨架不计入 → 视为缺失
-  const status = getDataStatus()
-  if (!status.initialized) {
-    return { ok: true, skipped: true, missing: [] }
-  }
-
-  const missing = games.filter(g => {
-    const info = status.games?.[g]
-    return !info || !(info.recordCount > 0)
-  })
-  if (missing.length === 0) {
-    return { ok: true, skipped: true, missing: [] }
-  }
-
-  logger?.warn(`[Atlas][Updater] 检测到数据空缺: ${missing.join(', ')}，尝试重新增量抓取`)
-
-  if (!_acquireLock()) {
-    return { ok: false, reason: 'lock_busy', missing, results: [] }
-  }
-
-  try {
-    // ② 逐游戏重新增量抓取（子模块默认 manifest.latest，无需指定版本）
-    const results = []
-    for (const game of missing) {
-      logger?.info(`[Atlas][Updater] 空缺补抓 ${game}`)
-      const r = await runIncrementalScrape([game], locales)
-      results.push({ game, ok: r.ok, error: r.error })
-      if (r.ok) {
-        logger?.info(`[Atlas][Updater] ${game} 空缺修复成功`)
-      } else {
-        logger?.error(`[Atlas][Updater] ${game} 空缺修复失败: ${r.error}`)
-      }
-    }
-
-    return { ok: results.every(r => r.ok), missing, results }
-  } finally {
-    _releaseLock()
-  }
-}
-
-function _sleep (ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-/* ============================================================
- *  环境检查 / 初始化
- * ============================================================ */
-
-/**
- * 检查图鉴是否已完成初始化
- * 锁文件存在时视为未完全初始化（上次可能异常中断，数据不完整）
+ * 原子创建抓取锁（`wx`，并发下只有一个能成功）
  * @returns {boolean}
  */
-export function isInitialized () {
-  const gitFile = path.join(BACKEND_DIR, '.git')
-  const pkgJson = path.join(BACKEND_DIR, 'package.json')
-  const mapJson = path.join(DATA_DIR, 'map.json')
-  if (fs.existsSync(LOCK_FILE)) return false
-  return fs.existsSync(gitFile) && fs.existsSync(pkgJson) && fs.existsSync(mapJson)
-}
-
-/**
- * 检查已初始化数据是否完整（map.json 中有无正常抓取记录）
- * @returns {boolean}
- */
-export function isDataIntact () {
-  const mapJson = path.join(DATA_DIR, 'map.json')
-  if (!fs.existsSync(mapJson)) return false
+function acquireLock () {
+  cleanupStaleLock()
   try {
-    const map = JSON.parse(fs.readFileSync(mapJson, 'utf8'))
-    return !!map.meta?.fetchedAt
+    fs.mkdirSync(DATA_DIR, { recursive: true })
+    const fd = fs.openSync(LOCK_FILE, 'wx')
+    fs.writeSync(fd, JSON.stringify({ pid: process.pid, time: Date.now() }))
+    fs.closeSync(fd)
+    return true
   } catch {
     return false
   }
 }
 
-/**
- * 初始化子模块（git submodule update --init）
- *
- * 用 runSpawn 而非 execSync：插件载入时也会走到这里，而框架 plugin_load_timeout 只有 60 s，
- * 同步阻塞拉取会让「首次安装」被判插件加载超时。
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
-export async function initSubmodule () {
-  logger?.info('[Atlas][Updater] 正在拉取子模块...')
-  const result = await runSpawn('git', ['submodule', 'update', '--init', '--', SUBMODULE_PATH], {
-    cwd: pluginRoot,
-    timeoutMs: 120000,
-    label: '子模块拉取'
-  })
-  if (!result.ok) {
-    const msg = result.stderr || result.reason || `exit=${result.code}`
-    logger?.error('[Atlas][Updater] 子模块拉取失败:', msg)
-    return { ok: false, error: msg }
-  }
-  logger?.info('[Atlas][Updater] 子模块拉取完成')
-  return { ok: true }
+/** 释放锁 */
+function releaseLock () {
+  try { fs.unlinkSync(LOCK_FILE) } catch { /* ignore */ }
 }
 
-/**
- * 同步子模块到 gitlink 指向的 commit
- *
- * 对比 gitlink 记录（git ls-tree HEAD）与子模块当前 HEAD，不一致则
- * `git submodule update --init` 切换到 gitlink 指向版本。
- * 幂等：已同步则跳过；失败不致命（仅日志），供下次启动重试。
- * 覆盖"其他用户 git pull 更新插件后，子模块内容未跟随 gitlink"的场景。
- * @returns {Promise<{ ok: boolean, skipped?: boolean, error?: string }>}
- */
-export async function syncSubmodule () {
-  // ① 期望 commit = gitlink 记录（git ls-tree HEAD <path> 第 3 列）
-  let wanted = ''
-  try {
-    wanted = execSync(`git ls-tree HEAD ${SUBMODULE_PATH}`, {
-      cwd: pluginRoot,
-      encoding: 'utf8'
-    }).trim().split(/\s+/)[2] || ''
-  } catch (err) {
-    const msg = err.stderr || err.message || String(err)
-    logger?.warn(`[Atlas][Updater] 读取子模块 gitlink 记录失败: ${msg}`)
-    return { ok: false, error: msg }
-  }
-  if (!wanted) {
-    logger?.warn('[Atlas][Updater] 子模块 gitlink 记录缺失')
-    return { ok: false, error: 'gitlink 记录缺失' }
-  }
-
-  // ② 子模块未初始化（无 .git）→ 复用 initSubmodule()
-  if (!fs.existsSync(path.join(BACKEND_DIR, '.git'))) {
-    return initSubmodule()
-  }
-
-  // ③ 子模块当前 HEAD
-  let current = ''
-  try {
-    current = execSync('git rev-parse HEAD', {
-      cwd: BACKEND_DIR,
-      encoding: 'utf8'
-    }).trim()
-  } catch (err) {
-    const msg = err.stderr || err.message || String(err)
-    logger?.warn(`[Atlas][Updater] 读取子模块 HEAD 失败: ${msg}`)
-    return { ok: false, error: msg }
-  }
-
-  // ④ 已同步则跳过（幂等）
-  if (current === wanted) {
-    return { ok: true, skipped: true }
-  }
-
-  // ⑤ 不一致 → 切到 gitlink 指向版本（--init 兜底未拉取的对象，runSpawn 不阻塞事件循环）
-  logger?.info(`[Atlas][Updater] 子模块待同步: ${current.slice(0, 8)} → ${wanted.slice(0, 8)}`)
-  const result = await runSpawn('git', ['submodule', 'update', '--init', '--', SUBMODULE_PATH], {
-    cwd: pluginRoot,
-    timeoutMs: 120000,
-    label: '子模块同步'
-  })
-  if (!result.ok) {
-    logger?.warn(`[Atlas][Updater] 子模块同步失败: ${result.stderr || result.reason}`)
-    return { ok: false, error: result.stderr || result.reason }
-  }
-  logger?.info(`[Atlas][Updater] 子模块已同步到 ${wanted.slice(0, 8)}`)
-  return { ok: true }
+/** 当前是否有抓取在跑 */
+export function isScraping () {
+  const data = readLock()
+  if (!data) return false
+  return isProcessAlive(Number(data.pid)) && Date.now() - Number(data.time || 0) <= LOCK_TTL_MS
 }
 
+/* ============================================================
+ *  子进程
+ * ============================================================ */
+
 /**
- * 安装子模块依赖（corepack yarn install）
- * @returns {{ ok: boolean, error?: string }}
+ * 运行 Hesperides CLI
+ * @param {string[]} args
+ * @param {object} [options]
+ * @param {number} [options.timeoutMs]
+ * @param {Function} [options.onLine] - 每行输出回调（用于日志/进度）
+ * @returns {Promise<{ok: boolean, code: number|null, stdout: string, stderr: string, error?: string, timedOut?: boolean}>}
  */
-export function installDeps () {
-  try {
-    logger?.info('[Atlas][Updater] 正在安装依赖...')
-    execSync('corepack yarn install', {
+function runCli (args, options = {}) {
+  const { timeoutMs = SCRAPE_TIMEOUT_MS, onLine } = options
+  return new Promise((resolve) => {
+    if (!fs.existsSync(CLI_PATH)) {
+      resolve({ ok: false, code: null, stdout: '', stderr: '', error: `Hesperides CLI 不存在：${CLI_PATH}` })
+      return
+    }
+    const child = spawn(process.execPath, [CLI_PATH, ...args], {
       cwd: BACKEND_DIR,
-      encoding: 'utf8',
-      timeout: 180000
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
     })
-    logger?.info('[Atlas][Updater] 依赖安装完成')
-    return { ok: true }
-  } catch (err) {
-    const msg = err.stderr || err.message || String(err)
-    logger?.error('[Atlas][Updater] 依赖安装失败:', msg)
-    return { ok: false, error: msg }
+
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    let settled = false
+
+    const append = (target, chunk) => {
+      const text = chunk.toString()
+      if (target === 'out') {
+        if (stdout.length < OUTPUT_LIMIT) stdout += text
+      } else if (stderr.length < OUTPUT_LIMIT) {
+        stderr += text
+      }
+      if (!onLine) return
+      for (const line of text.split(/\r?\n/)) {
+        const trimmed = line.trim()
+        if (trimmed) onLine(trimmed)
+      }
+    }
+
+    child.stdout?.on('data', (chunk) => append('out', chunk))
+    child.stderr?.on('data', (chunk) => append('err', chunk))
+
+    const timer = setTimeout(() => {
+      timedOut = true
+      killTree(child.pid)
+    }, timeoutMs)
+
+    const finish = (code, error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve({ ok: code === 0 && !timedOut, code, stdout, stderr, error: error || (timedOut ? `超时（${Math.round(timeoutMs / 1000)}s）` : ''), timedOut })
+    }
+
+    child.on('error', (err) => finish(null, err.message))
+    child.on('close', (code) => finish(code))
+  })
+}
+
+/** 结束整个进程树（Windows 需要 taskkill，否则只杀父进程） */
+function killTree (pid) {
+  if (!pid) return
+  try {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+    } else {
+      process.kill(-pid, 'SIGKILL')
+    }
+  } catch {
+    try { process.kill(pid, 'SIGKILL') } catch { /* ignore */ }
   }
 }
 
 /* ============================================================
- *  状态查询
+ *  抓取
  * ============================================================ */
 
 /**
- * 获取图鉴数据状态
- * @returns {{ initialized: boolean, fetchedAt?: string, mode?: string,
- *             imageDownloads?: boolean, games?: object, images?: object }}
+ * 组装抓取参数
+ * @param {object} options
+ * @param {'full'|'incremental'} [options.mode]
+ * @param {string[]} [options.games]
+ * @param {number} [options.concurrency]
+ * @returns {string[]}
+ */
+function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 4 } = {}) {
+  const channels = runtimeChannelIds(games)
+  const args = [
+    '--channels', channels.join(','),
+    '--mode', mode === 'full' ? 'full' : 'incremental',
+    '--with-details',
+    '--images',
+    '--concurrency', String(concurrency)
+  ]
+  return args
+}
+
+/**
+ * 同步抓取（调用方自己处理锁）
+ * @param {object} [options]
+ * @returns {Promise<{ok: boolean, mode: string, code: number|null, error?: string, timedOut?: boolean}>}
+ */
+export async function runScrape (options = {}) {
+  const { mode = 'full', timeoutMs = SCRAPE_TIMEOUT_MS, onLine } = options
+  const result = await runCli(scrapeArgs({ mode, games: options.games, concurrency: options.concurrency }), { timeoutMs, onLine })
+  return { ok: result.ok, mode, code: result.code, error: result.error, timedOut: result.timedOut }
+}
+
+/**
+ * 增量抓取（调用方自己处理锁）
+ * @param {object} [options]
+ * @returns {Promise<{ok: boolean, mode: string, code: number|null, error?: string, timedOut?: boolean}>}
+ */
+export async function runIncrementalScrape (options = {}) {
+  return runScrape({ ...options, mode: 'incremental' })
+}
+
+/**
+ * 后台抓取（带锁；已有抓取在跑时直接拒绝）
+ * @param {object} [options]
+ * @param {'full'|'incremental'} [options.mode]
+ * @param {number} [options.timeoutMs]
+ * @param {string[]} [options.games]
+ * @param {Function} [options.onLine]
+ * @returns {Promise<{ok: boolean, mode: string, error?: string, code?: number|null}>}
+ */
+export async function runScrapeAsync (options = {}) {
+  const { mode = 'full', timeoutMs = SCRAPE_TIMEOUT_MS, games = GAMES, onLine } = options
+  if (!acquireLock()) {
+    return { ok: false, mode, error: isScraping() ? '已有抓取任务在运行' : '无法创建抓取锁' }
+  }
+  try {
+    const result = await runCli(scrapeArgs({ mode, games }), { timeoutMs, onLine })
+    return { ok: result.ok, mode, code: result.code, error: result.error, timedOut: result.timedOut }
+  } finally {
+    releaseLock()
+  }
+}
+
+/**
+ * 后台增量抓取
+ * @param {object} [options]
+ * @returns {Promise<{ok: boolean, mode: string, error?: string}>}
+ */
+export async function runIncrementalScrapeAsync (options = {}) {
+  return runScrapeAsync({ ...options, mode: 'incremental' })
+}
+
+/**
+ * 抓版本差异（`nanoka/<game>/diff`），失败只告警
+ * @param {string[]} [games]
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+export async function runDiffScrape (games = GAMES) {
+  const channels = diffChannelIds(games)
+  if (!channels.length) return { ok: true }
+  if (isScraping()) return { ok: false, error: '已有抓取任务在运行' }
+  if (!acquireLock()) return { ok: false, error: '无法创建抓取锁' }
+  try {
+    const result = await runCli(['--channels', channels.join(','), '--mode', 'incremental'], { timeoutMs: 5 * 60 * 1000 })
+    if (!result.ok) logger?.warn(`[Atlas][Updater] 版本差异抓取失败：${result.error || result.code}`)
+    return { ok: result.ok, error: result.error }
+  } finally {
+    releaseLock()
+  }
+}
+
+/* ============================================================
+ *  版本
+ * ============================================================ */
+
+/** 读本地 manifest 的频道片段 */
+function readManifest () {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'manifest.json'), 'utf8'))
+  } catch {
+    return { channels: {} }
+  }
+}
+
+/**
+ * 本地版本（每个游戏取 nanoka `character` 频道的版本）
+ * @returns {{ready: boolean, versions: object}}
+ */
+export function readLocalVersions () {
+  const manifest = readManifest()
+  const versions = {}
+  let ready = true
+  for (const game of GAMES) {
+    const entry = Object.values(manifest.channels || {}).find(
+      (channel) => channel.source === 'nanoka' && channel.game === game && channel.page === 'character'
+    )
+    versions[game] = { latest: entry?.version || '', records: entry?.records || 0 }
+    if (!entry?.version) ready = false
+  }
+  return { ready, versions }
+}
+
+/**
+ * 远端版本（nanoka 根 manifest）
+ * @param {string[]} [games]
+ * @returns {Promise<{ok: boolean, versions?: object, reason?: string}>}
+ */
+export async function checkRemoteVersions (games = GAMES) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), VERSION_CHECK_TIMEOUT_MS)
+  try {
+    const res = await fetch(NANOKA_MANIFEST_URL, { signal: controller.signal })
+    if (!res.ok) return { ok: false, reason: `HTTP ${res.status}` }
+    const data = await res.json()
+    const versions = {}
+    for (const game of games) {
+      versions[game] = { latest: data?.[game]?.latest || '', live: data?.[game]?.live || '' }
+    }
+    return { ok: true, versions }
+  } catch (err) {
+    return { ok: false, reason: err?.name === 'AbortError' ? '请求超时' : String(err?.message || err) }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * 比较本地与远端版本
+ * @param {object} local - readLocalVersions().versions
+ * @param {object} remote - checkRemoteVersions().versions
+ * @returns {{changed: boolean, changes: Array<{game: string, local: object, remote: object}>}}
+ */
+export function compareAtlasVersions (local = {}, remote = {}) {
+  const changes = []
+  for (const game of Object.keys(remote)) {
+    const localVer = local?.[game]?.latest || ''
+    const remoteVer = remote?.[game]?.latest || ''
+    if (!remoteVer) continue
+    if (localVer !== remoteVer) changes.push({ game, local: local[game] || {}, remote: remote[game] })
+  }
+  return { changed: changes.length > 0, changes }
+}
+
+/* ============================================================
+ *  状态
+ * ============================================================ */
+
+/**
+ * 读产物里的索引
+ * @returns {object|null}
+ */
+function readIndex () {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'index.json'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 数据状态（供 `#图鉴状态` 与更新通知使用）
+ * @returns {{games: object, images: {total: number, downloaded: number, placeholder: number}, pages: number}}
  */
 export function getDataStatus () {
-  const mapPath = path.join(DATA_DIR, 'map.json')
-  const galleryPath = path.join(DATA_DIR, 'gallery-index.json')
-
-  if (!fs.existsSync(mapPath)) {
-    return { initialized: false }
+  const index = readIndex()
+  const games = {}
+  let pages = 0
+  for (const game of GAMES) {
+    const pagesOfGame = index?.games?.[game]?.sources?.nanoka?.pages || {}
+    let recordCount = 0
+    for (const [page, value] of Object.entries(pagesOfGame)) {
+      recordCount += value?.records || 0
+      pages += 1
+      void page
+    }
+    games[game] = {
+      name: { gi: '原神', hsr: '星铁', zzz: '绝区零' }[game],
+      version: Object.values(index?.games?.[game]?.channels || {}).find((channel) => channel.page === 'character')?.version || '',
+      recordCount
+    }
   }
 
+  // 图片小计：读一页一份的引用文件（几十个文件，按需统计）
+  let total = 0
+  let downloaded = 0
+  let placeholder = 0
   try {
-    const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'))
-    const gallery = fs.existsSync(galleryPath)
-      ? JSON.parse(fs.readFileSync(galleryPath, 'utf8'))
-      : null
-
-    // 统计各游戏数据
-    const games = {}
-    if (map.games) {
-      for (const [gameId, gameData] of Object.entries(map.games)) {
-        const zhData = gameData.locales?.zh
-        if (!zhData) continue
-
-        let recordCount = 0
-        for (const page of Object.values(zhData.pages)) {
-          recordCount += Object.keys(page.records || {}).length
-        }
-
-        const version = (gameData.game?.versions && gameData.game.versions[0])
-          || gameData.game?.latestVersion
-          || ''
-
-        games[gameId] = {
-          name: gameData.game?.name || gameId,
-          version,
-          recordCount
+    for (const game of fs.readdirSync(path.join(DATA_DIR, 'imagerefs'))) {
+      const gameDir = path.join(DATA_DIR, 'imagerefs', game)
+      for (const source of fs.readdirSync(gameDir)) {
+        const sourceDir = path.join(gameDir, source)
+        for (const file of fs.readdirSync(sourceDir)) {
+          if (!file.endsWith('.json')) continue
+          const data = JSON.parse(fs.readFileSync(path.join(sourceDir, file), 'utf8'))
+          for (const list of Object.values(data.records || {})) {
+            for (const ref of list) {
+              total += 1
+              if (ref.placeholder) placeholder += 1
+              else if (ref.status === 'downloaded' && ref.localPath) downloaded += 1
+            }
+          }
         }
       }
     }
-
-    // 图片统计
-    const imgMeta = gallery?.meta || {}
-    const images = {
-      total: imgMeta.imageCount ?? 0,
-      downloaded: imgMeta.downloadedCount ?? 0,
-      placeholder: imgMeta.placeholderCount ?? 0,
-      missing: imgMeta.missingCount ?? imgMeta.imageCount ?? 0
-    }
-
-    const meta = map.meta || {}
-
-    return {
-      initialized: true,
-      fetchedAt: meta.fetchedAt || '',
-      mode: meta.mode === 'incremental' ? '增量更新' : (meta.mode || ''),
-      imageDownloads: meta.imageDownloads !== false,
-      games,
-      images
-    }
-  } catch (err) {
-    logger?.error('[Atlas][Updater] 读取状态失败:', err.message)
-    return { initialized: false }
+  } catch {
+    // 还没有图片产物
   }
+  // 状态页需要：是否已初始化 + 最近一次抓取时间（取各频道 fetchedAt 的最大值）
+  let fetchedAt = ''
+  for (const game of Object.values(index?.games || {})) {
+    for (const channel of Object.values(game?.channels || {})) {
+      if (channel.fetchedAt && channel.fetchedAt > fetchedAt) fetchedAt = channel.fetchedAt
+    }
+  }
+  return { games, images: { total, downloaded, placeholder }, pages, initialized: isInitialized(), fetchedAt }
+}
+
+/**
+ * 产物是否已初始化（`index.json` 存在）
+ * @returns {boolean}
+ */
+export function isInitialized () {
+  return fs.existsSync(path.join(DATA_DIR, 'index.json'))
+}
+
+/**
+ * 数据是否完整（三游戏都有 nanoka 角色页）
+ * @returns {boolean}
+ */
+export function isDataIntact () {
+  const index = readIndex()
+  if (!index?.games) return false
+  return GAMES.every((game) => (index.games?.[game]?.sources?.nanoka?.pages?.character?.records || 0) > 0)
+}
+
+/* ============================================================
+ *  更新编排
+ * ============================================================ */
+
+/** 简单休眠 */
+function sleep (ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * 检查并更新：版本比对 → 增量抓取（失败可重试 / 降级全量）
+ * @param {object} [options]
+ * @param {string[]} [options.games]
+ * @param {number} [options.retries]
+ * @param {number} [options.retryDelayMs]
+ * @param {boolean} [options.fallbackToFull]
+ * @param {number} [options.timeoutMs]
+ * @param {Function} [options.onLine]
+ * @returns {Promise<{ok: boolean, skipped?: boolean, mode?: string, error?: string, reason?: string, check?: object}>}
+ */
+export async function checkAndUpdate (options = {}) {
+  const {
+    games = GAMES,
+    retries = 1,
+    retryDelayMs = 30000,
+    fallbackToFull = true,
+    timeoutMs = SCRAPE_TIMEOUT_MS,
+    onLine
+  } = options
+
+  const local = readLocalVersions()
+  const remote = await checkRemoteVersions(games)
+  if (!remote.ok) return { ok: false, reason: remote.reason }
+  const diff = compareAtlasVersions(local.versions, remote.versions)
+  if (!diff.changed) return { ok: true, skipped: true, check: { diff } }
+
+  let result = await runScrapeAsync({ mode: 'incremental', games, timeoutMs, onLine })
+  for (let attempt = 0; !result.ok && attempt < retries; attempt++) {
+    logger?.warn(`[Atlas][Updater] 增量抓取失败（${result.error || result.code}），${Math.round(retryDelayMs / 1000)}s 后重试`)
+    await sleep(retryDelayMs)
+    result = await runScrapeAsync({ mode: 'incremental', games, timeoutMs, onLine })
+  }
+  let mode = result.mode
+  if (!result.ok && fallbackToFull) {
+    logger?.warn('[Atlas][Updater] 增量失败，降级全量')
+    result = await runScrapeAsync({ mode: 'full', games, timeoutMs, onLine })
+    mode = result.ok ? 'full_fallback' : result.mode
+  }
+
+  return { ok: result.ok, mode, error: result.error, check: { diff } }
+}
+
+/**
+ * 补抓「本地缺数据」的游戏（全量）
+ * @param {string[]} [games]
+ * @returns {Promise<{ok: boolean, missing: string[], error?: string}>}
+ */
+export async function repairMissingGames (games = GAMES) {
+  const index = readIndex()
+  const missing = games.filter((game) => (index?.games?.[game]?.sources?.nanoka?.pages?.character?.records || 0) === 0)
+  if (!missing.length) return { ok: true, missing }
+  const result = await runScrapeAsync({ mode: 'full', games: missing })
+  return { ok: result.ok, missing, error: result.error }
+}
+
+/* ============================================================
+ *  子模块
+ * ============================================================ */
+
+/** git 子模块目录里是否已 checkout */
+function hasSubmodule () {
+  return fs.existsSync(path.join(BACKEND_DIR, '.git')) || fs.existsSync(path.join(BACKEND_DIR, 'src', 'cli.mjs'))
+}
+
+/**
+ * 初始化子模块（`git submodule update --init`）
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+export async function initSubmodule () {
+  if (hasSubmodule()) return { ok: true }
+  return runGit(['submodule', 'update', '--init', '--depth', '1', 'tool/Hesperides/Hesperides'])
+}
+
+/**
+ * 同步子模块（拉取最新提交）
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+export async function syncSubmodule () {
+  if (!fs.existsSync(path.join(pluginRoot, '.gitmodules'))) return { ok: true }
+  // 记住同步前的子模块提交：没变就回 skipped，启动编排据此少重建一次索引
+  const before = await currentSubmoduleCommit()
+  const result = await runGit(['submodule', 'update', '--init', '--remote', 'tool/Hesperides/Hesperides'])
+  if (!result.ok) return result
+  const after = await currentSubmoduleCommit()
+  return { ok: true, skipped: Boolean(before) && before === after }
+}
+
+/**
+ * 当前子模块 HEAD（读不到返回空串）
+ * @returns {Promise<string>}
+ */
+async function currentSubmoduleCommit () {
+  const result = await runGit(['-C', 'tool/Hesperides/Hesperides', 'rev-parse', 'HEAD'])
+  return result.ok ? String(result.stdout || '').trim() : ''
+}
+
+/**
+ * 在插件根执行 git 命令
+ * @param {string[]} args
+ * @returns {Promise<{ok: boolean, error?: string, stdout?: string}>}
+ */
+function runGit (args) {
+  return new Promise((resolve) => {
+    const child = spawn('git', args, { cwd: pluginRoot, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.on('data', (chunk) => { if (stdout.length < OUTPUT_LIMIT) stdout += chunk.toString() })
+    child.stderr?.on('data', (chunk) => { if (stderr.length < OUTPUT_LIMIT) stderr += chunk.toString() })
+    child.on('error', (err) => resolve({ ok: false, error: err.message }))
+    child.on('close', (code) => resolve(code === 0
+      ? { ok: true, stdout }
+      : { ok: false, error: (stderr || stdout || `git 退出码 ${code}`).trim().slice(0, 500) }))
+  })
 }
