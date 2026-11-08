@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.1
+
+**修复：子模块未初始化时插件整体加载失败**
+
+- **症状**：全新安装、或从未执行过子模块初始化的机器上，启动报
+  `ERR_MODULE_NOT_FOUND: ... tool/Hesperides/Hesperides/src/sources/registry.mjs`，插件完全不加载。
+- **根因**：`model/AtlasUpdater.js` 在模块顶层静态 import 子模块的频道表。ESM 在加载阶段就解析依赖，
+  子模块没 init 时文件不存在 → 整条 `index.js → startup.js → AtlasUpdater.js` 链崩掉。
+  更麻烦的是**同步子模块的代码本身就在这个文件里**：子模块缺失 → 插件加载失败 → 用户连 `#图鉴初始化`
+  都发不出去 → 永远拉不到子模块，形成死锁。
+- **修复**：频道表改为运行期动态 `import()`，拿不到时记一条 warn 并回退到产物 `data/manifest.json`
+  的 `channels` 键。两级来源——子模块 registry（权威）→ 产物台账（有产物时够用）。
+  `runtimeChannelIds` / `diffChannelIds` / `scrapeArgs` 随之改为异步。
+- **影响面**：仅全新安装与未初始化子模块的环境；已正常运行的机器行为不变（仍以 registry 为准）。
+- **回归**：新增 `test/submodule-independence.test.mjs`（10 条）——扫描全部生产代码，**不得出现**对
+  `tool/Hesperides` 的静态 import；四个读子模块的模块（`AtlasUpdater` / `startup` / `Submodules` /
+  `LegacyCleanup`）在子模块缺失时仍可加载；频道表口径与筛选（72 个：nanoka 65 + 玉璃终局 7）。
+- **升级方式**：拉取后重启即可，启动编排会自动 `git submodule update --init --remote` 拉子模块；
+  若服务器上 `.gitmodules` 也缺失，手动执行 `git submodule update --init --recursive` 再重启，然后 `#图鉴初始化`。
+
 ## 1.5.0
 
 **数据引擎换代：nanoka-atlas-backend → Hesperides（多源），产物升到 schema v2**

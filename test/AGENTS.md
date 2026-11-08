@@ -52,6 +52,7 @@
 | `challenge-version.test.mjs` | 版本时间轴（`model/ChallengeVersion.js`，**数据无关**）：序列按 `minorMaxByMajor` 正确进位（gi 5.8→6.0、hsr 3.8→4.0、zzz 2.7→3.0，且不生成 5.9/3.9/2.8）、日期→版本（锚点当日命中锚点版本、早于序列起点与非法日期返回 null）、版本→区间（开启日 = 锚点 + N 周期、区间到下一版本前 1 秒、未知版本 null）、版本距离（跨代按实际版本数、反向为负） | 无（只读常量） |
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
 | `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
+| `submodule-independence.test.mjs` | 加载不依赖子模块（**数据无关**）：生产代码不得静态 import `tool/Hesperides`（只允许动态 `import()`）、读子模块的四个模块在子模块缺失时仍可加载、频道表按运行时口径（nanoka 全量 + 玉璃终局 7 个，不含玉璃非终局页）、按游戏过滤与 diff 频道筛选 | 无（只读源码与模块） |
 | `smoke-imports.test.mjs` | 26 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
 
 ## 不入库

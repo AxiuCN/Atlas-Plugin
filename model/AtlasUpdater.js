@@ -13,7 +13,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { ALL_CHANNELS, ENDGAME_CHANNEL_IDS } from '../tool/Hesperides/Hesperides/src/sources/registry.mjs'
 import { syncSubmodules, submoduleCommit } from './Submodules.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -47,27 +46,59 @@ const GAMES = ['gi', 'hsr', 'zzz']
  *  抓取范围
  * ============================================================ */
 
-/** 三游戏的 nanoka 频道 + 玉璃终局频道（运行时口径） */
-const RUNTIME_CHANNELS = ALL_CHANNELS.filter(
-  (channel) => channel.source === 'nanoka' || ENDGAME_CHANNEL_IDS.includes(channel.id)
-)
+/**
+ * 读子模块的频道表（**必须懒加载**）
+ *
+ * 不能在模块顶层静态 import：子模块可能还没初始化（全新安装），静态 import 会让**整个插件加载失败**，
+ * 而「同步子模块」的代码本身就在本文件里 —— 那样就死锁了，用户连 `#图鉴初始化` 都发不出去。
+ * @returns {Promise<{channels: object[], endgameIds: string[]}>} 不可用时返回空表
+ */
+async function loadChannelTable () {
+  try {
+    const mod = await import('../tool/Hesperides/Hesperides/src/sources/registry.mjs')
+    return {
+      channels: Array.isArray(mod.ALL_CHANNELS) ? mod.ALL_CHANNELS : [],
+      endgameIds: Array.isArray(mod.ENDGAME_CHANNEL_IDS) ? mod.ENDGAME_CHANNEL_IDS : []
+    }
+  } catch (err) {
+    logger?.warn(`[Atlas] 子模块频道表未就绪（${err?.message || err}），改用产物里的频道清单`)
+    return { channels: [], endgameIds: [] }
+  }
+}
+
+/**
+ * 运行时抓取范围：nanoka 全部频道 + 玉璃终局频道
+ *
+ * 来源两级：子模块 registry（权威）→ 产物 `manifest.json` 的 channels 键（有产物时够用）。
+ * @returns {Promise<object[]>}
+ */
+async function runtimeChannels () {
+  const { channels, endgameIds } = await loadChannelTable()
+  if (channels.length) {
+    return channels.filter((channel) => channel.source === 'nanoka' || endgameIds.includes(channel.id))
+  }
+  const manifest = readManifest()
+  return Object.entries(manifest?.channels || {}).map(([id, entry]) => ({ id, ...entry }))
+}
 
 /**
  * 运行时抓取的频道 id
  * @param {string[]} [games]
- * @returns {string[]}
+ * @returns {Promise<string[]>}
  */
-export function runtimeChannelIds (games = GAMES) {
-  return RUNTIME_CHANNELS.filter((channel) => games.includes(channel.game)).map((channel) => channel.id)
+export async function runtimeChannelIds (games = GAMES) {
+  const channels = await runtimeChannels()
+  return channels.filter((channel) => games.includes(channel.game)).map((channel) => channel.id)
 }
 
 /**
  * 版本差异频道 id（`nanoka/<game>/diff`）
  * @param {string[]} [games]
- * @returns {string[]}
+ * @returns {Promise<string[]>}
  */
-export function diffChannelIds (games = GAMES) {
-  return RUNTIME_CHANNELS.filter((channel) => channel.page === 'diff' && games.includes(channel.game)).map((channel) => channel.id)
+export async function diffChannelIds (games = GAMES) {
+  const channels = await runtimeChannels()
+  return channels.filter((channel) => channel.page === 'diff' && games.includes(channel.game)).map((channel) => channel.id)
 }
 
 /* ============================================================
@@ -234,8 +265,8 @@ function killTree (pid) {
  * @param {number} [options.concurrency]
  * @returns {string[]}
  */
-function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 4 } = {}) {
-  const channels = runtimeChannelIds(games)
+async function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 4 } = {}) {
+  const channels = await runtimeChannelIds(games)
   const args = [
     '--channels', channels.join(','),
     '--mode', mode === 'full' ? 'full' : 'incremental',
@@ -253,7 +284,7 @@ function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 4 } = 
  */
 export async function runScrape (options = {}) {
   const { mode = 'full', timeoutMs = SCRAPE_TIMEOUT_MS, onLine } = options
-  const result = await runCli(scrapeArgs({ mode, games: options.games, concurrency: options.concurrency }), { timeoutMs, onLine })
+  const result = await runCli(await scrapeArgs({ mode, games: options.games, concurrency: options.concurrency }), { timeoutMs, onLine })
   return { ok: result.ok, mode, code: result.code, error: result.error, timedOut: result.timedOut }
 }
 
@@ -281,7 +312,7 @@ export async function runScrapeAsync (options = {}) {
     return { ok: false, mode, error: isScraping() ? '已有抓取任务在运行' : '无法创建抓取锁' }
   }
   try {
-    const result = await runCli(scrapeArgs({ mode, games }), { timeoutMs, onLine })
+    const result = await runCli(await scrapeArgs({ mode, games }), { timeoutMs, onLine })
     return { ok: result.ok, mode, code: result.code, error: result.error, timedOut: result.timedOut }
   } finally {
     releaseLock()
@@ -303,7 +334,7 @@ export async function runIncrementalScrapeAsync (options = {}) {
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
 export async function runDiffScrape (games = GAMES) {
-  const channels = diffChannelIds(games)
+  const channels = await diffChannelIds(games)
   if (!channels.length) return { ok: true }
   if (isScraping()) return { ok: false, error: '已有抓取任务在运行' }
   if (!acquireLock()) return { ok: false, error: '无法创建抓取锁' }
