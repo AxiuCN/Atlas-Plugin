@@ -52,5 +52,20 @@ if (!hasHesperidesData()) {
   check('频道状态可读', !!getHesperidesChannels()?.gi)
 }
 
+console.log('\n=== 记录仓库与旧结构适配 ===')
+const { syntheticPath, parseSyntheticPath, adaptToLegacyRecord, loadLegacyRecord, resetHesperidesRecordCache } =
+  await import(mod('model/HesperidesRepository.js'))
+check('合成路径生成', syntheticPath('gi', 'artifact', '15019') === 'hes/gi/artifact/15019.json')
+check('合成路径解析', JSON.stringify(parseSyntheticPath('hes/zzz/boss/69001.json')) === '{"gameId":"zzz","page":"boss","id":"69001"}')
+check('非合成路径返回 null', parseSyntheticPath('items/简体中文/原神/圣遗物/15019.json') === null)
+const legacy = adaptToLegacyRecord('hes/gi/artifact/15019.json', { id: 15019, rank: [4, 5], detail: { parts: [] }, zh: '追忆之注连' })
+check('适配出旧结构', !!legacy.content.list && !!legacy.content.detail && legacy.meta.name === '追忆之注连')
+check('稀有度取数组最大值', legacy.meta.rarity === 5, String(legacy.meta.rarity))
+check('detail 缺失给空对象', Object.keys(adaptToLegacyRecord('hes/gi/artifact/1.json', { zh: 'x' }).content.detail).length === 0)
+if (hasHesperidesData()) {
+  resetHesperidesRecordCache()
+  const real = loadLegacyRecord('hes/zzz/boss/69001.json')
+  check('真实记录可适配', !!real && !!real.content.list && !!real.meta.name, real?.meta?.name)
+}
 console.log(`\n结果：通过 ${pass} / 失败 ${fail}`)
 process.exit(fail === 0 ? 0 : 1)
