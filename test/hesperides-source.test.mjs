@@ -1,5 +1,5 @@
 // Hesperides 数据源回归：期表映射、记录读取、通用挑战渲染器
-import { mod, requireAtlasData } from './_helper.mjs'
+import { mod, requireHesperidesProducts } from './_helper.mjs'
 import { installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
@@ -33,7 +33,7 @@ check('空记录返回空 sections', buildHesperidesChallengeSections('maze_boss
 check('标题取 Name 字段', pickHesperidesTitle(synthetic) === '' && pickHesperidesTitle({ Name: '支配遗志' }) === '支配遗志')
 check('超长文本被截断', buildHesperidesChallengeSections('as', { Buff: 'x'.repeat(300) })[0].fields[0].value.length <= 121)
 
-requireAtlasData()
+requireHesperidesProducts()
 
 console.log('\n=== 真实产物映射 ===')
 if (!hasHesperidesData()) {

@@ -8,7 +8,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
-- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 17 套件
+- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 22 套件
 - **别名基础设施**：`modules/aliasApi.js` 对其它插件提供只读别名查询（四层来源合并 + 统一归一化 + 版本号），接入方见 [`docs/别名接入文档.md`](docs/别名接入文档.md)（已接入：ProfileImg-Plugin）
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
 - **数据准备**：`#图鉴初始化`（拉子模块 → 装依赖 → 全量抓取，后台异步）；只想抓 JSON 见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
@@ -72,7 +72,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 ## 测试
 
-回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **17 套件**。
+回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **22 套件**。
 
 ```bash
 cd plugins/Atlas-Plugin

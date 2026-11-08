@@ -41,7 +41,13 @@ export function parseSyntheticPath (filePath) {
   return { gameId: matched[1], page: matched[2], id: matched[3] }
 }
 
-/** 进程内记录缓存（按合成路径；数据更新由 mtime 变化触发换 key 时整体清空） */
+/**
+ * 进程内记录缓存（按合成路径）
+ *
+ * 每条带文件签名（大小 + 修改时间）：`#图鉴更新` 重抓后签名变化即自愈，
+ * 不必等 `reloadIndex()`；补丁仍由 AtlasRepository 那层缓存控制（补丁改动需 reloadIndex）。
+ * @type {Map<string, {sig: string, raw: object}>}
+ */
 const recordCache = new Map()
 
 /** 清空缓存 */
@@ -50,20 +56,49 @@ export function resetHesperidesRecordCache () {
 }
 
 /**
+ * 合成路径 → Hesperides 记录文件绝对路径
+ * @param {string} filePath
+ * @returns {string} 路径不合法时返回空串
+ */
+export function hesperidesRecordFile (filePath) {
+  const parsed = parseSyntheticPath(filePath)
+  if (!parsed) return ''
+  return path.join(HESPERIDES_DIR, 'records', parsed.gameId, parsed.page, `${parsed.id}.json`)
+}
+
+/**
+ * 记录文件签名（大小 + 修改时间），供上层记录缓存判活
+ * @param {string} filePath
+ * @returns {string} 文件不可读时返回空串
+ */
+export function hesperidesRecordSignature (filePath) {
+  const full = hesperidesRecordFile(filePath)
+  if (!full) return ''
+  try {
+    const stat = fs.statSync(full)
+    return `${stat.size}|${Math.round(stat.mtimeMs)}`
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 按合成路径读取 Hesperides 原始记录
  * @param {string} filePath - `hes/<game>/<page>/<id>.json`
  * @returns {object|null}
  */
 export function readRawByPath (filePath) {
-  const parsed = parseSyntheticPath(filePath)
-  if (!parsed) return null
-  if (recordCache.has(filePath)) return recordCache.get(filePath)
+  const full = hesperidesRecordFile(filePath)
+  if (!full) return null
+  const sig = hesperidesRecordSignature(filePath)
+  if (!sig) return null
+
+  const hit = recordCache.get(filePath)
+  if (hit && hit.sig === sig) return hit.raw
+
   try {
-    const raw = JSON.parse(fs.readFileSync(
-      path.join(HESPERIDES_DIR, 'records', parsed.gameId, parsed.page, `${parsed.id}.json`),
-      'utf8'
-    ))
-    recordCache.set(filePath, raw)
+    const raw = JSON.parse(fs.readFileSync(full, 'utf8'))
+    recordCache.set(filePath, { sig, raw })
     return raw
   } catch {
     return null

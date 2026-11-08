@@ -1,8 +1,8 @@
 // 模块加载冒烟：改动引入的 import 边是否造成环或加载错误，导出面是否齐全
-import { mod, requireAtlasData, installFrameworkStubs } from './_helper.mjs'
+// 数据无关：只 import 模块、不查数据（ensureIndex 由查询触发，import 不触发）
+import { mod, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
-requireAtlasData()
 
 let pass = 0
 let fail = 0
@@ -14,6 +14,9 @@ const check = (name, ok, extra = '') => {
 const targets = [
   ['model/AtlasService.js', null],
   ['model/AtlasRepository.js', 'loadRecord'],
+  ['model/Hesperides.js', 'getHesperidesPeriods'],
+  ['model/HesperidesIndex.js', 'getHesperidesMap'],
+  ['model/HesperidesRepository.js', 'loadLegacyRecord'],
   ['model/AtlasUpdater.js', null],
   ['model/ChallengePeriod.js', 'getCurrentPeriod'],
   ['model/ChallengeVersion.js', 'getVersionAt'],

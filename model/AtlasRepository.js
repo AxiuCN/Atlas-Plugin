@@ -2,22 +2,30 @@
  * AtlasRepository — 图鉴记录的数据访问层
  *
  * 职责边界（Stage 11 审计确认，Stage 12 从 AtlasService 剥离）：
- * - 只负责「把一条记录读出来」：路径常量、原文读取、补丁套用、记录缓存、图片解析
+ * - 只负责「把一条记录读出来」：路径解析、记录读取与适配、补丁套用、记录缓存、图片解析
  * - **不感知索引与搜索**：不调用 ensureIndex()，不碰 mapCache / indexCache
  * - **不决定何时失效**：recordCache 的清空只由 AtlasService.reloadIndex() 调 resetRecordCache() 触发
+ *
+ * **单一数据源**：记录只来自 Hesperides 合成路径 `hes/<game>/<page>/<id>.json`，
+ * 不再有旧后端的 `data/items/…` 读取通路；非合成路径一律视为不存在。
  *
  * 补丁逻辑仍留在 components/patch.js（applyDataPatch / patchImageUrl / imageGameFolder），
  * 本模块只是调用方——不把补丁实现吸进来。
  */
-import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { applyDataPatch, patchImageUrl, imageGameFolder } from '../components/patch.js'
+import {
+  HES_PATH_PREFIX,
+  readRawByPath,
+  adaptToLegacyRecord,
+  hesperidesRecordSignature
+} from './HesperidesRepository.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
+/** 旧图库根目录（图片尚未迁到 Hesperides，见 docs/数据源与后端.md 的图片缺口） */
 const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
-const dataDir = path.join(backendRoot, 'data')
 
 /**
  * 记录缓存：相对路径 → { sig, record }（LRU，上限见 RECORD_CACHE_MAX）
@@ -49,17 +57,22 @@ export function resetRecordCache () {
 }
 
 /**
- * 记录文件签名（大小 + 修改时间）：数据文件被替换后签名变化，缓存自愈
+ * 是否为 Hesperides 合成路径（`hes/<game>/<page>/<id>.json`，不进磁盘）
  * @param {string} relativePath
- * @returns {string} 文件不可读时返回空串
+ * @returns {boolean}
+ */
+export function isHesperidesPath (relativePath) {
+  return typeof relativePath === 'string' && relativePath.startsWith(HES_PATH_PREFIX)
+}
+
+/**
+ * 记录签名（大小 + 修改时间）：记录文件被替换后签名变化，缓存自愈
+ * @param {string} relativePath - 合成路径 `hes/…`
+ * @returns {string} 非合成路径或文件不可读时返回空串
  */
 export function recordSignature (relativePath) {
-  try {
-    const stat = fs.statSync(path.join(dataDir, relativePath))
-    return `${stat.size}|${Math.round(stat.mtimeMs)}`
-  } catch {
-    return ''
-  }
+  if (!isHesperidesPath(relativePath)) return ''
+  return hesperidesRecordSignature(relativePath)
 }
 
 /**
@@ -99,28 +112,27 @@ export function resolveRecordImage (record) {
 }
 
 /**
- * 加载单条记录 JSON 文件（原始内容，不套补丁；供补丁层做上游值比对）
- * @param {string} relativePath - map.json 中的相对路径
- * @returns {object|null}
+ * 加载单条记录的原始内容（不套插件补丁；供补丁层做上游值比对）
+ *
+ * 返回**已适配成旧结构**的记录（`{ meta, content: { list, detail } }`）：补丁的
+ * `_patch.upstream` 与键路径都按这个结构书写，比对口径必须一致。
+ * @param {string} relativePath - 合成路径 `hes/…`
+ * @returns {object|null} 非合成路径 / 记录不存在返回 null
  */
 export function loadRawRecord (relativePath) {
-  try {
-    const fullPath = path.join(dataDir, relativePath)
-    if (!fs.existsSync(fullPath)) return null
-    return JSON.parse(fs.readFileSync(fullPath, 'utf8'))
-  } catch {
-    return null
-  }
+  if (!isHesperidesPath(relativePath)) return null
+  const raw = readRawByPath(relativePath)
+  return raw ? adaptToLegacyRecord(relativePath, raw) : null
 }
 
 /**
- * 加载单条记录 JSON（套用 resources/patch/data 下的补丁，命中进程内缓存）
- * @param {string} relativePath - map.json 中的相对路径
+ * 加载单条记录（套用 resources/patch 下的补丁，命中进程内缓存）
+ * @param {string} relativePath - 合成路径 `hes/…`
  * @returns {object|null}
  */
 export function loadRecord (relativePath) {
   const sig = recordSignature(relativePath)
-  if (!sig) return null // 文件不存在（与 loadRawRecord 同口径返回 null）
+  if (!sig) return null // 记录不存在（与 loadRawRecord 同口径返回 null）
 
   const hit = recordCache.get(relativePath)
   if (hit && hit.sig === sig) {
@@ -140,4 +152,4 @@ export function loadRecord (relativePath) {
   return record
 }
 
-export { dataDir, backendRoot }
+export { backendRoot }

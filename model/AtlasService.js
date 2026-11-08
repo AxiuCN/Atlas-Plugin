@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import {
   GAME_NAMES,
@@ -33,13 +32,13 @@ import {
   resolveRecordImage,
   recordSignature,
   resetRecordCache,
-  dataDir,
   backendRoot
 } from './AtlasRepository.js'
+import { getHesperidesMap, countIndex } from './HesperidesIndex.js'
 
-// 兼容层：记录读取与路径常量已迁到 AtlasRepository，这里保留原调用路径
-// （外部 13 个 import 方无需改动；re-export 保持函数对象同一，不是包装）
-export { loadRecord, loadRawRecord, resolveRecordImage, dataDir, backendRoot }
+// 记录读取已迁到 AtlasRepository；这里保留原调用路径并转出（外部 13 个 import 方无需改动）
+// backendRoot 只剩图片用途（旧图库），随图片方案迁移后删除
+export { loadRecord, loadRawRecord, resolveRecordImage, backendRoot }
 
 /** @type {object|null} map.json 内容 */
 let mapCache = null
@@ -110,21 +109,21 @@ const SOURCE_RANK = { name: 0, fulltext: 1, file: 2 }
 function ensureIndex () {
   if (mapCache) return
 
-  const mapPath = path.join(dataDir, 'map.json')
-  if (!fs.existsSync(mapPath)) {
-    throw new Error(`map.json 不存在: ${mapPath}，请先执行 nanoka-atlas-backend 数据抓取`)
+  // 单一数据源：索引只由 Hesperides 产物合成（不再读旧后端 map.json，也没有按页回退）
+  mapCache = getHesperidesMap()
+  if (!mapCache) {
+    throw new Error('Hesperides 图鉴数据不可用（产物缺失 / schema 不兼容 / 无可索引页），请先执行 #图鉴初始化')
   }
 
-  logger?.info('[Atlas] 正在加载图鉴索引...')
-  const raw = fs.readFileSync(mapPath, 'utf8')
-  mapCache = JSON.parse(raw)
-  // 索引补丁（resources/patch/map.json）叠加在 map.json 之上，可修条目名 / 稀有度等索引字段
+  const { pages, records } = countIndex(mapCache)
+  logger?.info(`[Atlas] Hesperides 索引就绪：${pages} 个图鉴页 / ${records} 条记录`)
+
+  // 索引补丁（resources/patch/map.json）叠加在合成索引之上，可修条目名 / 稀有度等索引字段
   const mapPatch = loadMapPatch()
   if (mapPatch) {
     mergePatch(mapCache, mapPatch)
     logger?.info('[Atlas] 已应用索引补丁 resources/patch/map.json')
   }
-  logger?.info('[Atlas] map.json 加载完成')
 
   for (const [gameId, gameData] of Object.entries(mapCache.games)) {
     const flat = []
@@ -136,7 +135,10 @@ function ensureIndex () {
     const variantFirst = new Map()
     for (const [pageKey, page] of Object.entries(zhData.pages)) {
       const pageTitle = PAGE_LABELS[pageKey] || page.title || pageKey
+      // 无名字的记录无法被检索，直接跳过：索引补丁（resources/patch/map.json）可能只覆盖
+      // 部分字段（如仅 rarity），当某页在产物里还不存在时，合并补丁会造出这种半条记录
       const records = Object.entries(page.records)
+        .filter(([, record]) => typeof record?.name === 'string' && record.name !== '')
       // 形态族成员统计：同名条目（旅行者 / 三月七 / {NICKNAME}）或仅性别标记不同（奇偶·男性/女性）视为同族
       const familySize = new Map()
       for (const [, record] of records) {
@@ -475,36 +477,11 @@ export function search (gameId, keyword) {
     }
   }
 
-  // ===== 文件系统兜底 =====
-  if (!loaded.length) {
-    const itemsRoot = path.join(dataDir, 'items', '简体中文')
-    const candidates = findCandidateFiles(itemsRoot, trimmed)
-    for (const candidate of candidates.slice(0, Math.max(MAX_RESULTS * 3, MAX_RESULTS))) {
-      const record = loadRecord(path.relative(dataDir, candidate.file))
-      if (record) {
-        const score = scoreCandidateFile(candidate, trimmed) + scoreLoadedItem(record, variants)
-        const entry = {
-          name: candidate.base,
-          nameLower: candidate.base.toLowerCase(),
-          nameMatch: normalizeForMatch(candidate.base),
-          pageKey: '',
-          pageTitle: '',
-          rarity: '',
-          recordId: '',
-          filePath: path.relative(dataDir, candidate.file),
-          imageCount: 0,
-          aliases: new Set([candidate.base])
-        }
-        loaded.push({ entry, score, source: 'file' })
-      }
-    }
-  }
-
   if (!loaded.length) {
     return { type: 'empty', keyword: trimmed }
   }
 
-  // ===== 最终排序：命中来源分层（名字命中 > 全文命中 > 文件兜底） =====
+  // ===== 最终排序：命中来源分层（名字命中 > 全文命中） =====
   loaded.sort((a, b) =>
     (SOURCE_RANK[a.source] ?? 0) - (SOURCE_RANK[b.source] ?? 0)
     || b.score - a.score
@@ -598,10 +575,11 @@ function shouldRunDetailFallback (loaded, maxResults, variants, strict = false) 
 /**
  * 全文兜底用的可检索文本（已归一），命中进程内缓存
  *
- * 匹配必须以补丁后的内容为准：补丁会改写甚至删掉上游文本（如把源站抓成「菲谢尔专用」的部件 desc
- * 换回官方描述），直接扫原文会命中已被改掉的字；无补丁的条目走读原文快路径，省一次 JSON 解析。
- * @param {string} relativePath - 条目相对路径
- * @returns {string} 归一后的可检索文本；文件不可读返回空串
+ * 匹配必须以**补丁后**的内容为准：补丁会改写甚至删掉上游文本（如把源站抓成「菲谢尔专用」的部件 desc
+ * 换回官方描述），直接扫原文会命中已被改掉的字。记录统一走 `loadRecord()`（内部有记录缓存），
+ * 无补丁时补丁后的文本与原文一致，不必再区分两条通路。
+ * @param {string} relativePath - 记录合成路径
+ * @returns {string} 归一后的可检索文本；记录不可读返回空串
  */
 function searchableText (relativePath) {
   const sig = recordSignature(relativePath)
@@ -614,20 +592,10 @@ function searchableText (relativePath) {
     return hit.text
   }
 
-  let raw
-  if (loadDataPatch(relativePath)) {
-    const patched = loadRecord(relativePath)
-    if (!patched) return ''
-    raw = JSON.stringify(patched)
-  } else {
-    try {
-      raw = fs.readFileSync(path.join(dataDir, relativePath), 'utf8')
-    } catch {
-      return ''
-    }
-  }
+  const record = loadRecord(relativePath)
+  if (!record) return ''
 
-  const text = normalizeForMatch(raw)
+  const text = normalizeForMatch(JSON.stringify(record))
   cacheText(relativePath, sig, text)
   return text
 }
@@ -658,52 +626,6 @@ function findDetailFallbackMatches (flat, variants, seen) {
     if (matches.length >= MAX_RESULTS * 4) break
   }
   return matches
-}
-
-/**
- * 递归遍历目录找匹配的 JSON 文件
- */
-function findCandidateFiles (root, keyword) {
-  const result = []
-  const queue = [root]
-  const lowerKeyword = normalizeForMatch(keyword)
-
-  while (queue.length) {
-    const dir = queue.shift()
-    let entries
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { continue }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        queue.push(full)
-      } else if (entry.isFile() && entry.name.endsWith('.json')) {
-        const base = path.basename(entry.name, '.json')
-        if (!lowerKeyword || normalizeForMatch(base).includes(lowerKeyword)) {
-          result.push({
-            file: full,
-            base,
-            exact: normalizeForMatch(base) === lowerKeyword
-          })
-        }
-      }
-    }
-  }
-  return result
-}
-
-/**
- * 文件系统兜底评分
- * 评分公式：完全匹配+100 / 前缀+40 / 包含+20 - 名称长度惩罚
- */
-function scoreCandidateFile (candidate, keyword) {
-  let score = 0
-  const base = normalizeForMatch(candidate.base)
-  const key = normalizeForMatch(keyword)
-  if (base === key) score += 100
-  if (base.startsWith(key)) score += 40
-  if (base.includes(key)) score += 20
-  score -= Math.max(0, candidate.base.length - keyword.length)
-  return score
 }
 
 /**

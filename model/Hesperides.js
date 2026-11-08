@@ -84,6 +84,18 @@ export function hasHesperidesData () {
 }
 
 /**
+ * 取 Hesperides 的 page 索引（`index.json` 的 `games` 字段）
+ *
+ * 消费者（`HesperidesIndex`）据此不用读全量记录就能建搜索索引：`pages[page]` 里有
+ * `ids`（记录 id 列表）、`records`（条数）与 `entries`（记录级 `{ name, rarity }`）。
+ * @returns {object|null} 产物缺失 / schema 不兼容时返回 null
+ */
+export function getHesperidesIndex () {
+  const data = load()
+  return data ? data.index.games : null
+}
+
+/**
  * 取某挑战玩法在 Hesperides 里的期表
  *
  * 返回的期对象与 `ChallengePeriod` 同形（`begin`/`end` 为 Date），供 `pickCurrent` /

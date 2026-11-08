@@ -20,10 +20,12 @@ export const testDir = path.dirname(fileURLToPath(import.meta.url))
 export const pluginRoot = path.resolve(testDir, '..')
 /** bot 根目录（app/） */
 export const appRoot = path.resolve(pluginRoot, '../..')
-/** 图鉴数据引擎根目录（submodule） */
+/** 图鉴数据引擎根目录（submodule，旧后端：迁移完成后删除） */
 export const backendRoot = path.join(pluginRoot, 'tool/nanoka-atlas-backend/nanoka-atlas-backend')
-/** 图鉴数据目录 */
+/** 旧后端数据目录（迁移期间仅供尚未迁移的套件取上游值，最终随子模块一起删除） */
 export const dataDir = path.join(backendRoot, 'data')
+/** Hesperides 产物目录（唯一数据源） */
+export const hesperidesDir = path.join(pluginRoot, 'tool/Hesperides/Hesperides/data/hesperides')
 /** 套件临时产物目录（gitignore） */
 export const tmpDir = path.join(testDir, '.test-tmp')
 
@@ -49,9 +51,31 @@ export function ensureTmpDir () {
  *  前置检查（缺则跳过）
  * ============================================================ */
 
-/** 图鉴数据是否已就绪（map.json 存在） */
+/** 读 Hesperides `index.json`（读不到返回 null） */
+function readHesperidesIndex () {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(hesperidesDir, 'index.json'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/** Hesperides 产物是否存在（不看内容是否够用） */
+export function hasHesperidesProducts () {
+  return readHesperidesIndex() !== null
+}
+
+/**
+ * 图鉴数据是否已就绪
+ *
+ * 口径是**Hesperides 的三游戏角色页都已抓到**：套件里的角色 / 武器 / 圣遗物 / 怪物 / 挑战断言
+ * 全部依赖核心页，只抓到终局频道（如刚迁移完时的 9 个频道）不算就绪——否则会以「缺数据」
+ * 的名义报一堆假失败。
+ */
 export function hasAtlasData () {
-  return fs.existsSync(path.join(dataDir, 'map.json'))
+  const index = readHesperidesIndex()
+  if (!index?.games) return false
+  return ['gi', 'hsr', 'zzz'].every((game) => 'character' in (index.games[game]?.pages || {}))
 }
 
 /**
@@ -143,7 +167,12 @@ export function ensureFakeGit () {
 
 /** 前置：图鉴数据 */
 export function requireAtlasData () {
-  if (!hasAtlasData()) skip('图鉴数据未初始化（先执行 #图鉴初始化 / #图鉴更新）')
+  if (!hasAtlasData()) skip('图鉴数据未就绪（Hesperides 三游戏角色页未抓到，先执行 #图鉴初始化 / #图鉴更新）')
+}
+
+/** 前置：Hesperides 产物（只要求产物存在，不要求全量页已抓） */
+export function requireHesperidesProducts () {
+  if (!hasHesperidesProducts()) skip('Hesperides 产物缺失（先执行 #图鉴初始化 / #图鉴更新）')
 }
 
 /* ============================================================
