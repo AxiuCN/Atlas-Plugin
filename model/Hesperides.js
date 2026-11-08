@@ -54,6 +54,52 @@ function cacheKey () {
   }
 }
 
+/**
+ * 图片产物缓存：`images.json` 的 mtime + size 作键，`games` 原样持有
+ * @type {{key: string, games: object}|null}
+ */
+let imagesCache = null
+
+/**
+ * 取 Hesperides 图片产物（`images.json` 的 `games` 字段）
+ *
+ * `games.<game>.<pageDir>.<recordId>` → 引用数组；记录不存在或产物缺失返回 null。
+ * 与 `index.json` 分开缓存：抓图是独立一轮，图片更新不该让整份索引重读。
+ * @returns {object|null}
+ */
+export function getHesperidesImages () {
+  const file = path.join(HESPERIDES_DIR, 'images.json')
+  let key = ''
+  try {
+    const stat = fs.statSync(file)
+    key = `${stat.mtimeMs}:${stat.size}`
+  } catch {
+    return null
+  }
+  if (imagesCache?.key === key) return imagesCache.games
+  try {
+    const product = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (!SCHEMA_SUPPORTED.includes(product?.schemaVersion)) return null
+    imagesCache = { key, games: product.games || {} }
+    return imagesCache.games
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 取一条记录的图片引用
+ * @param {string} gameId
+ * @param {string} pageDir - 记录所在页目录（如 `lightcone`）
+ * @param {string|number} recordId
+ * @returns {object[]} 没有图片时返回空数组
+ */
+export function getHesperidesRecordImages (gameId, pageDir, recordId) {
+  const games = getHesperidesImages()
+  const list = games?.[gameId]?.[pageDir]?.[String(recordId)]
+  return Array.isArray(list) ? list : []
+}
+
 /** 读并校验产物（失败返回 null） */
 function load () {
   const key = cacheKey()
@@ -73,6 +119,7 @@ function load () {
 /** 清空缓存（reloadIndex / 测试用） */
 export function resetHesperidesCache () {
   cache = null
+  imagesCache = null
 }
 
 /**

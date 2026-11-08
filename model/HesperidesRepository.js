@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { HESPERIDES_DIR } from './Hesperides.js'
+import { HESPERIDES_DIR, getHesperidesRecordImages } from './Hesperides.js'
 
 /** 合成路径前缀 */
 export const HES_PATH_PREFIX = 'hes/'
@@ -109,7 +109,8 @@ export function readRawByPath (filePath) {
  * 原始记录 → 旧结构（`{ meta, content: { list, detail } }`）
  *
  * `list` 取页面记录本身（去掉 `detail` 字段），`detail` 取详情（没有则为空对象），
- * 与旧后端的导出形状一致，构建器无需改动。
+ * `images` 取 `images.json` 里该记录的引用并**还原成旧后端的形状**（`originalValue` /
+ * `localPath` / `status` / `placeholder`），这样 `resolveRecordImage()` 与图片补丁都不必改。
  * @param {string} filePath
  * @param {object} raw
  * @returns {object}
@@ -124,6 +125,8 @@ export function adaptToLegacyRecord (filePath, raw) {
     name: pickName(list),
     rarity: pickRarity(list)
   }
+  const images = recordImages(parsed)
+  if (images.length) meta.images = images
   return {
     meta,
     content: {
@@ -131,6 +134,23 @@ export function adaptToLegacyRecord (filePath, raw) {
       detail: detail && typeof detail === 'object' ? detail : {}
     }
   }
+}
+
+/**
+ * 图片引用 → 旧后端 `meta.images` 形状
+ * @param {{gameId: string, page: string, id: string}|null} parsed
+ * @returns {object[]}
+ */
+function recordImages (parsed) {
+  if (!parsed) return []
+  return getHesperidesRecordImages(parsed.gameId, parsed.page, parsed.id).map((ref) => ({
+    originalValue: ref.originalValue || '',
+    // 产物写 posix 路径；早期产物可能带反斜杠，读时统一，避免下游拼路径时平台相关
+    localPath: String(ref.localPath || '').replace(/\\/g, '/'),
+    // 旧后端只区分 downloaded / 其它；占位图单独标记，选主图时要跳过
+    status: ref.status === 'downloaded' ? 'downloaded' : 'missing',
+    placeholder: Boolean(ref.placeholder)
+  })).filter((image) => image.localPath)
 }
 
 /** 从原始记录里取名字（多语言字段优先级） */

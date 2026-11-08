@@ -21,6 +21,7 @@ import {
   adaptToLegacyRecord,
   hesperidesRecordSignature
 } from './HesperidesRepository.js'
+import { HESPERIDES_DIR } from './Hesperides.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -92,9 +93,12 @@ function freezeForScan (obj) {
 }
 
 /**
- * 从记录 JSON 的 meta.images 中解析主图 file:// URL
+ * 从记录的 `meta.images` 中解析主图 file:// URL
  * 优先选 downloaded 非 placeholder，兜底任意有 localPath 的
- * @param {object} record — 完整记录 JSON
+ *
+ * 图片来源有两处：Hesperides 的 `images/<game>/…`（新）与旧后端的 `gallery/<game>/…`（迁移期），
+ * 按 `localPath` 前缀分别拼到对应根目录。
+ * @param {object} record — 完整记录对象
  * @returns {string} file:// URL，无图片时返回空串
  */
 export function resolveRecordImage (record) {
@@ -107,8 +111,10 @@ export function resolveRecordImage (record) {
   const patch = patchImageUrl(record?.meta?.gameId || imageGameFolder(picked, images), picked.originalValue)
   if (patch) return patch
   if (!picked.localPath) return ''
-  const fullPath = path.join(backendRoot, picked.localPath)
-  return pathToFileURL(fullPath).href
+  // 产物里是 posix 相对路径；旧产物可能带 Windows 反斜杠，统一后再判前缀
+  const localPath = String(picked.localPath).replace(/\\/g, '/')
+  const root = localPath.startsWith('images/') ? HESPERIDES_DIR : backendRoot
+  return pathToFileURL(path.join(root, localPath)).href
 }
 
 /**

@@ -35,8 +35,8 @@ const {
 } = await import(mod('model/HesperidesIndex.js'))
 const { PAGE_LABELS } = await import(mod('components/constants.js'))
 const { syntheticPath, parseSyntheticPath } = await import(mod('model/HesperidesRepository.js'))
-const { hasHesperidesData, getHesperidesIndex } = await import(mod('model/Hesperides.js'))
-const { loadRecord, loadRawRecord, recordSignature, isHesperidesPath, resetRecordCache } = await import(mod('model/AtlasRepository.js'))
+const { hasHesperidesData, getHesperidesIndex, getHesperidesImages } = await import(mod('model/Hesperides.js'))
+const { loadRecord, loadRawRecord, recordSignature, isHesperidesPath, resolveRecordImage, resetRecordCache } = await import(mod('model/AtlasRepository.js'))
 
 /* ============================================================
  *  ① 页目录名 ↔ pageKey
@@ -186,5 +186,40 @@ check('不存在的合成路径返回 null', loadRecord('hes/gi/__none__/0.json'
 
 // 旧路径不再有读取通路（单一数据源）
 check('旧数据路径读不出记录', loadRecord('items/简体中文/原神/角色/甲.json') === null)
+
+/* ============================================================
+ *  ⑥ 图片还原（真实产物，缺图数据则跳过）
+ * ============================================================ */
+console.log('=== ⑥ 图片还原 ===')
+const imagesProduct = getHesperidesImages()
+const imageSample = (() => {
+  for (const [gameId, pages] of Object.entries(imagesProduct || {})) {
+    for (const [pageDir, records2] of Object.entries(pages)) {
+      for (const [recordId, list] of Object.entries(records2)) {
+        if (list.some((ref) => ref.status === 'downloaded' && ref.localPath)) return { gameId, pageDir, recordId }
+      }
+    }
+  }
+  return null
+})()
+
+if (!imageSample) {
+  console.log('⏭ 没有抓到图片的记录，跳过图片还原断言')
+} else {
+  const filePath = syntheticPath(imageSample.gameId, imageSample.pageDir, imageSample.recordId)
+  const record = loadRecord(filePath)
+  const images = record?.meta?.images || []
+  const downloaded = images.filter((image) => image.status === 'downloaded' && !image.placeholder)
+  check('记录带 meta.images', images.length > 0)
+  check('至少一张可用图（downloaded 且非占位）', downloaded.length > 0)
+  check('图片保留 originalValue（补丁层按它匹配）', downloaded.every((image) => typeof image.originalValue === 'string'))
+  check('localPath 为 posix 相对路径', downloaded.every((image) => !image.localPath.includes('\\')))
+
+  const url = resolveRecordImage(record)
+  check('resolveRecordImage 给出 file:// 地址', url.startsWith('file://'))
+  check('图片落在 Hesperides 产物目录', decodeURIComponent(url).replace(/\\/g, '/').includes('/tool/Hesperides/Hesperides/data/hesperides/images/'))
+  const abs = decodeURIComponent(new URL(url).pathname).replace(/^\//, '')
+  check('图片文件真实存在且非空', fs.existsSync(abs) && fs.statSync(abs).size > 0)
+}
 
 finish()
