@@ -23,6 +23,7 @@ const targets = [
   ['model/LinkResolver.js', null],
   ['model/MiaoParams.js', null],
   ['model/ItemAssets.js', 'getItemName'],
+  ['model/NewContent.js', 'buildNewContentModel'],
   ['model/itemIndex/gi.js', null],
   ['model/itemIndex/hsr.js', null],
   ['model/itemIndex/zzz.js', null],

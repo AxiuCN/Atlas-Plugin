@@ -80,6 +80,7 @@ export function resetHesperidesCache () {
   cache = null
   imagesCache.clear()
   singleFileCache.clear()
+  manifestCache = null
 }
 
 /**
@@ -235,6 +236,36 @@ export function getHesperidesSingleFile (gameId, source, pageDir) {
 
 /** 单文件频道缓存：`<game>/<source>/<page>` → { sig, data } */
 const singleFileCache = new Map()
+
+/**
+ * 读 nanoka 根 manifest 快照（`data/nanoka-manifest.json`，抓取时落盘）
+ *
+ * 里面是上游的 `latest` / `live` 与 `new`（本版本新增条目 id 列表），供 `#版本新增内容` 使用。
+ * 带 mtime 缓存，重抓后自愈。
+ * @returns {{games: object, generatedAt: string}|null}
+ */
+export function getHesperidesUpstreamManifest () {
+  const file = path.join(HESPERIDES_DIR, 'nanoka-manifest.json')
+  let sig = ''
+  try {
+    const stat = fs.statSync(file)
+    sig = `${stat.mtimeMs}:${stat.size}`
+  } catch {
+    return null
+  }
+  if (manifestCache?.sig === sig) return manifestCache.data
+  try {
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (!SCHEMA_SUPPORTED.includes(data?.schemaVersion)) return null
+    manifestCache = { sig, data: { games: data.games || {}, generatedAt: data.generatedAt || '' } }
+    return manifestCache.data
+  } catch {
+    return null
+  }
+}
+
+/** nanoka manifest 快照缓存：{ sig, data } */
+let manifestCache = null
 
 /**
  * 频道状态（供 `#图鉴状态` 展示）
