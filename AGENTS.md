@@ -4,7 +4,7 @@ This file provides project-level guidance to AI coding agents (DSH / Claude Code
 
 ## 项目概况
 
-Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/nanoka-atlas-backend/`（fork），把 nanoka.cc 抓成本地 JSON + 图库，运行期**纯文件读取**：不走网络、不依赖 Redis。
+Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：玉璃 alioth.wiki + nanoka），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧后端 `tool/nanoka-atlas-backend/` 已退役，仅剩图片目录与两处待拆的读取（见 [`docs/待办与规划.md`](docs/待办与规划.md) 拆除清单）。
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
@@ -62,7 +62,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 1. **行尾** — `.gitattributes` 是 `* text=auto eol=lf`，Windows 工作副本显示 CRLF：**不要整文件重写/格式化**（会产出全文件 diff），只改必要的行
 2. **art-template 4.x 没有注释语法** — `resources/atlas/*.html` 里写 `{{* 注释 *}}` 会让模板**编译失败**（用户只看到一句「渲染失败」）；要写说明就用 HTML 注释
 3. **模板必须保留 `<body style="zoom:{{renderScale}}">`** — 删掉会让 `renderScale` 静默失效（输出尺寸不再缩放）
-4. **子模块不可手改** — `tool/nanoka-atlas-backend/**` 会在 `#图鉴更新` 时整体覆盖；数据修正一律走 `resources/patch/**`（条目 / 图片 / 索引三层）
+4. **子模块不可手改** — `tool/Hesperides/**` 会在 `#图鉴更新` 时整体覆盖；数据修正一律走 `resources/patch/**`（条目 / 图片 / 索引三层）
 5. **缓存只在 `reloadIndex()` 或重启后失效** — 改补丁、改数据、改 `resources/data/*` 后，进程内缓存不会自己更新
 6. **抓取锁是原子创建** — `data/_scraping.lock` 用 `flag: 'wx'`；不要退回 `existsSync → writeFileSync` 两步（有并发双进窗口）
 7. **entry shape 不是公开契约**（ATLAS-026 / 决策 D1）— 消费侧只读自己需要的字段，别把 `{...entry}` 当稳定接口

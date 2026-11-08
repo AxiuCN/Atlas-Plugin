@@ -10,7 +10,7 @@
 
 ## 公共设施（`test/_helper.mjs`）
 
-路径推导（`pluginRoot` / `appRoot` / `dataDir` / `tmpDir` / `mod()`）、前置检查（`requireAtlasData()` / `findBrowser()` / `ensureFakeGit()`）、断言计数（`checker()`）、框架全局桩（`installFrameworkStubs()`：redis / cfg / segment / logger）、`skip()`、`logs`。
+路径推导（`pluginRoot` / `appRoot` / `dataDir` / `tmpDir` / `mod()`）、前置检查（`requireAtlasData()` = Hesperides 三游戏角色页都已抓到 / `requireHesperidesProducts()` = 产物存在 / `findBrowser()` / `ensureFakeGit()`）、断言计数（`checker()`）、框架全局桩（`installFrameworkStubs()`：redis / cfg / segment / logger）、`skip()`、`logs`。
 
 - 桩与前置都收敛在这里，套件自身不重复实现
 - **渲染链套件会让进程 chdir 到 `appRoot`**（框架 `lib/renderer/loader.js` 按 cwd 解析 `renderers/` / `temp/`），运行器给子进程也钉了 cwd
@@ -44,12 +44,12 @@
 | `status-page.test.mjs` | `#图鉴状态` 状态页：真实 `buildStatusData()` + art-template 渲染一次，各游戏版本行齐全 | 图鉴数据 |
 | `challenge-spec.test.mjs` | 期修饰（**`parsePeriodSpec` 纯函数 + 真实 `handleQuery` 端到端**）：月份/版本（含 `a`/`b` 与缺 `b` 回落 `a`）/本期·上期·下期的前缀解析、非法前缀不误判（`202613`、`2026`、`4星武器`）、选期（月份命中与未命中文案、本期未开放时上期=最近已开期/下期=最早未开期、无更晚期回 `no-next`、未知版本与空版本区间的文案）、端到端 `#202001深渊`（未命中）/`#99.9深渊`（不支持）/`#7.0深渊` 与 `#7.0b深渊`（出图）/`#本期深渊`（出图或未开放）/`#深渊`（无期修饰行为不变）、**期标识**（`formatPeriodLabel` 含期号/版本/起止、估算标推定、空期空串）与模板渲染（`challenge.html` 把 `periodLine` 渲染进 hero 且无残留 `{{`） | 图鉴数据 |
 | `hesperides-source.test.mjs` | Hesperides 数据源：通用挑战渲染器（增益/列表/数字/数组/截断/空记录/标题）、真实产物的期表映射（gi tower→alioth abyss、zzz boss→nanoka、未知页 null）、期对象带 Date、按 id 读记录与缺失返回 null、频道状态 | Hesperides 产物（缺失则跳真实数据部分） |
-| `hesperides-index.test.mjs` | Hesperides 索引适配（`model/HesperidesIndex.js`）：页目录名 ↔ pageKey（`achievement-achievement` 反推、`item-all`/`hollow-tpp` 不误映射、终局页目录名不进索引）、记录合成（合成路径 / 名字退化 id / 稀有度透传 / 只按 `ids` / `ids` 缺失退 `entries` / `hasDetail`·`imageCount` 退化）、接管开闸（默认空集、按游戏隔离、同名页整页替换、未涉及页保留、`map` 为 null 建结构、无页时原样返回）、`AtlasRepository` 合成路径分发（签名可判活、适配成 `{meta,content:{list,detail}}`、无补丁时与 `loadRawRecord` 一致、缺失返回 null、旧路径仍可读） | Hesperides 产物（缺失则跳真实数据部分） |
+| `hesperides-index.test.mjs` | Hesperides 索引适配（`model/HesperidesIndex.js`）：页目录名 ↔ pageKey（`achievement-achievement` 反推、`item-all`/`hollow-tpp` 不误映射、终局页目录名不进索引）、记录合成（合成路径 / 名字退化 id / 稀有度透传 / 只按 `ids` / `ids` 缺失退 `entries` / `hasDetail`·`imageCount` 退化）、索引对象形状与小计（空产物为 null、只有终局页时也为 null、`countIndex` 页数/记录数）、`AtlasRepository` 合成路径分发（签名可判活、适配成 `{meta,content:{list,detail}}`、无补丁时与 `loadRawRecord` 一致、缺失返回 null、旧数据路径读不出记录） | Hesperides 产物（缺失则跳真实数据部分） |
 | `challenge-index.test.mjs` | 终局挑战期索引（`model/ChallengePeriod.js`）：时间解析按本地时区（04:00 日切不错天）、期表构建（按记录 id 定序 / 期序号连续）、占位期剔除（一天窗口、同窗口重复只留 `detail.id` 最大的一条）、**静态锚点估算**（hsr 四个玩法全无日期 → 按锚点 + 期序号差 × 期长补出窗口，估算期窗口长度一致且按序递增）、期→版本（有可解析结果；估算模式下随期序非递减，允许跳版本）、本期判定（时间窗命中优先、**未来期不得当本期**、`closed` 时最近已开期与最早未开期分开给、全无日期回落最后一期、空表），以及真实数据下 9 个玩法的期数与占位剔除、**zzz 同名期不再被索引去重压掉**（危局 47 条同名「试炼」→ 44 期、式舆 62 条 → 60 期） | 图鉴数据 |
 | `challenge-version.test.mjs` | 版本时间轴（`model/ChallengeVersion.js`，**数据无关**）：序列按 `minorMaxByMajor` 正确进位（gi 5.8→6.0、hsr 3.8→4.0、zzz 2.7→3.0，且不生成 5.9/3.9/2.8）、日期→版本（锚点当日命中锚点版本、早于序列起点与非法日期返回 null）、版本→区间（开启日 = 锚点 + N 周期、区间到下一版本前 1 秒、未知版本 null）、版本距离（跨代按实际版本数、反向为负） | 无（只读常量） |
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
 | `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
-| `smoke-imports.test.mjs` | 23 个模块加载无环、导出面齐全 | 图鉴数据 |
+| `smoke-imports.test.mjs` | 23 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
 
 ## 不入库
 
