@@ -10,8 +10,11 @@ import { renderAtlas } from './render.js'
 
 /**
  * 构建 status.html 模板数据
- * @param {{changes?: {name: string, changed: boolean, from: string, to: string, delta: number}[]}} [extra]
- *   changes 仅更新/初始化完成通知会传（「本次更新」卡片）；#图鉴状态 命令不传
+ * @param {object} [extra]
+ * @param {{name: string, changed: boolean, from: string, to: string, delta: number}[]} [extra.changes]
+ *   「本次更新」卡片；仅更新/定时更新会传，#图鉴状态 与首次初始化不传
+ * @param {string} [extra.warning]
+ *   抓取未完全成功的提醒（如「有未抓到的条目，数据可能不完整」）；为空则不显示
  * @returns {object|null} 未初始化时返回 null
  */
 export function buildStatusData (extra = {}) {
@@ -56,7 +59,8 @@ export function buildStatusData (extra = {}) {
     fetchedAt,
     mode: status.mode || '',
     imageDownloads: status.imageDownloads,
-    changes
+    changes,
+    warning: typeof extra?.warning === 'string' ? extra.warning : ''
   }
 }
 

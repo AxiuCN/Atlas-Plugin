@@ -22,6 +22,40 @@ import { runDiffScrape } from '../model/AtlasUpdater.js'
 
 const config = getPluginConfig()
 
+/**
+ * 产物是否已经可用（索引存在且至少一个游戏有记录）
+ *
+ * 用于区分「抓取彻底失败」与「抓完了但缺几条」。
+ * @returns {boolean}
+ */
+function dataLooksUsable () {
+  try {
+    const status = getDataStatus()
+    if (!status?.initialized) return false
+    return Object.values(status.games || {}).some((game) => (game.recordCount || 0) > 0)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 判定一次抓取的真实结果
+ *
+ * CLI 现在只要**任何条目**失败就返回退出码 1（个别 503 也算），但那种情况产物通常可用。
+ * 只有产物读不出来才算真的失败，否则按「部分完成」处理并带一句告警——
+ * 否则会出现「数据明明抓好了，通知却说初始化失败」。
+ * @param {{ok: boolean, error?: string, timedOut?: boolean, reason?: string}} ret
+ * @returns {{failed: boolean, warning: string}}
+ */
+function classifyScrapeResult (ret) {
+  if (ret?.ok) return { failed: false, warning: '' }
+  if (!dataLooksUsable()) return { failed: true, warning: '' }
+  return {
+    failed: false,
+    warning: ret?.timedOut ? '抓取超时，数据可能不完整' : '有未抓到的条目，数据可能不完整'
+  }
+}
+
 export class AtlasAdmin extends plugin {
   constructor () {
     super({
@@ -74,10 +108,10 @@ export class AtlasAdmin extends plugin {
     const gitFile = path.join(BACKEND_DIR, '.git')
 
     if (!fs.existsSync(gitFile)) {
-      await e.reply('[Atlas] 正在拉取子模块，请稍候...', false)
+      await e.reply('[Atlas] 正在准备数据引擎，请稍候...', false)
       const gitRet = await initSubmodule()
       if (!gitRet.ok) {
-        await e.reply(`[Atlas] 子模块拉取失败：${gitRet.error}`, false)
+        await e.reply(`[Atlas] 数据引擎更新失败：${gitRet.error}`, false)
         return true
       }
     }
@@ -92,14 +126,17 @@ export class AtlasAdmin extends plugin {
     const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
       ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
       : hasGroups ? '主人和配置群' : '主人'
-    await e.reply(`[Atlas] 环境准备完成，开始后台抓取（nanoka 全量 + 玉璃终局，含图片），完成后将通知${notifyHint}`, false)
+    void notifyHint
+    await e.reply('[Atlas] 正在更新图鉴数据，请稍候...', false)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
     runScrapeAsync({ mode: 'full', timeoutMs: cfg?.autoUpdate?.timeoutMs }).then(async (ret) => {
-      if (!ret.ok) {
+      const verdict = classifyScrapeResult(ret)
+      if (verdict.failed) {
         this._notifyResult(`[Atlas] 图鉴初始化失败：${ret.error}`)
         return
       }
+      if (verdict.warning) logger?.warn(`[Atlas][管理] 初始化未完全成功（${ret.error}）：${verdict.warning}`)
 
       // 重建索引
       try {
@@ -121,12 +158,12 @@ export class AtlasAdmin extends plugin {
         ? `\n图片：${status.images.total} 总计 / ${status.images.downloaded} 已下载 / ${status.images.placeholder} 占位`
         : ''
 
-      // 渲染状态图通知（失败回退文字）
-      const img = await renderStatusImage()
+      // 渲染状态图通知（失败回退文字）；未完全成功时把告警带进图里，别只留在日志
+      const img = await renderStatusImage({ warning: verdict.warning })
       if (img) {
         this._notifyResult(img)
       } else {
-        this._notifyResult(`[Atlas] 初始化完成！\n${gameLines}${imgInfo}`)
+        this._notifyResult(`[Atlas] 初始化完成${verdict.warning ? `（${verdict.warning}）` : ''}！\n${gameLines}${imgInfo}`)
       }
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警
@@ -143,7 +180,7 @@ export class AtlasAdmin extends plugin {
    * #图鉴强制初始化 — 跳过完整性检查，直接全量抓取
    */
   async handleForceInit (e) {
-    await e.reply('[Atlas] 强制重新初始化：跳过完整性检查，按全量模式重抓记录与图片（不清空现有产物）...', false)
+    await e.reply('[Atlas] 开始全量重新抓取（不清理现有数据），请稍候...', false)
     // 直接走完整流程（不检查 isInitialized）
     await this._doInit(e)
     return true
@@ -170,15 +207,15 @@ export class AtlasAdmin extends plugin {
     }
 
     if (!local.ready) {
-      await e.reply('[Atlas] 本地数据不完整，自动全量抓取中，完成后将通知...', false)
+      await e.reply('[Atlas] 数据不完整，正在全量抓取...', false)
     } else {
       const diff = compareAtlasVersions(local.versions, remote.versions)
       if (!diff.changed) {
         await e.reply(`[Atlas] 版本未变化，无需更新\n${versionLine(local.versions)}`, false)
         return true
       }
-      const changes = diff.changes.map(c => `${gameLabel(c.game)} ${c.local.latest || '-'}→${c.remote.latest}`).join('，')
-      await e.reply(`[Atlas] 检测到版本变化：${changes}，开始更新（完成后通知）`, false)
+      const changes = diff.changes.map((c) => `${gameLabel(c.game)} ${c.local.latest || '-'} → ${c.remote.latest}`).join('\n')
+      await e.reply(`[Atlas] 发现新版本，开始更新...\n${changes}`, false)
     }
 
     // ── 异步抓取（不阻塞 bot）──
@@ -196,10 +233,12 @@ export class AtlasAdmin extends plugin {
         this._notifyResult('[Atlas] 图鉴版本未变化，无需更新')
         return
       }
-      if (!ret.ok) {
+      const verdict = classifyScrapeResult(ret)
+      if (verdict.failed) {
         this._notifyResult(`[Atlas] 图鉴更新失败：${ret.error || ret.reason}`)
         return
       }
+      if (verdict.warning) logger?.warn(`[Atlas][管理] 更新未完全成功（${ret.error || ret.reason}）：${verdict.warning}`)
 
       // 空缺检查 + 补抓（仅针对缺失游戏）
       const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'])
@@ -240,7 +279,7 @@ export class AtlasAdmin extends plugin {
       if (img) {
         this._notifyResult(img)
       } else {
-        this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}\n${gameLines}${imgInfo}\n${changeLines(changes)}`)
+        this._notifyResult(`[Atlas] 图鉴更新完成${modeLabel}${verdict.warning ? `（${verdict.warning}）` : ''}\n${gameLines}${imgInfo}\n${changeLines(changes)}`)
       }
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警

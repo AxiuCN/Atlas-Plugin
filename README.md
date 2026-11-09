@@ -1,6 +1,6 @@
 # Atlas-Plugin / 图鉴插件
 
-TRSS-Yunzai v3 多游戏图鉴查询插件，支持原神、星穹铁道、绝区零的关键词搜索与详情/列表渲染。数据由 [Hesperides](https://github.com/AxiuCN/Hesperides)（git 子模块）多源抓取为本地 JSON——[玉璃 alioth.wiki](https://alioth.wiki/) 提供原神/星铁终局，[nanoka.cc](https://nanoka.cc/) 覆盖上游全部页面。
+TRSS-Yunzai v3 多游戏图鉴查询插件，支持原神、星穹铁道、绝区零的关键词搜索与详情/列表渲染。数据由 [Hesperides](https://github.com/AxiuCN/Hesperides)（git 子模块）多源抓取为本地 JSON —— **本插件取 [nanoka.cc](https://nanoka.cc/) 的全部页面 + [玉璃 alioth.wiki](https://alioth.wiki/) 的终局页**。
 
 > 角色攻略模块已迁移至独立插件 [Meta-Plugin](https://github.com/Hyposelenia-Moon/Meta-Plugin)。
 
@@ -105,7 +105,7 @@ pnpm install --filter=Atlas-Plugin
 
 ### 子模块自动同步
 
-图鉴引擎 **Hesperides** 以 git 子模块引入（`tool/Hesperides/Hesperides`，多源采集：玉璃 alioth.wiki + nanoka）。插件启动时会自动把子模块同步到插件仓库记录的版本（gitlink），保证引擎代码与插件版本匹配：
+图鉴引擎 **Hesperides** 以 git 子模块引入（`tool/Hesperides/Hesperides`，多源采集：nanoka 覆盖全部页面、玉璃 alioth.wiki 补终局与期时间）。插件启动时会自动把子模块同步到插件仓库记录的版本（gitlink），保证引擎代码与插件版本匹配：
 
 - 更新插件（锅巴面板更新 / `git pull`）后重启 Bot，即自动完成子模块同步，无需手动执行 `git submodule update`
 - 首次安装即使未运行 `#图鉴初始化`，启动时也会自动拉取子模块
@@ -196,8 +196,9 @@ node src/cli.mjs --export
 
 ## 鸣谢
 
-- [nanoka.cc](https://nanoka.cc/) — 图鉴数据源
-- [Hesperides](https://github.com/AxiuCN/Hesperides) — 数据抓取引擎（多源：玉璃 alioth.wiki + nanoka），以子模块引入
+- [Hesperides](https://github.com/AxiuCN/Hesperides) — 数据抓取引擎（多源：nanoka.cc 与玉璃 alioth.wiki），以子模块引入
+- [nanoka.cc](https://nanoka.cc/) — 数据源之一，覆盖原神 / 星铁 / 绝区零全部页面
+- [玉璃 alioth.wiki](https://alioth.wiki/) — 数据源之一，提供原神 / 星铁全量页面，含终局期与期时间
 - [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend) — 上一代数据引擎（已归档，`tool/nanoka-atlas-backend/README.md` 保留了迁移记录）
 - [Lotus-ReFactor](https://github.com/MOPELotus/Lotus-ReFactor) — 搜索评分系统与别名机制参考
 

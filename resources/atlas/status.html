@@ -35,6 +35,11 @@
       color: #8f6b2f;
       font-weight: 600;
     }
+    /* 抓取未完全成功时的提醒（如「有未抓到的条目」） */
+    .subtitle.warn {
+      color: #b4541f;
+      font-weight: 600;
+    }
     .image-stats {
       display: flex;
       gap: 28px;
@@ -70,6 +75,9 @@
     <div class="title">数据状态</div>
     {{if fetchedAt}}
     <div class="subtitle">更新时间：{{fetchedAt}} · {{mode}}{{if !imageDownloads}}（仅文本）{{/if}}</div>
+{{/if}}
+{{if warning}}
+<div class="subtitle warn">⚠ {{warning}}</div>
     {{/if}}
   </div>
 

@@ -4,11 +4,11 @@ This file provides project-level guidance to AI coding agents (DSH / Claude Code
 
 ## 项目概况
 
-Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：玉璃 alioth.wiki + nanoka），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧引擎 `nanoka-atlas-backend` 已退役并移除（子模块条目删除、数据清空），插件无任何旧数据回退。
+Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：nanoka.cc 与玉璃 alioth.wiki，引擎侧两者**对等**、可抓的都抓且不裁剪；**本插件按自己的需要只消费 nanoka 全量 + 玉璃终局**，这是插件的取舍，不是源的属性），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧引擎 `nanoka-atlas-backend` 已退役并移除（子模块条目删除、数据清空），插件无任何旧数据回退。
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
-- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 29 套件
+- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 30 套件
 - **别名基础设施**：`modules/aliasApi.js` 对其它插件提供只读别名查询（四层来源合并 + 统一归一化 + 版本号），接入方见 [`docs/别名接入文档.md`](docs/别名接入文档.md)（已接入：ProfileImg-Plugin）
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
 - **数据准备**：`#图鉴初始化`（同步子模块 → 全量抓取，后台异步；Hesperides 零依赖）；抓取范围固定为 **nanoka 全部页 + 玉璃终局**，见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
@@ -73,7 +73,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 ## 测试
 
-回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **29 套件**。
+回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **30 套件**。
 
 ```bash
 cd plugins/Atlas-Plugin
