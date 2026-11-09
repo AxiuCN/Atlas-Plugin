@@ -14,6 +14,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { syncSubmodules, submoduleCommit } from './Submodules.js'
+import { getPluginConfig } from '../components/config.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.resolve(__dirname, '..')
@@ -258,14 +259,33 @@ function killTree (pid) {
  * ============================================================ */
 
 /**
+ * 是否在抓取后清理图片重复（默认开启）
+ *
+ * 默认开是因为「不清理也不影响功能」——用户不会为了省 150 MB 主动去跑 CLI 命令，
+ * 所以必须让默认行为是对的。清理只删同资源的多余格式并修正引用，无重复时引擎内部短路。
+ * @returns {boolean}
+ */
+function imagePruneEnabled () {
+  try {
+    const cfg = getPluginConfig()
+    if (cfg?.imagePrune?.enabled === false) return false
+  } catch {
+    // 配置读取失败按开启处理（默认值）
+  }
+  return true
+}
+
+/**
  * 组装抓取参数
  * @param {object} options
  * @param {'full'|'incremental'} [options.mode]
  * @param {string[]} [options.games]
  * @param {number} [options.concurrency]
+ * @param {boolean} [options.pruneImages] - 是否在抓完后清理同资源多格式重复（默认按配置）
  * @returns {string[]}
  */
-async function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 4 } = {}) {
+async function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 4, pruneImages } = {}) {
+  const shouldPrune = pruneImages === undefined ? imagePruneEnabled() : pruneImages !== false
   const channels = await runtimeChannelIds(games)
   const args = [
     '--channels', channels.join(','),
@@ -274,6 +294,9 @@ async function scrapeArgs ({ mode = 'incremental', games = GAMES, concurrency = 
     '--images',
     '--concurrency', String(concurrency)
   ]
+  // 抓完顺带清理同资源多格式重复（复用本轮抓图的扫描结果，无重复时引擎内部短路）。
+  // 只删多余格式并同步修正引用，不影响已抓数据；可用 config.yaml → imagePrune.enabled 关掉。
+  if (shouldPrune) args.push('--prune-images', '--yes')
   return args
 }
 
