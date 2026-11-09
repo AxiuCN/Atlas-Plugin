@@ -21,6 +21,9 @@ const defaultConfig = {
     fallbackToFull: true,
     timeoutMs: 2 * 60 * 60 * 1000
   },
+  imagePrune: {
+    enabled: true
+  },
   alias: {
     set: 'master',
     del: 'master',

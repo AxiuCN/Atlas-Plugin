@@ -183,6 +183,20 @@ export function supportGuoba () {
           componentProps: { min: 600000, max: 21600000, step: 600000, defaultValue: 7200000 }
         },
 
+        // ==================== 图片去重 ====================
+        { label: '图片去重', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'imagePrune.enabled',
+          label: '抓取后自动清理图片重复',
+          helpMessage: '清理同一条资源的多格式重复（如 nanoka 的 .webp 与玉璃的 .png 各存一份）',
+          bottomHelpMessage:
+            '默认开启。只删同目录同基名的多余格式，并同步修正图片引用；无重复时零开销。'
+            + '关闭不影响功能，只是旧数据里的重复文件会一直占着空间',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true }
+        },
+
         // ==================== 别名权限 ====================
         { label: '别名权限', component: 'SOFT_GROUP_BEGIN' },
         {

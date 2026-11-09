@@ -8,7 +8,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
-- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 26 套件
+- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 27 套件
 - **别名基础设施**：`modules/aliasApi.js` 对其它插件提供只读别名查询（四层来源合并 + 统一归一化 + 版本号），接入方见 [`docs/别名接入文档.md`](docs/别名接入文档.md)（已接入：ProfileImg-Plugin）
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
 - **数据准备**：`#图鉴初始化`（同步子模块 → 全量抓取，后台异步；Hesperides 零依赖）；抓取范围固定为 **nanoka 全部页 + 玉璃终局**，见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
@@ -52,7 +52,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 3. **中文** — 注释、`name` / `dsc`、用户可见文案一律简体中文
 4. **优先级**（数值越小越先执行）— `atlasShortcut -99999` < `alias 8000` < `updateLog 9000` < `atlas ~10000`
 5. **未匹配必须放行** — 返回 `false`，不回复、不影响其他插件（`#胡桃圣遗物` 这类要原样交给 miao-plugin）
-6. **容错与配置** — `index.js` 用 `Promise.allSettled` 容错加载；配置一律走 `components/config.js` 的 `getPluginConfig()`（三层兜底 + `deepMerge`）；锅巴 field 用点分路径、defSet 用下划线变量
+6. **容错与配置** — `index.js` 用 `Promise.allSettled` 容错加载；配置一律走 `components/config.js` 的 `getPluginConfig()`（三层兜底 + `deepMerge`）；**新增配置项必须同时改四处**：锅巴 `guoba/index.js` 的 field（点分）、`defSet/config.yaml` 的模板变量（`${atlas_<下划线>}`）、`components/config.js` 的 `defaultConfig`、`config/config.yaml.example`——`test/config-schema.test.mjs` 会交叉校验
 7. **import 路径** — 同目录 `./`、同层 `../`、跨层 `../../<dir>/`；不写盘符绝对路径
 8. **文档入库范围** — `AGENTS.md` 与 `docs/`（除 `docs/private/`）**入库**，与代码一同评审提交；`docs/private/` 放盘符、部署机与本机工作区，**不入库**，因此入库文档只写占位（`<插件根>` / `<bot根>` / `<文档站根>`）且**不得依赖**它（新克隆上没有）；`CLAUDE.md` / `.claude/` / `.dsh/` 仍忽略
 9. **文档必须同步** — 功能 / 命令 / 配置变更时同批更新：`docs/` 对应册、`README.md`（面向使用者）、本文件（快速参考）、`test/AGENTS.md`（套件表）、文档站 `guide/yunzai/plugins/Atlas-Plugin.md`
@@ -73,7 +73,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 ## 测试
 
-回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **26 套件**。
+回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **27 套件**。
 
 ```bash
 cd plugins/Atlas-Plugin
