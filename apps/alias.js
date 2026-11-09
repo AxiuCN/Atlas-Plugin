@@ -9,9 +9,8 @@
  *
  * 说明命令见 #图鉴帮助（help-cfg.js「别名管理」组，按 alias.set 权限过滤显示）。
  *
- * 权限：双闸设计——rule.permission 固定 master（框架第一道闸，兜底上限），
- * 函数内按配置 alias.set/del/list 的 level 用 checkPermission 二次判定
- * （支持 group_admin 等放宽场景，并修补框架 owner/admin 私聊不生效的漏洞）。
+ * 权限由处理函数内的 checkPerm 按 alias.set/del/list 统一裁决，缺省 master。
+ * rule 不再先拒绝配置已允许的普通成员或群管理员（否则配置形同虚设）。
  */
 import plugin from '../../../lib/plugins/plugin.js'
 import { getPluginConfig } from '../components/config.js'
@@ -31,17 +30,17 @@ export class AtlasAlias extends plugin {
       priority: 8000,
       rule: [
         // 设置（指定游戏）
-        { reg: /^#图鉴别名原神设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetGi', permission: 'master' },
-        { reg: /^#(?:星铁)图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetHsr', permission: 'master' },
-        { reg: /^#(?:绝区零)图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetZzz', permission: 'master' },
+        { reg: /^#图鉴别名原神设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetGi', permission: 'all' },
+        { reg: /^#(?:星铁)图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetHsr', permission: 'all' },
+        { reg: /^#(?:绝区零)图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetZzz', permission: 'all' },
         // 设置（自动判断）
-        { reg: /^#图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetAuto', permission: 'master' },
+        { reg: /^#图鉴别名设置\s+(\S+)\s+(\S+)$/, fnc: 'aliasSetAuto', permission: 'all' },
         // 删除（指定游戏）
-        { reg: /^#图鉴别名原神删除\s+(\S+)$/, fnc: 'aliasDelGi', permission: 'master' },
-        { reg: /^#(?:星铁)图鉴别名删除\s+(\S+)$/, fnc: 'aliasDelHsr', permission: 'master' },
-        { reg: /^#(?:绝区零)图鉴别名删除\s+(\S+)$/, fnc: 'aliasDelZzz', permission: 'master' },
+        { reg: /^#图鉴别名原神删除\s+(\S+)$/, fnc: 'aliasDelGi', permission: 'all' },
+        { reg: /^#(?:星铁)图鉴别名删除\s+(\S+)$/, fnc: 'aliasDelHsr', permission: 'all' },
+        { reg: /^#(?:绝区零)图鉴别名删除\s+(\S+)$/, fnc: 'aliasDelZzz', permission: 'all' },
         // 删除（自动判断）
-        { reg: /^#图鉴别名删除\s+(\S+)$/, fnc: 'aliasDelAuto', permission: 'master' },
+        { reg: /^#图鉴别名删除\s+(\S+)$/, fnc: 'aliasDelAuto', permission: 'all' },
         // 列表
         { reg: /^#图鉴别名原神列表$/, fnc: 'aliasListGi', permission: 'all' },
         { reg: /^#(?:星铁)图鉴别名列表$/, fnc: 'aliasListHsr', permission: 'all' },
@@ -55,7 +54,7 @@ export class AtlasAlias extends plugin {
   checkPerm (e, level) {
     const cfg = getPluginConfig()
     const want = LEVELS.includes(cfg?.alias?.[level]) ? cfg.alias[level] : 'master'
-    // master 级 → 框架已拦，此处兜底校验
+    // 缺失或无效配置仍按 master 处理
     if (want === 'master') {
       if (!e.isMaster) {
         e.reply('暂无权限，只有主人才能操作', true)

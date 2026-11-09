@@ -127,15 +127,21 @@ export function getHesperidesPeriods (gameId, pageKey) {
   const [source, page] = mapped
   const list = data.periods?.games?.[gameId]?.[source]?.[page]
   if (!Array.isArray(list) || !list.length) return null
-  const periods = list.map((entry) => ({
-    id: entry.id,
-    no: entry.no,
-    name: entry.name || '',
-    version: entry.version || '',
-    begin: parseDataTime(entry.begin),
-    end: parseDataTime(entry.end),
-    source
-  })).filter((period) => period.begin && period.end)
+  const periods = list.map((entry) => {
+    const end = parseDataTime(entry.end)
+    // 只有日期的结束值包含当天；上游显式给出的时刻保持不变。
+    // 否则 `2026-11-30` 会被解析成 11/30 00:00，导致「11/30 中午就说本期已结束」。
+    if (end && /^\d{4}-\d{2}-\d{2}$/.test(entry.end)) end.setHours(23, 59, 59, 999)
+    return {
+      id: entry.id,
+      no: entry.no,
+      name: entry.name || '',
+      version: entry.version || '',
+      begin: parseDataTime(entry.begin),
+      end,
+      source
+    }
+  }).filter((period) => period.begin && period.end)
   if (!periods.length) return null
   return { source, page, periods }
 }

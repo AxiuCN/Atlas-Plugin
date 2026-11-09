@@ -16,9 +16,6 @@ const FORBIDDEN = /[:：,，]|\s/
 /** 拒绝纯数字别名（防与 recordId 冲突） */
 const DIGITS_ONLY = /^\d+$/
 
-/** 写入链：串行化文件写，防并发交错（对齐 miao writeChain） */
-let writeChain = Promise.resolve()
-
 /**
  * 别名合法性校验
  * @param {string} alias
@@ -33,19 +30,18 @@ function validateAlias (alias) {
 }
 
 /**
- * 原子写文件（tmp + rename），写入链串行化
+ * 同步原子写文件（tmp + rename）
+ *
+ * 必须是同步的：写入与「读改写」「别名缓存刷新」之间**不能让出执行权**，
+ * 否则两个并发请求会基于同一份旧快照各自合并，后写的把前一个改动覆盖掉。
  * @param {string} filePath
  * @param {string} content
  */
 function atomicWrite (filePath, content) {
-  const task = writeChain.then(async () => {
-    const tmp = `${filePath}.tmp`
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    fs.writeFileSync(tmp, content, 'utf8')
-    fs.renameSync(tmp, filePath)
-  })
-  writeChain = task.catch(() => {}) // 链上吞异常防锁死，异常仍抛给调用方
-  return task
+  const tmp = `${filePath}.tmp`
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  fs.writeFileSync(tmp, content, 'utf8')
+  fs.renameSync(tmp, filePath)
 }
 
 /**
@@ -54,12 +50,17 @@ function atomicWrite (filePath, content) {
  * @param {string} pageKey
  * @returns {object} YAML map（标准名 → 别名串），文件不存在返回 {}
  */
-function readCategoryFile (gameId, pageKey) {
+function readCategoryFile (gameId, pageKey, strict = false) {
   const file = path.join(CUSTOM_ALIAS_DIR, gameId, `${pageKey}.yaml`)
   if (!fs.existsSync(file)) return {}
   try {
-    return YAML.parse(fs.readFileSync(file, 'utf8')) || {}
+    const value = YAML.parse(fs.readFileSync(file, 'utf8'))
+    if (value == null) return {}
+    if (typeof value !== 'object' || Array.isArray(value)) throw new Error('别名配置必须为映射')
+    return value
   } catch {
+    // 写路径（strict）下必须中止：按空处理会让下一次保存把整个类别覆盖掉
+    if (strict) throw new Error('别名文件解析失败，未修改原配置，请修复后重试')
     logger?.warn(`[Atlas] 别名文件解析失败，按空处理: ${file}`)
     return {}
   }
@@ -122,14 +123,18 @@ export async function setAlias (gameId, canonical, alias) {
 
   // 读取该类别现有内容，追加 key（保持注释头）
   const file = path.join(CUSTOM_ALIAS_DIR, gameId, `${pageKey}.yaml`)
-  const obj = readCategoryFile(gameId, pageKey)
+  let obj
+  try {
+    obj = readCategoryFile(gameId, pageKey, true)
+  } catch (err) {
+    return { ok: false, msg: err.message }
+  }
   const existing = String(obj[name] || '')
   const merged = existing ? `${existing}，${text}` : text
   obj[name] = merged
 
   const header = `# 用户自定义${GAME_CN[gameId]}字段${pageKey}别名（config/alias，不入 git）\n`
-  const body = Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n')
-  await atomicWrite(file, header + body + '\n')
+  atomicWrite(file, header + YAML.stringify(obj))
 
   reloadAliasMap()
   logger?.info(`[Atlas] 已设置自定义别名: ${GAME_CN[gameId]} ${name} → ${text} (${pageKey})`)
@@ -167,7 +172,12 @@ export async function delAlias (gameId, alias) {
     }
   }
 
-  const obj = readCategoryFile(gameId, target.category)
+  let obj
+  try {
+    obj = readCategoryFile(gameId, target.category, true)
+  } catch (err) {
+    return { ok: false, msg: err.message }
+  }
   const remaining = target.list.filter(a => a !== text)
   if (remaining.length > 0) {
     obj[target.canonical] = remaining.join('，')
@@ -176,8 +186,7 @@ export async function delAlias (gameId, alias) {
   }
 
   const header = `# 用户自定义${GAME_CN[gameId]}字段${target.category}别名（config/alias，不入 git）\n`
-  const body = Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n')
-  await atomicWrite(target.file, header + body + '\n')
+  atomicWrite(target.file, header + YAML.stringify(obj))
 
   reloadAliasMap()
   logger?.info(`[Atlas] 已删除自定义别名: ${GAME_CN[gameId]} ${text}（归属 ${target.canonical}）`)
