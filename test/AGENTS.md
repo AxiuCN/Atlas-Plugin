@@ -54,7 +54,7 @@
 | `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
 | `custom-alias-edit.test.mjs` | 自定义别名写入与权限裁决（**在临时副本里跑真实模块**）：含标点的别名写后仍可解析且旧别名保留、后续设置不丢已有项、配置损坏时拒绝覆盖原文件、并发 set 与 set+del 均不丢更新、rule 权限交给 `checkPerm`（all 允许普通成员 / group_admin 允许管理员 / 缺省 master 只允许主人） | 无（临时副本） |
 | `hesperides-period-end.test.mjs` | 挑战期日粒度结束值：`YYYY-MM-DD` 的 end 补到当天 23:59:59.999（月末最后一天中午仍属本期、次月零点不再是），上游显式给时刻的保持原语义（4:00 前后边界） | 无（打桩 periods.json） |
-| `config-schema.test.mjs` | 配置项三处一致性（**数据无关**）：锅巴 field → `defSet` 模板变量、反向无多余变量、`config.yaml.example` 里可见、`defaultConfig` 覆盖全部分组（`blacklist.patterns` 走独立文件，豁免） | 无（只读源码） |
+| `config-schema.test.mjs` | 配置项一致性（**数据无关**）：锅巴 field → `defSet` 模板变量、反向无多余变量、`config.yaml.example` 里可见、`defaultConfig` 覆盖全部分组、**锅巴运行时三处映射**（`TEMPLATE_VARS` / `DEFAULTS` / `getConfigData` 都必须接上；缺一处保存就会把字面量 `${atlas_xxx}` 写进 YAML，配置读出来是字符串）。`blacklist.patterns` 走独立文件，豁免 | 无（只读源码） |
 | `submodule-independence.test.mjs` | 加载不依赖子模块（**数据无关**）：生产代码不得静态 import `tool/Hesperides`（只允许动态 `import()`）、读子模块的四个模块在子模块缺失时仍可加载、频道表按运行时口径（nanoka 全量 + 玉璃终局 7 个，不含玉璃非终局页）、按游戏过滤与 diff 频道筛选 | 无（只读源码与模块） |
 | `smoke-imports.test.mjs` | 26 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
 

@@ -20,7 +20,8 @@
   - 去掉写队列改同步原子写：队列只串行"写"，读改写之间仍会让出执行权，两个并发请求会基于同一份旧快照各自合并、后写覆盖前一个。
   - 别名设置/删除的 rule 权限从固定 `master` 改为 `all`，交给 `checkPerm` 按 `config.yaml → alias.*` 统一裁决——否则配置里的 `all`/`group_admin` 形同虚设（框架层先拒了）。
 - **挑战期日粒度结束值**（A4）：`periods.json` 里 `2026-11-30` 这样的日期型 end 会被解析成 00:00，导致**当月最后一天中午就显示「本期未开放」**。现在只对严格 `YYYY-MM-DD` 的 end 补到当天 23:59:59.999，上游显式给时刻的保持不变。
-- 测试：插件 **29 套件**、Hesperides **7 套件**全通过（新增 `custom-alias-edit` 13 条、`hesperides-period-end` 9 条、`harvest-recovery` 18 条、`cli-json` 9 条、`prune-images` 25 条、images 里的升级兼容与候选调度 19 条）。
+- **锅巴开关真正生效**（复审 N1）：上一版只加了锅巴 schema 字段，漏接 `TEMPLATE_VARS` / `DEFAULTS` / `getConfigData()` 三处运行时映射。结果在面板里关掉「自动清理图片重复」保存成功，但 YAML 里写入的是字面量 `${atlas_imagePrune_enabled}`，配置读出来是字符串，清理照旧执行；反过来已有 `false` 也读不出来，保存别的设置还会把它覆盖掉。
+- 测试：插件 **29 套件**、Hesperides **9 套件**全通过（新增 `custom-alias-edit` 13 条、`hesperides-period-end` 9 条、`harvest-recovery` 18 条、`cli-json` 9 条、`prune-images` 25 条、`image-prune-consistency` 11 条、`cli-partial-failure` 5 条、images 里的升级兼容与候选调度 19 条；`config-schema` 补了锅巴运行时三处映射的交叉校验）。
 
 ## 1.5.1
 

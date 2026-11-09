@@ -74,4 +74,43 @@ console.log('\n=== ④ defaultConfig 覆盖主要分组 ===')
   check('imagePrune.enabled 默认 true', /imagePrune:\s*\{[^}]*enabled:\s*true/s.test(defaultBlock))
 }
 
+/* ============================================================
+ *  ⑤ 锅巴运行时三处映射
+ *  只加 schema field 是不够的：锅巴保存时靠 TEMPLATE_VARS 找变量、DEFAULTS 兜默认值、
+ *  getConfigData() 回填当前值。任一处漏接，保存就会把字面量 `${atlas_xxx}` 写进 YAML，
+ *  配置读出来是字符串，布尔判断随之失效。
+ * ============================================================ */
+console.log('\n=== ⑤ 锅巴运行时映射（TEMPLATE_VARS / DEFAULTS / getConfigData）===')
+{
+  const known = fields.filter((field) => !FILE_BACKED.has(field))
+
+  /** 对象字面量里是否有这个键（顶层键可以裸写，带点的必须加引号） */
+  const hasKey = (block, key) => {
+    if (block.includes(`'${key}':`)) return true
+    if (key.includes('.')) return false
+    return new RegExp(`(^|[\\s,{])${key}\\s*:`, 'm').test(block)
+  }
+
+  // TEMPLATE_VARS：field → 模板变量
+  const templateVarsBlock = guoba.slice(guoba.indexOf('const TEMPLATE_VARS'), guoba.indexOf('const DEFAULTS'))
+  const missingVars = known.filter((field) => !hasKey(templateVarsBlock, field))
+  check('TEMPLATE_VARS 覆盖全部字段', missingVars.length === 0, missingVars.length ? `缺：${missingVars.join(', ')}` : '')
+
+  // DEFAULTS：模板变量 → 默认值
+  const defaultsBlock = guoba.slice(guoba.indexOf('const DEFAULTS'), guoba.indexOf('const ', guoba.indexOf('const DEFAULTS') + 20))
+  const varNames = known.map((field) => 'atlas_' + field.replace(/\./g, '_'))
+  const missingDefaults = varNames.filter((name) => !hasKey(defaultsBlock, name))
+  check('DEFAULTS 覆盖全部模板变量', missingDefaults.length === 0, missingDefaults.length ? `缺：${missingDefaults.join(', ')}` : '')
+
+  // getConfigData()：field → 当前值
+  const configDataBlock = guoba.slice(guoba.indexOf('getConfigData ()'), guoba.indexOf('getConfigData ()') + 4000)
+  const missingReads = known.filter((field) => !hasKey(configDataBlock, field))
+  check('getConfigData 回填全部字段', missingReads.length === 0, missingReads.length ? `缺：${missingReads.join(', ')}` : '')
+
+  check('imagePrune.enabled 三处都接了',
+    templateVarsBlock.includes("'imagePrune.enabled': 'atlas_imagePrune_enabled'")
+    && defaultsBlock.includes('atlas_imagePrune_enabled:')
+    && configDataBlock.includes("'imagePrune.enabled':"))
+}
+
 finish()
