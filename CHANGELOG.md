@@ -25,7 +25,10 @@
 - **状态图支持告警行**：`buildStatusData({ warning })` 与 `status.html` 新增告警位，初始化完成通知把它带进图里（此前只写日志，状态图渲染成功时用户看不到）。
 - **群消息不再播报内部实现**：启动抓取从「环境准备完成，开始后台抓取（nanoka 全量 + 玉璃终局，含图片），完成后将通知主人和配置群」改为「正在更新图鉴数据，请稍候...」；准备引擎 / 强制全量 / 数据不全 / 发现新版本一并精简，去掉数据源、抓取范围、子模块、模式与「完成后将通知」这类承诺。开始场景统一用 `...`，终止 / 失败 / 行动指引保持原样。
 - **引擎侧复审修复**（Hesperides 0.2.1）：清理后同步刷新 `index.json` 的图标投影（此前只改引用、索引仍指向被删的 png）；同 URL 被体积/ETag 校验拒绝后不再被「按资源键复用」绕回；条目级失败也影响 CLI 退出码。
-- 测试：插件 **30 套件**、Hesperides **10 套件**全通过（新增 `custom-alias-edit` 13 条、`hesperides-period-end` 9 条、`harvest-recovery` 18 条、`cli-json` 9 条、`prune-images` 25 条、`image-prune-consistency` 11 条、`cli-partial-failure` 5 条、images 里的升级兼容与候选调度 19 条；`config-schema` 补了锅巴运行时三处映射的交叉校验）。
+- **缺一整个游戏不再报「完成」**：`classifyScrapeResult()` 只区分「彻底失败」与「部分完成」，产物能用就带告警继续——但如果缺的是**整个游戏**（该游戏 nanoka 角色页一条记录都没有），仍会说「初始化完成」。新增 `missingGames()`（`isDataIntact()` 的取反，与自动重抓判定同一份口径），三条流程（初始化 / 更新 / 每日任务）都在**重新索引之后**判缺口：缺则报「未完成：缺少 X 数据，可再次发送 #图鉴初始化」并保留已抓数据可查；更新流程放在 `repairMissingGames()` 之后判，避免补抓刚好成功还被误报。顺带把每日任务也纳入 `classifyScrapeResult`（此前仍是裸 `!ret.ok`）。
+- **通知分级：异常详情只给主人**：`_notifyResult(msg, groupMsg)` 之前给主人与配置群发同一份文本，`err.message` 里的服务器绝对路径（`ENOENT: ... open '<bot根>'`）会直接进群——与 `patch-paths` 套件守的「公开命令不回显绝对路径」自相矛盾。收件人解析与派发抽到 `components/notify.js`（`resolveNotifyTargets()` 纯函数 + `dispatchNotify()`），四类失败路径（初始化/更新的加载失败与异常中止、定时更新失败）群收固定文案「发生了什么 + 发哪条命令重跑」，`ret.error` 同样不再进群。顺带删掉上批精简留下的死代码（算完就 `void` 掉的 `notifyHint`）。
+- 测试：插件 **31 套件**、Hesperides **12 套件**全通过（新增 `notify-targets` 18 条——用假 Bot 验证四种 `notifyMode` 的收件人与「主人收完整版/群收精简版」；`admin-messages` 扩到 27 条——`missingGames` 行为级用例、三处缺口判定、异常路径必须带群文案；Hesperides 新增 `io-retry` 13 条、`verify-integrity` 23 条；`images` 补占位口径分流 4 条）。
+- 测试：插件 **31 套件**、Hesperides **12 套件**全通过（新增 `custom-alias-edit` 13 条、`hesperides-period-end` 9 条、`harvest-recovery` 18 条、`cli-json` 9 条、`prune-images` 25 条、`image-prune-consistency` 11 条、`cli-partial-failure` 5 条、images 里的升级兼容与候选调度 19 条；`config-schema` 补了锅巴运行时三处映射的交叉校验）。
 
 ## 1.5.1
 

@@ -161,6 +161,7 @@ autoUpdate:
   cron: '0 0 5 * * *' # 自动更新 cron（6字段：秒 分 时 日 月 周）
 notifyGroups: []      # 更新完成后通知的群号列表，留空仅通知主人
 notifyMode: 'all'     # all=全部主人+群聊 / master_only=全部主人 / first_master=第一位主人 / first_master_groups=第一位主人+群聊
+                      # 群消息只给结论与可执行命令；异常详情（含服务器路径）只发主人
 ```
 
 > 首次启动时自动从 `config/config.yaml.example` 复制默认配置。

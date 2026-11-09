@@ -525,13 +525,22 @@ export function isInitialized () {
 }
 
 /**
+ * 还缺哪些游戏的核心数据（该游戏 nanoka 角色页一条记录都没有）
+ *
+ * 「有数据可用」与「整份数据完整」是两码事：抓完之后用它区分「缺几条」和「缺一整个游戏」。
+ * @param {object|null} [index] - 索引对象；缺省读产物（回归可直接注入合成索引）
+ * @returns {string[]} 缺数据的 gameId 列表
+ */
+export function missingGames (index = readIndex()) {
+  return GAMES.filter((game) => !((index?.games?.[game]?.sources?.nanoka?.pages?.character?.records || 0) > 0))
+}
+
+/**
  * 数据是否完整（三游戏都有 nanoka 角色页）
  * @returns {boolean}
  */
 export function isDataIntact () {
-  const index = readIndex()
-  if (!index?.games) return false
-  return GAMES.every((game) => (index.games?.[game]?.sources?.nanoka?.pages?.character?.records || 0) > 0)
+  return missingGames().length === 0
 }
 
 /* ============================================================

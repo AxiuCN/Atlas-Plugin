@@ -37,6 +37,7 @@ const targets = [
   ['apps/atlasShortcut.js', 'atlasShortcut'],
   ['apps/status.js', 'AtlasStatus'],
   ['components/status.js', 'renderStatusImage'],
+  ['components/notify.js', 'resolveNotifyTargets'],
   ['index.js', 'apps']
 ]
 

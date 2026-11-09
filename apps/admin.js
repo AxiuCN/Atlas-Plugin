@@ -5,6 +5,7 @@ import { getPluginConfig } from '../components/config.js'
 import {
   isInitialized,
   isDataIntact,
+  missingGames,
   initSubmodule,
   runScrapeAsync,
   checkAndUpdate,
@@ -17,6 +18,7 @@ import {
 } from '../model/AtlasUpdater.js'
 import { reloadIndex } from '../model/AtlasService.js'
 import { renderStatusImage } from '../components/status.js'
+import { resolveNotifyTargets, dispatchNotify } from '../components/notify.js'
 import { GAME_NAMES } from '../components/constants.js'
 import { runDiffScrape } from '../model/AtlasUpdater.js'
 
@@ -120,20 +122,16 @@ export class AtlasAdmin extends plugin {
 
     // 阶段一完成，发确认消息，启动后台抓取
     const cfg = getPluginConfig()
-    const mode = cfg?.notifyMode || 'all'
-    const hasGroups = (mode === 'all' || mode === 'first_master_groups')
-      && parseGroupList(cfg?.notifyGroups).length > 0
-    const notifyHint = (mode === 'first_master' || mode === 'first_master_groups')
-      ? (hasGroups ? '第一位主人和配置群' : '第一位主人')
-      : hasGroups ? '主人和配置群' : '主人'
-    void notifyHint
     await e.reply('[Atlas] 正在更新图鉴数据，请稍候...', false)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
     runScrapeAsync({ mode: 'full', timeoutMs: cfg?.autoUpdate?.timeoutMs }).then(async (ret) => {
       const verdict = classifyScrapeResult(ret)
       if (verdict.failed) {
-        this._notifyResult(`[Atlas] 图鉴初始化失败：${ret.error}`)
+        this._notifyResult(
+          `[Atlas] 图鉴初始化失败：${ret.error}`,
+          '[Atlas] 图鉴初始化失败，可再次发送 #图鉴初始化 重跑'
+        )
         return
       }
       if (verdict.warning) logger?.warn(`[Atlas][管理] 初始化未完全成功（${ret.error}）：${verdict.warning}`)
@@ -143,7 +141,20 @@ export class AtlasAdmin extends plugin {
         reloadIndex()
       } catch (err) {
         logger?.error('[Atlas][管理] 初始化后索引重载失败:', err.message)
-        this._notifyResult(`[Atlas] 图鉴初始化完成但索引加载失败：${err.message}`)
+        this._notifyResult(
+          `[Atlas] 图鉴初始化完成但索引加载失败：${err.message}`,
+          '[Atlas] 图鉴初始化后数据加载失败，请稍后重试 #图鉴初始化'
+        )
+        return
+      }
+
+      // 缺一整个游戏不能算「初始化完成」（缺几条走 warning，缺整个游戏走这里）
+      const gap = missingGames()
+      if (gap.length) {
+        logger?.warn(`[Atlas][管理] 初始化未完成，缺少游戏数据：${gap.join(', ')}`)
+        this._notifyResult(
+          `[Atlas] 图鉴初始化未完成：缺少 ${gap.map(gameLabel).join('、')} 数据，可再次发送 #图鉴初始化`
+        )
         return
       }
 
@@ -170,7 +181,10 @@ export class AtlasAdmin extends plugin {
       await runDiffScrape(['gi', 'hsr', 'zzz'])
     }).catch((err) => {
       logger?.error('[Atlas][管理] 初始化异常:', err)
-      this._notifyResult(`[Atlas] 图鉴初始化异常：${err.message}`)
+      this._notifyResult(
+        `[Atlas] 图鉴初始化异常：${err.message}`,
+        '[Atlas] 图鉴初始化异常中止，请稍后重试 #图鉴初始化'
+      )
     })
 
     return true
@@ -235,7 +249,10 @@ export class AtlasAdmin extends plugin {
       }
       const verdict = classifyScrapeResult(ret)
       if (verdict.failed) {
-        this._notifyResult(`[Atlas] 图鉴更新失败：${ret.error || ret.reason}`)
+        this._notifyResult(
+          `[Atlas] 图鉴更新失败：${ret.error || ret.reason}`,
+          '[Atlas] 图鉴更新失败，可再次发送 #图鉴更新 重跑'
+        )
         return
       }
       if (verdict.warning) logger?.warn(`[Atlas][管理] 更新未完全成功（${ret.error || ret.reason}）：${verdict.warning}`)
@@ -252,7 +269,20 @@ export class AtlasAdmin extends plugin {
         reloadIndex()
       } catch (err) {
         logger?.error('[Atlas][管理] 更新后索引重载失败:', err.message)
-        this._notifyResult(`[Atlas] 图鉴更新完成但索引加载失败：${err.message}`)
+        this._notifyResult(
+          `[Atlas] 图鉴更新完成但索引加载失败：${err.message}`,
+          '[Atlas] 图鉴更新后数据加载失败，请稍后重试 #图鉴更新'
+        )
+        return
+      }
+
+      // 补抓后仍缺整个游戏 → 未完成（缺几条走 warning，缺整个游戏走这里）
+      const gap = missingGames()
+      if (gap.length) {
+        logger?.error(`[Atlas][管理] 更新后仍缺游戏数据：${gap.join(', ')}`)
+        this._notifyResult(
+          `[Atlas] 图鉴更新未完成：缺少 ${gap.map(gameLabel).join('、')} 数据，可再次发送 #图鉴更新`
+        )
         return
       }
 
@@ -286,7 +316,10 @@ export class AtlasAdmin extends plugin {
       await runDiffScrape(['gi', 'hsr', 'zzz'])
     }).catch((err) => {
       logger?.error('[Atlas][管理] 更新异常:', err)
-      this._notifyResult(`[Atlas] 图鉴更新异常：${err.message}`)
+      this._notifyResult(
+        `[Atlas] 图鉴更新异常：${err.message}`,
+        '[Atlas] 图鉴更新异常中止，请稍后重试 #图鉴更新'
+      )
     })
 
     return true
@@ -294,33 +327,23 @@ export class AtlasAdmin extends plugin {
 
   /**
    * 发送更新结果通知（文字或状态图）
-   * @param {string|object} msg - 通知消息：文字字符串，或 renderStatusImage 返回的 segment.image 对象
+   *
+   * 主人与配置群收的不是同一份文本：异常详情（`err.message` 里可能带服务器绝对路径）、
+   * 排查线索只给主人，群里只留「发生了什么 + 是否需要操作」。
+   * @param {string|object} msg - 主人收到的通知：文字，或 renderStatusImage 返回的 segment.image
+   * @param {string|object} [groupMsg] - 配置群收到的通知；缺省与 `msg` 相同
    */
-  _notifyResult (msg) {
+  _notifyResult (msg, groupMsg = msg) {
     const cfg = getPluginConfig()
-    const mode = cfg?.notifyMode || 'all'
+    const targets = resolveNotifyTargets({
+      mode: cfg?.notifyMode || 'all',
+      firstMaster: firstMaster(),
+      groups: parseGroupList(cfg?.notifyGroups)
+    })
 
-    if (mode === 'first_master' || mode === 'first_master_groups') {
-      // 仅通知第一位主人
-      const first = firstMaster()
-      if (first) {
-        Bot.sendFriendMsg(first.botId, first.userId, msg).catch(() => {
-          logger?.warn('[Atlas][管理] 通知第一位主人失败')
-        })
-      }
-      // first_master_groups 续行群通知
-      if (mode === 'first_master') return
-    } else {
-      // all / master_only：通知全部主人
-      Bot.sendMasterMsg(msg)
-      if (mode === 'master_only') return
-    }
-
-    // 发送配置群（all / first_master_groups）
-    const list = parseGroupList(cfg?.notifyGroups)
-    for (const gid of list) {
-      Bot.sendGroupMsg(gid, msg).catch(() => {
-        logger?.warn(`[Atlas][管理] 通知群 ${gid} 失败`)
+    for (const sent of dispatchNotify(Bot, targets, msg, groupMsg)) {
+      Promise.resolve(sent.promise).catch(() => {
+        logger?.warn(`[Atlas][管理] 通知失败（${sent.kind}${sent.target ? ` ${sent.target}` : ''}）`)
       })
     }
   }
@@ -351,10 +374,15 @@ export class AtlasAdmin extends plugin {
         return
       }
 
-      if (!ret.ok) {
-        this._notifyResult(`[Atlas] 定时更新失败：${ret.error || ret.reason}`)
+      const verdict = classifyScrapeResult(ret)
+      if (verdict.failed) {
+        this._notifyResult(
+          `[Atlas] 定时更新失败：${ret.error || ret.reason}`,
+          '[Atlas] 定时更新失败，可稍后发送 #图鉴更新 重跑'
+        )
         return
       }
+      if (verdict.warning) logger?.warn(`[Atlas][管理] 定时更新未完全成功（${ret.error || ret.reason}）：${verdict.warning}`)
 
       // 空缺检查 + 补抓（仅针对缺失游戏）
       const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'])
@@ -364,6 +392,16 @@ export class AtlasAdmin extends plugin {
       }
 
       reloadIndex()
+
+      // 补抓后仍缺整个游戏 → 未完成
+      const gap = missingGames()
+      if (gap.length) {
+        logger?.error(`[Atlas][管理] 定时更新后仍缺游戏数据：${gap.join(', ')}`)
+        this._notifyResult(
+          `[Atlas] 定时更新未完成：缺少 ${gap.map(gameLabel).join('、')} 数据，可发送 #图鉴更新 补抓`
+        )
+        return
+      }
 
       const status = getDataStatus()
       const gameStats = status.games

@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { pluginRoot, checker, installFrameworkStubs } from './_helper.mjs'
+import { pluginRoot, mod, checker, installFrameworkStubs } from './_helper.mjs'
 
 installFrameworkStubs()
 const { check, finish } = checker()
@@ -57,6 +57,60 @@ console.log('\n=== ③ 群消息不播报内部实现 ===')
     !progressLines.some((line) => /完成后将通知|完成后通知/.test(line)))
 
   check('未初始化时给出可执行指令', /请先使用 #图鉴初始化/.test(adminSrc))
+}
+
+console.log('\n=== ④ 缺一整个游戏 ≠ 完成 ===')
+{
+  // 行为级：直接喂合成索引给 missingGames（不依赖本机数据）
+  const { missingGames } = await import(mod('model/AtlasUpdater.js'))
+  const page = (records) => ({ sources: { nanoka: { pages: { character: { records } } } } })
+  const index = (games) => ({ schemaVersion: 2, games })
+
+  const full = index({ gi: page(120), hsr: page(80), zzz: page(60) })
+  check('三游戏都有角色页 → 不缺', missingGames(full).length === 0)
+
+  const partial = index({ gi: page(120), hsr: page(0), zzz: undefined })
+  check('缺 hsr 与 zzz → 逐个列出', JSON.stringify(missingGames(partial)) === '["hsr","zzz"]',
+    JSON.stringify(missingGames(partial)))
+
+  const aliothOnly = index({ gi: page(120), hsr: { sources: { alioth: { pages: { character: { records: 5 } } } } }, zzz: page(1) })
+  check('只有玉璃记录、没有 nanoka 角色页 → 仍算缺', missingGames(aliothOnly).join(',') === 'hsr',
+    missingGames(aliothOnly).join(','))
+
+  check('索引读不出来 → 三个都缺', missingGames(null).length === 3)
+
+  // 源码级：三处流程都要在抓完（补抓后）用 gap 判定，并给出「未完成」+ 行动项
+  const gapCount = (adminSrc.match(/const gap = missingGames\(\)/g) || []).length
+  check('初始化 / 更新 / 定时任务三处都做缺口判定', gapCount === 3, `count=${gapCount}`)
+  check('初始化缺游戏文案', adminSrc.includes('图鉴初始化未完成：缺少'))
+  check('更新缺游戏文案', adminSrc.includes('图鉴更新未完成：缺少'))
+  check('定时任务缺游戏文案', adminSrc.includes('定时更新未完成：缺少'))
+  check('缺口判定在重新索引之后（数据仍可用）',
+    adminSrc.indexOf('const gap = missingGames()') > adminSrc.indexOf('reloadIndex()'))
+}
+
+console.log('\n=== ⑤ 异常详情只给主人 ===')
+{
+  // 每个把 err.message / ret.error 直接塞进通知的调用点，都必须带第二个参数（群文案）
+  const singleArgLeak = /this\._notifyResult\(\s*`[^`]*(err\.message|ret\.error)[^`]*`\s*\)/g
+  const leaks = adminSrc.match(singleArgLeak) || []
+  check('异常路径不再只传一份文本', leaks.length === 0,
+    leaks.map((l) => l.replace(/\s+/g, ' ').slice(0, 70)).join(' | '))
+
+  const groupTexts = [
+    '[Atlas] 图鉴初始化失败，可再次发送 #图鉴初始化 重跑',
+    '[Atlas] 图鉴初始化后数据加载失败，请稍后重试 #图鉴初始化',
+    '[Atlas] 图鉴初始化异常中止，请稍后重试 #图鉴初始化',
+    '[Atlas] 图鉴更新失败，可再次发送 #图鉴更新 重跑',
+    '[Atlas] 图鉴更新后数据加载失败，请稍后重试 #图鉴更新',
+    '[Atlas] 图鉴更新异常中止，请稍后重试 #图鉴更新',
+    '[Atlas] 定时更新失败，可稍后发送 #图鉴更新 重跑'
+  ]
+  const missingTexts = groupTexts.filter((text) => !adminSrc.includes(text))
+  check('群文案都给出「发生了什么 + 可做什么」', missingTexts.length === 0, missingTexts.join(' | '))
+
+  check('通知走统一派发（收件人由 notify.js 决定）', /dispatchNotify\(Bot, targets/.test(adminSrc))
+  check('admin.js 不再自己调 Bot.send*', !/Bot\.send(Master|Group|Friend)Msg/.test(adminSrc))
 }
 
 finish()
