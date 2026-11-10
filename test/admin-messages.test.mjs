@@ -69,7 +69,7 @@ console.log('\n=== ③-b 已有抓取在跑：不是失败，也不群发 ===')
   // 预检：三条命令与定时任务都先看 isScraping()，只回当前会话（BUSY_TEXT），不进 _notifyResult
   const busyGuards = adminSrc.match(/if \(isScraping\(\)\)/g) || []
   check('四条入口都有预检（初始化/强制初始化/更新/定时任务）', busyGuards.length === 4, `count=${busyGuards.length}`)
-  check('预检用统一答复且只走 e.reply', adminSrc.includes("const BUSY_TEXT = '[Atlas] 已有抓取任务在运行，请等它结束后再试'")
+  check('预检用统一答复且只走 e.reply', adminSrc.includes("const BUSY_TEXT = '[Atlas] 已有抓取任务在运行...'")
     && /if \(isScraping\(\)\) \{\s*\n\s*await e\.reply\(BUSY_TEXT, false\)/.test(adminSrc))
   check('预检在「上次未完成」提示之前（不误导用户重抓）',
     adminSrc.indexOf('if (isScraping())') < adminSrc.indexOf('检测到上次初始化未完整完成'))

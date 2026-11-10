@@ -26,7 +26,7 @@ import { runDiffScrape } from '../model/AtlasUpdater.js'
 const config = getPluginConfig()
 
 /** 已有抓取在跑时的统一回复：只回当前会话，不做结果通报（这不是一次抓取结果） */
-const BUSY_TEXT = '[Atlas] 已有抓取任务在运行，请等它结束后再试'
+const BUSY_TEXT = '[Atlas] 已有抓取任务在运行...'
 
 /**
  * 产物是否已经可用（索引存在且至少一个游戏有记录）
