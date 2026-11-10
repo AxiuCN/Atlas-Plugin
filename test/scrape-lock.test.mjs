@@ -13,7 +13,7 @@ installFrameworkStubs()
 requireAtlasData()
 ensureTmpDir()
 
-const { runScrapeAsync } = await import(mod('model/AtlasUpdater.js'))
+const { runScrapeAsync, checkAndUpdate, runDiffScrape } = await import(mod('model/AtlasUpdater.js'))
 const LOCK = path.join(hesperidesDir, '_scraping.lock')
 
 let pass = 0
@@ -37,6 +37,8 @@ writeLock({ pid: process.pid, time: new Date().toISOString() })
   check('活跃锁被拒绝（提示已有抓取任务）', ret.ok === false && /已有抓取任务|抓取锁/.test(String(ret.error)), JSON.stringify(ret))
   check('未进入抓取流程（立即返回）', ms < 500, `${ms}ms`)
   check('活跃锁文件保持存在', fs.existsSync(LOCK))
+  // 「已有任务在跑」不是失败：调用方据此回「等它结束」，不走失败通报
+  check('被拒时带 busy 标记，可与真失败区分', ret.busy === true, JSON.stringify(ret))
 }
 
 console.log('\n=== ② 僵尸锁（pid 已死）===')
@@ -57,7 +59,21 @@ writeLock({ pid: process.pid, time: new Date(Date.now() - 5 * 60 * 60 * 1000).to
 }
 fs.rmSync(LOCK, { force: true })
 
-console.log('\n=== ④ 机制级并发（8 进程竞争同一锁文件）===')
+console.log('\n=== ④ 有任务在跑时：更新与版本差异抓取立即返回 busy ===')
+writeLock({ pid: process.pid, time: new Date().toISOString() })
+{
+  // 默认重试 1 次 + 30s 退避 + 降级全量：旧行为会白等一分钟再报「更新失败」
+  const t0 = Date.now()
+  const ret = await checkAndUpdate({ retries: 3, retryDelayMs: 30000 })
+  const ms = Date.now() - t0
+  check('checkAndUpdate 立即返回 busy（不重试、不降级）', ret.ok === false && ret.busy === true && ms < 500,
+    `${ms}ms ${JSON.stringify({ ok: ret.ok, busy: ret.busy, reason: ret.reason })}`)
+  const diffRet = await runDiffScrape(['gi'])
+  check('runDiffScrape 也返回 busy', diffRet.ok === false && diffRet.busy === true, JSON.stringify(diffRet))
+}
+fs.rmSync(LOCK, { force: true })
+
+console.log('\n=== ⑤ 机制级并发（8 进程竞争同一锁文件）===')
 const childScript = path.join(tmpDir, 'lock-race-child.mjs')
 fs.writeFileSync(childScript, `
 import fs from 'node:fs'

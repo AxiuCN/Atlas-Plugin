@@ -173,7 +173,9 @@ function releaseLock () {
 export function isScraping () {
   const data = readLock()
   if (!data) return false
-  return isProcessAlive(Number(data.pid)) && Date.now() - Number(data.time || 0) <= LOCK_TTL_MS
+  // time 兼容毫秒数与 ISO 字符串（与 cleanupStaleLock 同一口径；只认数字会让 ISO 锁恒判「没在跑」）
+  const written = typeof data.time === 'number' ? data.time : (Date.parse(data.time) || 0)
+  return isProcessAlive(Number(data.pid)) && Date.now() - written <= LOCK_TTL_MS
 }
 
 /* ============================================================
@@ -332,7 +334,9 @@ export async function runIncrementalScrape (options = {}) {
 export async function runScrapeAsync (options = {}) {
   const { mode = 'full', timeoutMs = SCRAPE_TIMEOUT_MS, games = GAMES, onLine } = options
   if (!acquireLock()) {
-    return { ok: false, mode, error: isScraping() ? '已有抓取任务在运行' : '无法创建抓取锁' }
+    // 锁被活进程占着不是失败：调用方据此回「已有任务在跑」，不要走失败通报
+    const busy = isScraping()
+    return { ok: false, mode, busy, error: busy ? '已有抓取任务在运行' : '无法创建抓取锁' }
   }
   try {
     const result = await runCli(await scrapeArgs({ mode, games }), { timeoutMs, onLine })
@@ -359,8 +363,8 @@ export async function runIncrementalScrapeAsync (options = {}) {
 export async function runDiffScrape (games = GAMES) {
   const channels = await diffChannelIds(games)
   if (!channels.length) return { ok: true }
-  if (isScraping()) return { ok: false, error: '已有抓取任务在运行' }
-  if (!acquireLock()) return { ok: false, error: '无法创建抓取锁' }
+  if (isScraping()) return { ok: false, busy: true, error: '已有抓取任务在运行' }
+  if (!acquireLock()) return { ok: false, busy: isScraping(), error: '无法创建抓取锁' }
   try {
     const result = await runCli(['--channels', channels.join(','), '--mode', 'incremental'], { timeoutMs: 5 * 60 * 1000 })
     if (!result.ok) logger?.warn(`[Atlas][Updater] 版本差异抓取失败：${result.error || result.code}`)
@@ -573,6 +577,9 @@ export async function checkAndUpdate (options = {}) {
     onLine
   } = options
 
+  // 已有任务在跑：立即返回，不重试也不降级——重试只会白等，降级全量更会去抢同一把锁
+  if (isScraping()) return { ok: false, busy: true, error: '已有抓取任务在运行' }
+
   const local = readLocalVersions()
   const remote = await checkRemoteVersions(games)
   if (!remote.ok) return { ok: false, reason: remote.reason }
@@ -580,19 +587,21 @@ export async function checkAndUpdate (options = {}) {
   if (!diff.changed) return { ok: true, skipped: true, check: { diff } }
 
   let result = await runScrapeAsync({ mode: 'incremental', games, timeoutMs, onLine })
-  for (let attempt = 0; !result.ok && attempt < retries; attempt++) {
+  // 锁被占用 / 锁建不出来都不是「这次抓失败」：重试只会白等，降级全量还会去抢同一把锁
+  const lockBlocked = (ret) => Boolean(ret?.busy) || /抓取锁/.test(String(ret?.error || ''))
+  for (let attempt = 0; !result.ok && !lockBlocked(result) && attempt < retries; attempt++) {
     logger?.warn(`[Atlas][Updater] 增量抓取失败（${result.error || result.code}），${Math.round(retryDelayMs / 1000)}s 后重试`)
     await sleep(retryDelayMs)
     result = await runScrapeAsync({ mode: 'incremental', games, timeoutMs, onLine })
   }
   let mode = result.mode
-  if (!result.ok && fallbackToFull) {
+  if (!result.ok && !lockBlocked(result) && fallbackToFull) {
     logger?.warn('[Atlas][Updater] 增量失败，降级全量')
     result = await runScrapeAsync({ mode: 'full', games, timeoutMs, onLine })
     mode = result.ok ? 'full_fallback' : result.mode
   }
 
-  return { ok: result.ok, mode, error: result.error, check: { diff } }
+  return { ok: result.ok, busy: result.busy, mode, error: result.error, check: { diff } }
 }
 
 /**
@@ -605,7 +614,7 @@ export async function repairMissingGames (games = GAMES) {
   const missing = games.filter((game) => (index?.games?.[game]?.sources?.nanoka?.pages?.character?.records || 0) === 0)
   if (!missing.length) return { ok: true, missing }
   const result = await runScrapeAsync({ mode: 'full', games: missing })
-  return { ok: result.ok, missing, error: result.error }
+  return { ok: result.ok, missing, busy: result.busy, error: result.error }
 }
 
 /* ============================================================

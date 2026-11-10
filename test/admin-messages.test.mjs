@@ -56,12 +56,36 @@ console.log('\n=== ③ 群消息不播报内部实现 ===')
   check('进度消息不暴露数据源/范围/实现细节', leaky.length === 0,
     leaky.length ? leaky.map((l) => l.trim().slice(0, 60)).join(' | ') : '')
 
-  check('启动抓取只有一句「正在更新图鉴数据」',
-    adminSrc.includes("await e.reply('[Atlas] 正在更新图鉴数据，请稍候...', false)"))
+  check('启动抓取只有一句「开始更新图鉴数据」',
+    adminSrc.includes("await e.reply('[Atlas] 开始更新图鉴数据，请稍候...', false)"))
   check('进度消息不再承诺「完成后将通知」',
     !progressLines.some((line) => /完成后将通知|完成后通知/.test(line)))
 
   check('未初始化时给出可执行指令', /请先使用 #图鉴初始化/.test(adminSrc))
+}
+
+console.log('\n=== ③-b 已有抓取在跑：不是失败，也不群发 ===')
+{
+  // 预检：三条命令与定时任务都先看 isScraping()，只回当前会话（BUSY_TEXT），不进 _notifyResult
+  const busyGuards = adminSrc.match(/if \(isScraping\(\)\)/g) || []
+  check('四条入口都有预检（初始化/强制初始化/更新/定时任务）', busyGuards.length === 4, `count=${busyGuards.length}`)
+  check('预检用统一答复且只走 e.reply', adminSrc.includes("const BUSY_TEXT = '[Atlas] 已有抓取任务在运行，请等它结束后再试'")
+    && /if \(isScraping\(\)\) \{\s*\n\s*await e\.reply\(BUSY_TEXT, false\)/.test(adminSrc))
+  check('预检在「上次未完成」提示之前（不误导用户重抓）',
+    adminSrc.indexOf('if (isScraping())') < adminSrc.indexOf('检测到上次初始化未完整完成'))
+  check('更新把预检放在版本检查之前（不干等 5 秒再报失败）',
+    adminSrc.indexOf('if (isScraping())', adminSrc.indexOf('async handleUpdate')) < adminSrc.indexOf('await checkRemoteVersions'))
+
+  // 竞态兜底：异步链里拿到 busy 只写日志，不通报失败
+  const busySkips = adminSrc.match(/if \(ret\?\.busy\)/g) || []
+  check('三条异步链都拦 busy（初始化/更新/定时任务）', busySkips.length === 3, `count=${busySkips.length}`)
+  const busyBlocks = adminSrc.split('if (ret?.busy)').slice(1).map((s) => s.slice(0, 220))
+  check('拦 busy 时只写日志、不进 _notifyResult',
+    busyBlocks.every((block) => !block.slice(0, block.indexOf('}')).includes('_notifyResult')))
+
+  // 模型层：busy 是可区分的字段（套件 scrape-lock 里做行为断言）
+  check('补抓也透传 busy', /return \{ ok: result\.ok, missing, busy: result\.busy/.test(
+    fs.readFileSync(path.join(pluginRoot, 'model/AtlasUpdater.js'), 'utf8')))
 }
 
 console.log('\n=== ④ 缺一整个游戏 ≠ 完成 ===')

@@ -5,6 +5,7 @@ import { getPluginConfig } from '../components/config.js'
 import {
   isInitialized,
   isDataIntact,
+  isScraping,
   missingGames,
   initSubmodule,
   runScrapeAsync,
@@ -23,6 +24,9 @@ import { GAME_NAMES } from '../components/constants.js'
 import { runDiffScrape } from '../model/AtlasUpdater.js'
 
 const config = getPluginConfig()
+
+/** 已有抓取在跑时的统一回复：只回当前会话，不做结果通报（这不是一次抓取结果） */
+const BUSY_TEXT = '[Atlas] 已有抓取任务在运行，请等它结束后再试'
 
 /**
  * 产物是否已经可用（索引存在且至少一个游戏有记录）
@@ -87,6 +91,11 @@ export class AtlasAdmin extends plugin {
    * #图鉴初始化 — 两阶段：环境准备 → 数据抓取
    */
   async handleInit (e) {
+    // 抓取已在跑：直接告知等待，别报「未完整完成」再触发一次必然失败的启动
+    if (isScraping()) {
+      await e.reply(BUSY_TEXT, false)
+      return true
+    }
     // 已初始化 + 数据完整 → 跳过抓取
     if (isInitialized()) {
       if (isDataIntact()) {
@@ -122,10 +131,15 @@ export class AtlasAdmin extends plugin {
 
     // 阶段一完成，发确认消息，启动后台抓取
     const cfg = getPluginConfig()
-    await e.reply('[Atlas] 正在更新图鉴数据，请稍候...', false)
+    await e.reply('[Atlas] 开始更新图鉴数据，请稍候...', false)
 
     // ---- 阶段二：异步数据抓取（不阻塞 bot） ----
     runScrapeAsync({ mode: 'full', timeoutMs: cfg?.autoUpdate?.timeoutMs }).then(async (ret) => {
+      // 竞态：预检通过后锁被别人抢走——不是失败，不通报
+      if (ret?.busy) {
+        logger?.warn('[Atlas] 已有抓取任务在运行...')
+        return
+      }
       const verdict = classifyScrapeResult(ret)
       if (verdict.failed) {
         this._notifyResult(
@@ -194,6 +208,10 @@ export class AtlasAdmin extends plugin {
    * #图鉴强制初始化 — 跳过完整性检查，直接全量抓取
    */
   async handleForceInit (e) {
+    if (isScraping()) {
+      await e.reply(BUSY_TEXT, false)
+      return true
+    }
     await e.reply('[Atlas] 开始全量重新抓取（不清理现有数据），请稍候...', false)
     // 直接走完整流程（不检查 isInitialized）
     await this._doInit(e)
@@ -204,6 +222,11 @@ export class AtlasAdmin extends plugin {
    * #图鉴更新 — 版本检查 → 增量抓取 → 重试 → 全量兜底
    */
   async handleUpdate (e) {
+    // 抓取已在跑：先于版本检查拦下，避免干等几秒再报「失败」并群发
+    if (isScraping()) {
+      await e.reply(BUSY_TEXT, false)
+      return true
+    }
     if (!isInitialized()) {
       await e.reply('[Atlas] 图鉴数据未初始化，请先使用 #图鉴初始化', false)
       return true
@@ -221,7 +244,7 @@ export class AtlasAdmin extends plugin {
     }
 
     if (!local.ready) {
-      await e.reply('[Atlas] 数据不完整，正在全量抓取...', false)
+      await e.reply('[Atlas] 数据不完整，开始全量抓取...', false)
     } else {
       const diff = compareAtlasVersions(local.versions, remote.versions)
       if (!diff.changed) {
@@ -247,6 +270,10 @@ export class AtlasAdmin extends plugin {
         this._notifyResult('[Atlas] 图鉴版本未变化，无需更新')
         return
       }
+      if (ret?.busy) {
+        logger?.warn('[Atlas] 已有抓取任务在运行...')
+        return
+      }
       const verdict = classifyScrapeResult(ret)
       if (verdict.failed) {
         this._notifyResult(
@@ -259,7 +286,8 @@ export class AtlasAdmin extends plugin {
 
       // 空缺检查 + 补抓（仅针对缺失游戏）
       const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'])
-      if (repairRet.missing?.length > 0) {
+      if (repairRet.busy) logger?.info('[Atlas] 已有抓取任务在运行...')
+      else if (repairRet.missing?.length > 0) {
         if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
         else logger?.error(`[Atlas][管理] 数据空缺修复失败: ${repairRet.missing.join(', ')}`)
       }
@@ -355,6 +383,10 @@ export class AtlasAdmin extends plugin {
     const cfg = getPluginConfig()
     if (cfg?.autoUpdate?.enabled === false) return
     if (!isInitialized()) return
+    if (isScraping()) {
+      logger?.warn('[Atlas] 已有抓取任务在运行...')
+      return
+    }
 
     logger?.info('[Atlas][管理] 开始定时自动更新...')
 
@@ -374,6 +406,10 @@ export class AtlasAdmin extends plugin {
         return
       }
 
+      if (ret?.busy) {
+        logger?.warn('[Atlas] 已有抓取任务在运行...')
+        return
+      }
       const verdict = classifyScrapeResult(ret)
       if (verdict.failed) {
         this._notifyResult(
@@ -386,7 +422,8 @@ export class AtlasAdmin extends plugin {
 
       // 空缺检查 + 补抓（仅针对缺失游戏）
       const repairRet = await repairMissingGames(['gi', 'hsr', 'zzz'])
-      if (repairRet.missing?.length > 0) {
+      if (repairRet.busy) logger?.info('[Atlas] 已有抓取任务在运行...')
+      else if (repairRet.missing?.length > 0) {
         if (repairRet.ok) logger?.info(`[Atlas][管理] 数据空缺已修复: ${repairRet.missing.join(', ')}`)
         else logger?.error(`[Atlas][管理] 数据空缺修复失败: ${repairRet.missing.join(', ')}`)
       }
