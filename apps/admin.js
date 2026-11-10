@@ -305,7 +305,7 @@ export class AtlasAdmin extends plugin {
       const changes = buildChangeSummary(before, status, ret?.check?.diff)
 
       // 渲染状态图通知（失败回退文字）
-      const img = await renderStatusImage({ changes })
+      const img = await renderStatusImage({ changes, warning: verdict.warning })
       if (img) {
         this._notifyResult(img)
       } else {
@@ -418,11 +418,11 @@ export class AtlasAdmin extends plugin {
       const changes = buildChangeSummary(before, status, ret?.check?.diff)
 
       // 渲染状态图通知（失败回退文字）
-      const img = await renderStatusImage({ changes })
+      const img = await renderStatusImage({ changes, warning: verdict.warning })
       if (img) {
         this._notifyResult(img)
       } else {
-        this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}：${gameLines}\n${changeLines(changes)}`)
+        this._notifyResult(`[Atlas] 每日自动更新完成${modeLabel}${verdict.warning ? `（${verdict.warning}）` : ''}：${gameLines}\n${changeLines(changes)}`)
       }
 
       // 最后一步：抓取版本变更记录（最新版 vs 前一版），失败仅告警

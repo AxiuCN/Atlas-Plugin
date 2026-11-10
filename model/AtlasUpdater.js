@@ -76,7 +76,7 @@ async function loadChannelTable () {
 async function runtimeChannels () {
   const { channels, endgameIds } = await loadChannelTable()
   if (channels.length) {
-    return channels.filter((channel) => channel.source === 'nanoka' || endgameIds.includes(channel.id))
+    return channels.filter((channel) => channel.source === 'nanoka' || (channel.source === 'alioth' && endgameIds.includes(channel.id)))
   }
   const manifest = readManifest()
   return Object.entries(manifest?.channels || {}).map(([id, entry]) => ({ id, ...entry }))
