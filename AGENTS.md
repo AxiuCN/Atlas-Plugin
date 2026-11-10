@@ -4,7 +4,7 @@ This file provides project-level guidance to AI coding agents (DSH / Claude Code
 
 ## 项目概况
 
-Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：nanoka.cc 与玉璃 alioth.wiki，引擎侧两者**对等**、可抓的都抓且不裁剪；**本插件按自己的需要只消费 nanoka 全量 + 玉璃终局**，这是插件的取舍，不是源的属性），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧引擎 `nanoka-atlas-backend` 已退役并移除（子模块条目删除、数据清空），插件无任何旧数据回退。
+Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：nanoka.cc、玉璃 alioth.wiki、Lunaris lunaris.moe，引擎侧**各源对等**、可抓的都抓且不裁剪；**本插件按自己的需要只消费 nanoka 全量 + 玉璃终局**，Lunaris 目前不消费，这是插件的取舍，不是源的属性），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧引擎 `nanoka-atlas-backend` 已退役并移除（子模块条目删除、数据清空），插件无任何旧数据回退。
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)

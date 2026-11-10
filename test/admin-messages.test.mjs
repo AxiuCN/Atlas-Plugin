@@ -41,6 +41,11 @@ console.log('\n=== ② 初始化与更新都走同一分类 ===')
   const updateBlock = adminSrc.slice(updateStart, adminSrc.indexOf('}).catch(', updateStart))
   check('更新用 classifyScrapeResult', /const verdict = classifyScrapeResult\(ret\)/.test(updateBlock))
   check('更新完成消息带上告警', /图鉴更新完成\$\{modeLabel\}\$\{verdict\.warning/.test(updateBlock))
+
+  // 状态图渲染成功时才是用户的默认视图：告警必须进图，不能只留在文字回退里
+  const imageWithWarning = adminSrc.match(/renderStatusImage\(\{ changes, warning: verdict\.warning \}\)/g) || []
+  check('更新与定时任务的状态图都带上告警', imageWithWarning.length === 2, `count=${imageWithWarning.length}`)
+  check('定时任务的文字回退也带上告警', /每日自动更新完成\$\{modeLabel\}\$\{verdict\.warning/.test(adminSrc))
 }
 
 console.log('\n=== ③ 群消息不播报内部实现 ===')
