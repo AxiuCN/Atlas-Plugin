@@ -35,22 +35,30 @@ export function resetItemAssetCache () {
 function ensureCache () {
   const index = getHesperidesIndex()
   if (cache && cache.index === index) return cache
-  const build = (dir) => {
-    const entries = new Map()
-    if (!index) return entries
-    for (const [gameId, game] of Object.entries(index)) {
-      entries.set(gameId, game?.sources?.[INDEX_SOURCE]?.pages?.[dir]?.entries || {})
-    }
-    return entries
-  }
-  cache = {
-    index,
-    item: build('item'),
-    itemAll: build('item-all'),
-    artifact: build('artifact'),
-    icons: new Map()
-  }
+  cache = { index, buckets: new Map(), icons: new Map() }
   return cache
+}
+
+/**
+ * 某页目录对应的「游戏 → entries」桶（按需构建、进程内缓存）
+ *
+ * 以前只认 item / item-all / artifact 三个 dir，其余一律落到 artifact 桶——
+ * `HardLevelGroup` 这样的页因此永远读到空表。现在按 dir 懒构建，未知目录得到自己的桶。
+ * @param {object} data - ensureCache() 的返回值
+ * @param {string} dir - 页目录名
+ * @returns {Map<string, object>}
+ */
+function bucketOf (data, dir) {
+  if (!data.buckets.has(dir)) {
+    const entries = new Map()
+    if (data.index) {
+      for (const [gameId, game] of Object.entries(data.index)) {
+        entries.set(gameId, game?.sources?.[INDEX_SOURCE]?.pages?.[dir]?.entries || {})
+      }
+    }
+    data.buckets.set(dir, entries)
+  }
+  return data.buckets.get(dir)
 }
 
 /**
@@ -73,14 +81,15 @@ export function assetUrl (localPath) {
 
 /**
  * 某页的 entries（Hesperides 页目录名）
+ *
+ * 目录名就是 `index.json` 里 `pages.<dir>` 的键（如 `item` / `item-all` / `artifact` /
+ * `HardLevelGroup`）；不认识的名字会得到一个空桶，不会再悄悄读成别的页。
  * @param {string} gameId
- * @param {'item'|'item-all'|'artifact'} dir
+ * @param {string} dir
  * @returns {Record<string, object>}
  */
 export function pageEntries (gameId, dir) {
-  const data = ensureCache()
-  const bucket = dir === 'item' ? data.item : dir === 'item-all' ? data.itemAll : data.artifact
-  return bucket.get(gameId) || {}
+  return bucketOf(ensureCache(), dir).get(gameId) || {}
 }
 
 /**

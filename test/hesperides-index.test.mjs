@@ -35,7 +35,7 @@ const {
 } = await import(mod('model/HesperidesIndex.js'))
 const { PAGE_LABELS } = await import(mod('components/constants.js'))
 const { syntheticPath, parseSyntheticPath } = await import(mod('model/HesperidesRepository.js'))
-const { hasHesperidesData, getHesperidesIndex, getHesperidesPageImages } = await import(mod('model/Hesperides.js'))
+const { hasHesperidesData, getHesperidesIndex, getHesperidesPageImages, INDEX_SOURCE } = await import(mod('model/Hesperides.js'))
 const { loadRecord, loadRawRecord, recordSignature, isHesperidesPath, resolveRecordImage, resetRecordCache } = await import(mod('model/AtlasRepository.js'))
 
 /* ============================================================
@@ -226,6 +226,44 @@ if (!imageSample) {
   check('图片落在 Hesperides 产物目录', decodeURIComponent(url).replace(/\\/g, '/').includes('/tool/Hesperides/Hesperides/data/images/'))
   const abs = decodeURIComponent(new URL(url).pathname).replace(/^\//, '')
   check('图片文件真实存在且非空', fs.existsSync(abs) && fs.statSync(abs).size > 0)
+}
+
+/* ============================================================
+ *  ⑦ 星铁怪物面板：等级倍率取自 HardLevelGroup 自己那一页
+ * ============================================================ */
+console.log('=== ⑦ 星铁怪物面板等级倍率 ===')
+{
+  const { pageEntries } = await import(mod('model/ItemAssets.js'))
+  const { hsrLevelRatio } = await import(mod('model/monsterIndex/levelTable.js'))
+  const { hsrPanel } = await import(mod('model/monsterIndex/hsr.js'))
+
+  const groups = pageEntries('hsr', 'HardLevelGroup')
+  const groupKeys = Object.keys(groups)
+  check('HardLevelGroup 读自己那一页（不再回退到 artifact 桶）', groupKeys.length > 0, `${groupKeys.length} 组`)
+  check('记录键形如 <组>_<等级>', groupKeys.every((key) => /^\d+_\d+$/.test(key)), groupKeys.slice(0, 3).join(','))
+
+  const ratio = hsrLevelRatio(1, 95)
+  check('组 1 / Lv95 的比率可读',
+    Boolean(ratio) && Math.abs(ratio.hp - 294.421734) < 0.001 && Math.abs(ratio.attack - 39.889835) < 0.001,
+    JSON.stringify(ratio))
+
+  const monsterEntries = pageEntries('hsr', 'monster')
+  const monsterId = Object.keys(monsterEntries)[0]
+  const raw = monsterId ? loadRawRecord(syntheticPath('hsr', INDEX_SOURCE, 'monster', monsterId)) : null
+  const detail = raw?.content?.detail || raw?.detail
+  check('能读到一条星铁怪物详情', Boolean(detail), monsterId || '')
+
+  const panel = detail ? hsrPanel(detail) : []
+  const group = detail?.child?.[0]?.hard_level_group ?? 1
+  const monsterRatio = hsrLevelRatio(group, 95)
+  const hp = panel.find((row) => row.label.startsWith('生命值'))
+  check('面板生命值已按等级缩放并带 (Lv.95)',
+    Boolean(hp) && hp.label === '生命值 (Lv.95)'
+      && Number(hp.value) === Math.round(Number(detail.hp_base) * monsterRatio.hp),
+    JSON.stringify(hp))
+  const stance = panel.find((row) => row.label === '韧性')
+  check('韧性按原值出（HardLevelGroup 的 StanceRatio 恒 1，无需缩放）',
+    Boolean(stance) && stance.value === String(detail.stance_base), JSON.stringify(stance))
 }
 
 finish()

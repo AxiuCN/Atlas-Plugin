@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.3
+
+**修复：星铁怪物面板恢复 Lv.95 等级缩放**
+
+- **根因一（本插件）**：`model/ItemAssets.js` 的 `pageEntries(gameId, dir)` 只认 `item` / `item-all` / `artifact` 三个桶，其余目录一律回退到 artifact 桶；而 hsr 没有 `artifact` 页（圣遗物页叫 `relicset`），于是 `pageEntries('hsr','HardLevelGroup')` 恒为空 → `hsrLevelRatio()` 恒 `null` → 面板输出未缩放的基础值、缺 `(Lv.95)` 标签。现在按目录名懒建桶，未知目录得到自己的空桶，不再读到别的页。
+- **根因二（Hesperides 0.4.1）**：`HardLevelGroup` / `EliteGroup` / `InfiniteEliteGroup` 是数值表，数组元素没有 `id` / `_id`，被通用解析器全部过滤成 0 条。引擎改为按频道声明的 `idFields` 拼组合键（`1_95`），三页分别落 787 / 1461 / 65 条。
+- **修复后**：`hsrPanel()` 对生命值 / 攻击力 / 防御力乘 `HardLevelGroup(组1, Lv95)` 的比率（294.42 / 39.89 / 5.48）并标注 `(Lv.95)`；韧性按原值（上游 `StanceRatio` 恒 1）。
+- **仍未参与**：`elite_group` 与各 `*_modify_ratio`（外部资料称应参与乘法，待游戏内数值核对后再定），速度的 `SpeedRatio` 同样未接。
+- 测试：`hesperides-index` 增 6 条断言（读对桶、组合键形如 `<组>_<等级>`、Lv95 比率、面板标签与数值、韧性原值），回退任一修复都会转红。
+
 ## 1.5.2
 
 **图片自动去重：同一条资源不再存两份，旧数据自动收敛**
