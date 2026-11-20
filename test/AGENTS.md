@@ -49,6 +49,7 @@
 | `hesperides-source.test.mjs` | Hesperides 数据源：通用挑战渲染器（增益/列表/数字/数组/截断/空记录/标题）、真实产物的期表映射（gi tower→alioth abyss、zzz boss→nanoka、未知页 null）、期对象带 Date、按 id 读记录与缺失返回 null、频道状态 | Hesperides 产物（缺失则跳真实数据部分） |
 | `hesperides-index.test.mjs` | Hesperides 索引适配（`model/HesperidesIndex.js`）：页目录名 ↔ pageKey（`achievement-achievement` 反推、`item-all`/`hollow-tpp` 不误映射、终局页目录名不进索引）、记录合成（合成路径 / 名字退化 id / 稀有度透传 / 只按 `ids` / `ids` 缺失退 `entries` / `hasDetail`·`imageCount` 退化）、索引对象形状与小计（空产物为 null、只有终局页时也为 null、`countIndex` 页数/记录数）、`AtlasRepository` 合成路径分发（签名可判活、适配成 `{meta,content:{list,detail}}`、无补丁时与 `loadRawRecord` 一致、缺失返回 null、旧数据路径读不出记录）、**星铁怪物面板等级倍率**（`pageEntries('hsr','HardLevelGroup')` 读自己那一页、记录键形如 `<组>_<等级>`、组 1 Lv95 比率、面板生命值带 `(Lv.95)` 且按比率缩放、韧性按原值） | Hesperides 产物（缺失则跳真实数据部分） |
 | `preview-periods.test.mjs` | 终局超前层（`model/HesperidesPreview.js`，数据无关+真实产物）：预览渲染（月亮网深渊月之祝福与楼层 / 强度研究院敌阵 / nanoka 末日增益与关卡 / 空记录与未知源不出段）、日期外推规则（按月平移、月底退让、`monthStep`）、四种身份键（深渊→祝福名、剧诗→序号、危战→版本号、末日→期 id）、合并后期序号连续与 begin 单调、可疑跨度标 `long-span`、无超前源不硬造、期标签带「（预告）」 | 图鉴数据 |
+| `challenge-view.test.mjs` | 终局视图（`components/challenge/`，数据无关+真实产物）：未知结构回退通用启发式、九玩法视图形状（段类型/标题/内容齐备）、深渊怪物图标按 `fieldPath` 可解析、危战与仲裁血量档位走折叠、模板渲染（`.challenge-card` / `.material-grid` / `<details>` / 无残留 `{{`）、预览期共用同一模板 | 图鉴数据 |
 | `challenge-index.test.mjs` | 挑战期表选期（`model/ChallengePeriod.js`）：时间解析按本地时区（04:00 日切不错天）、本期判定（时间窗命中优先、**未来期不得当本期**、`closed` 时最近已开期与最早未开期分开给、全无日期回落最后一期、空表）、期标识格式（期号/版本/起止、估算标推定）、期修饰选期（月份/版本命中与未命中、本期·上期·下期、空表），以及**真实 Hesperides 期表**下 9 个玩法的期序号连续 / 带 Date / 按序递增 / 本期状态合法 / 期→版本非递减 / 各游戏期表来源（gi·hsr → alioth、zzz → nanoka） | 图鉴数据 |
 | `challenge-version.test.mjs` | 版本时间轴（`model/ChallengeVersion.js`，**数据无关**）：序列按 `minorMaxByMajor` 正确进位（gi 5.8→6.0、hsr 3.8→4.0、zzz 2.7→3.0，且不生成 5.9/3.9/2.8）、日期→版本（锚点当日命中锚点版本、早于序列起点与非法日期返回 null）、版本→区间（开启日 = 锚点 + N 周期、区间到下一版本前 1 秒、未知版本 null）、版本距离（跨代按实际版本数、反向为负） | 无（只读常量） |
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
@@ -60,7 +61,7 @@
 | `notify-targets.test.mjs` | 通知对象与文本路由（**数据无关**，假 Bot 记录发送）：四种 `notifyMode` 的目标（all / master_only / first_master / first_master_groups）、未知 mode 回落 all、取不到第一位主人时群仍照发、缺 `groups` 不抛；**主人收完整版、配置群收精简版**（群文案不含服务器路径）、不传 `groupMsg` 时两边一致、`scope === 'first'` 不调 `sendMasterMsg` | 无（只读纯函数 + 假 Bot） |
 | `config-schema.test.mjs` | 配置项一致性（**数据无关**）：锅巴 field → `defSet` 模板变量、反向无多余变量、`config.yaml.example` 里可见、`defaultConfig` 覆盖全部分组、**锅巴运行时三处映射**（`TEMPLATE_VARS` / `DEFAULTS` / `getConfigData` 都必须接上；缺一处保存就会把字面量 `${atlas_xxx}` 写进 YAML，配置读出来是字符串）。`blacklist.patterns` 走独立文件，豁免 | 无（只读源码） |
 | `submodule-independence.test.mjs` | 加载不依赖子模块（**数据无关**）：生产代码不得静态 import `tool/Hesperides`（只允许动态 `import()`）、读子模块的四个模块在子模块缺失时仍可加载、频道表按运行时口径（nanoka 全量但停抓 gi 深渊/危战、玉璃终局 7 个、前瞻源 3 个，不含玉璃非终局页）、按游戏过滤与 diff 频道筛选 | 无（只读源码与模块） |
-| `smoke-imports.test.mjs` | 27 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
+| `smoke-imports.test.mjs` | 32 个模块加载无环、导出面齐全（**数据无关**：import 不触发索引构建） | 无（只 import） |
 
 ## 不入库
 

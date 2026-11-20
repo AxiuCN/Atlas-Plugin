@@ -23,12 +23,78 @@
   </div>
 
   <div class="detail-box">
-    {{if sections.length > 0}}
-      {{each sections section}}
+    {{if summary && summary.length > 0}}
+    <div class="detail-section">
+      <table class="detail-table">
+        {{each summary row}}
+        <tr>
+          <td class="label">{{row.label}}</td>
+          <td class="value">{{row.value}}</td>
+        </tr>
+        {{/each}}
+      </table>
+    </div>
+    {{/if}}
+
+    {{each groups group}}
+      {{if group.kind === 'icons'}}
       <div class="detail-section">
-        <h3>{{section.title}}</h3>
+        <h3>{{group.title}}</h3>
+        <div class="material-grid">
+          {{each group.items item}}
+          <div class="material-card">
+            {{if item.icon}}<img class="material-card-icon" src="{{item.icon}}"/>{{/if}}
+            <div class="material-card-name">{{item.name}}</div>
+            {{if item.sub}}<div class="material-card-count">{{item.sub}}</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{else if group.kind === 'cards'}}
+      <div class="detail-section">
+        <h3>{{group.title}}</h3>
+        <div class="challenge-cards{{if group.cols === 2}} cols-2{{/if}}">
+          {{each group.cards card}}
+          <div class="challenge-card">
+            {{if card.title}}
+            <div class="challenge-card-title">{{card.title}}{{if card.sub}}<span class="challenge-card-sub">{{card.sub}}</span>{{/if}}</div>
+            {{/if}}
+            {{if card.icons && card.icons.length > 0}}
+            <div class="challenge-card-icons">
+              {{each card.icons icon}}<img class="challenge-card-icon" src="{{icon.icon}}" title="{{icon.name}}"/>{{/each}}
+            </div>
+            {{/if}}
+            {{if card.fields && card.fields.length > 0}}
+            <table class="detail-table">
+              {{each card.fields field}}
+              <tr>
+                <td class="label">{{field.label}}</td>
+                <td class="value">{{field.value}}</td>
+              </tr>
+              {{/each}}
+            </table>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{else if group.kind === 'collapse'}}
+      <details class="detail-section challenge-collapse" open>
+        <summary>{{group.title}}</summary>
         <table class="detail-table">
-          {{each section.fields field}}
+          {{each group.fields field}}
+          <tr>
+            <td class="label">{{field.label}}</td>
+            <td class="value">{{field.value}}</td>
+          </tr>
+          {{/each}}
+        </table>
+      </details>
+      {{else}}
+      <div class="detail-section">
+        {{if group.title}}<h3>{{group.title}}</h3>{{/if}}
+        <table class="detail-table">
+          {{each group.fields field}}
           <tr>
             <td class="label">{{field.label}}</td>
             <td class="value">{{field.value}}</td>
@@ -36,18 +102,20 @@
           {{/each}}
         </table>
       </div>
-      {{/each}}
-    {{else}}
-      <div class="detail-section">
-        <table class="detail-table">
-          {{each rawFields field}}
-          <tr>
-            <td class="label">{{field.label}}</td>
-            <td class="value">{{field.value}}</td>
-          </tr>
-          {{/each}}
-        </table>
-      </div>
+      {{/if}}
+    {{/each}}
+
+    {{if (!groups || groups.length === 0) && rawFields && rawFields.length > 0}}
+    <div class="detail-section">
+      <table class="detail-table">
+        {{each rawFields field}}
+        <tr>
+          <td class="label">{{field.label}}</td>
+          <td class="value">{{field.value}}</td>
+        </tr>
+        {{/each}}
+      </table>
+    </div>
     {{/if}}
   </div>
 

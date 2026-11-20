@@ -38,6 +38,11 @@ const targets = [
   ['apps/status.js', 'AtlasStatus'],
   ['components/status.js', 'renderStatusImage'],
   ['components/notify.js', 'resolveNotifyTargets'],
+  ['components/challenge/index.js', 'buildChallengeView'],
+  ['components/challenge/view.js', 'fieldImage'],
+  ['components/challenge/gi.js', 'giAbyssView'],
+  ['components/challenge/hsr.js', 'hsrArbitrationView'],
+  ['components/challenge/zzz.js', 'zzzBossView'],
   ['index.js', 'apps']
 ]
 

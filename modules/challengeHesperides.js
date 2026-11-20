@@ -8,9 +8,10 @@
  * 期索引与渲染都走 Hesperides；没有期数据由调用方直接回「暂无可数据」，不回退旧的 map.json 路径。
  */
 import { renderAtlas } from '../components/render.js'
-import { buildHesperidesChallengeSections, pickHesperidesTitle } from '../components/hesperidesChallenge.js'
-import { buildPreviewSections } from '../model/HesperidesPreview.js'
+import { pickHesperidesTitle } from '../components/hesperidesChallenge.js'
+import { buildChallengeView } from '../components/challenge/index.js'
 import { readRawByPath } from '../model/HesperidesRepository.js'
+import { loadRecord } from '../model/AtlasRepository.js'
 import { syntheticPath } from '../model/HesperidesRepository.js'
 import { pickCurrent, resolvePeriodSpec, periodMissReply, formatPeriodLabel, formatPeriodDate } from '../model/ChallengePeriod.js'
 import { GAME_NAMES } from '../components/constants.js'
@@ -55,28 +56,40 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
   const period = resolved.period
   // 前瞻期：期表来自玉璃，内容来自预览源（月亮网/强度研究院/nanoka），读取路径随之切换
   const isPreview = period.preview === true
-  const record = isPreview
-    ? readRawByPath(syntheticPath(gameId, period.previewSource, period.previewPage, period.previewRecordId))
-    : readRawByPath(syntheticPath(gameId, hes.source, hes.page, period.id))
-  if (!record) {
+  const recordPath = isPreview
+    ? syntheticPath(gameId, period.previewSource, period.previewPage, period.previewRecordId)
+    : syntheticPath(gameId, hes.source, hes.page, period.id)
+  const raw = readRawByPath(recordPath)
+  if (!raw) {
     await e.reply(isPreview
       ? `[Atlas] ${result.pageTitle} 第 ${period.no} 期是预告数据，对应的 ${period.previewSource} 记录还没抓到，请执行 #图鉴更新`
       : `[Atlas] ${result.pageTitle} 第 ${period.no} 期的数据文件缺失，请执行 #图鉴更新`)
     return true
   }
+  // 视图层要的是插件记录（带 `meta.images`，图标按 fieldPath 取本地图）
+  const record = loadRecord(recordPath)
+  const view = buildChallengeView({
+    gameId,
+    pageKey: result.pageKey,
+    record,
+    raw,
+    preview: isPreview ? { source: period.previewSource, page: period.previewPage } : null
+  })
 
   const data = {
     gameName: GAME_NAMES[gameId],
     pageTitle: result.pageTitle,
-    recordName: pickHesperidesTitle(record) || period.name || (isPreview ? `第 ${period.no} 期预告` : `第 ${period.no} 期`),
+    // 期名优先：玉璃的终局记录里常混着攻略/关卡名（如「隐藏关卡」），拿它当标题会误导；
+    // 绝区零没有期名，记录标题（「剧变节点」）才是用户认得的叫法
+    recordName: period.name || (gameId === 'zzz' ? pickHesperidesTitle(raw) : '') ||
+      (isPreview ? `第 ${period.no} 期预告` : `第 ${period.no} 期`),
     periodLine: [
       formatPeriodLabel(gameId, period),
       isPreview ? '测试服预告，正式上线可能变动' : '',
       period.suspect === 'long-span' ? '期跨度异常，待确认' : ''
     ].filter(Boolean).join(' · '),
-    sections: isPreview
-      ? buildPreviewSections(period.previewSource, period.previewPage, record)
-      : buildHesperidesChallengeSections(result.pageKey, record),
+    summary: view?.summary || [],
+    groups: view?.groups || [],
     rawFields: [],
     image: '',
     desc: '',

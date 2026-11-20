@@ -170,3 +170,68 @@
 
 /* ===== 数据高亮色映射已统一收敛到 components.css（三游戏 × 全模板共用） ===== */
 /* 此处不再单独维护，新增色号请改 components.css 的「官方内联标注」段 */
+/* ===== 终局卡片容器 .challenge-cards ===== */
+.challenge-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+/* ===== 终局卡片 .challenge-card ===== */
+.challenge-card {
+  background: #fdfcfb;
+  border: 1px solid #d4d1cd;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+/* ===== 终局卡片标题 .challenge-card-title ===== */
+.challenge-card-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #3a3a3a;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+/* ===== 终局卡片副标题 .challenge-card-sub ===== */
+.challenge-card-sub {
+  margin-left: 8px;
+  font-size: 22px;
+  font-weight: 500;
+  color: #6b6b6b;
+}
+
+/* ===== 终局卡片图标行 .challenge-card-icons ===== */
+.challenge-card-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+/* ===== 终局卡片图标 .challenge-card-icon ===== */
+.challenge-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+}
+
+/* ===== 终局折叠段 .challenge-collapse ===== */
+.challenge-collapse > summary {
+  cursor: default;
+  list-style: none;
+  font-size: 26px;
+  font-weight: 700;
+  color: #3a3a3a;
+  padding: 6px 0;
+}
+
+.challenge-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 双列卡片：只在字段少的段上启用（长文本用单列，否则标签列会把值挤成竖排） */
+.challenge-cards.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
