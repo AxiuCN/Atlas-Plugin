@@ -63,7 +63,7 @@ export function hsrPanel (detail) {
     const raw = detail?.[key]
     if (raw == null) continue
     const k = ratioKey ? ratio?.[ratioKey] : null
-    // 随等级换算的属性在标签后标注等级；速度/韧性无等级比率，按原值出
+    // 随等级换算的属性（生命/攻击/防御/速度）在标签后标注等级；只有韧性无比率（StanceRatio 恒 1），按原值出且不标等级
     const text = k == null ? String(raw) : String(Math.round((Number(raw) || 0) * k))
     out.push({ label: k == null ? label : `${label} (Lv.${HSR_MONSTER_LEVEL})`, value: text })
   }
