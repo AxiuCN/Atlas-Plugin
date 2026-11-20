@@ -264,6 +264,11 @@ console.log('=== ⑦ 星铁怪物面板等级倍率 ===')
   const stance = panel.find((row) => row.label === '韧性')
   check('韧性按原值出（HardLevelGroup 的 StanceRatio 恒 1，无需缩放）',
     Boolean(stance) && stance.value === String(detail.stance_base), JSON.stringify(stance))
+  const speed = panel.find((row) => row.label.startsWith('速度'))
+  check('速度按 SpeedRatio 缩放并带 (Lv.95)',
+    Boolean(speed) && speed.label === '速度 (Lv.95)'
+      && Number(speed.value) === Math.round(Number(detail.speed_base) * monsterRatio.speed),
+    JSON.stringify(speed))
 }
 
 finish()

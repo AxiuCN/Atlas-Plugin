@@ -6,8 +6,10 @@
  * `skill_list`（技能）与各类 `*_modify_ratio` / `elite_group` / `hard_level_group`。
  *
  * 面板口径：基础值（`attack_base` / `hp_base` …）挂在 `detail` 上，各变体共用；
- * 实际数值 = 基础值 × `hard_level_group` 在**基准等级**（95）的比率（表见 model/monsterIndex/levelTable.js）。
- * `elite_group` 是终局（混沌/末日）按难度二次缩放的键，不属于怪物自身面板，不参与。
+ * 实际数值 = 基础值 × `hard_level_group` 在**基准等级**（95）的比率（表见 model/monsterIndex/levelTable.js）；
+ * 速度同样乘 `SpeedRatio`（Lv95 = 1.32，例如 100 → 132），而韧性在表里 `StanceRatio` 恒 1、按原值出。
+ * `elite_group` 不参与：它是 nanoka 侧的展示维度（页面固定「精英组: 1」），玉璃没有这个概念、
+ * 游戏 TextMap 里也没有「精英组/难度组」这两个术语，没有证据表明它进面板。
  *
  * 注意：628 条记录只有 373 个唯一名字——同名条目本质是同一怪被拆成多条索引，
  * 由索引期折叠为一条并把其余路径记入 `variantPaths`，本模块按「一条目 → 多记录」拼合变体。
@@ -23,7 +25,7 @@ const BASE_FIELDS = [
   ['hp_base', '生命值', 'hp'],
   ['attack_base', '攻击力', 'attack'],
   ['defence_base', '防御力', 'defence'],
-  ['speed_base', '速度', null],
+  ['speed_base', '速度', 'speed'],
   ['stance_base', '韧性', null]
 ]
 
