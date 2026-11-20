@@ -54,6 +54,7 @@
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
 | `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
 | `custom-alias-edit.test.mjs` | 自定义别名写入与权限裁决（**在临时副本里跑真实模块**）：含标点的别名写后仍可解析且旧别名保留、后续设置不丢已有项、配置损坏时拒绝覆盖原文件、并发 set 与 set+del 均不丢更新、rule 权限交给 `checkPerm`（all 允许普通成员 / group_admin 允许管理员 / 缺省 master 只允许主人） | 无（临时副本） |
+| `weapon-skin.test.mjs` | 武器外观（`record.skin === true`，数据无关+真实产物）：构建器 `hero.skin` 标记、不额外造面板字段、「皮肤」方框只在皮肤条目渲染（art-template 实渲染且无残留 `{{`）、真数据 26 条外观的标记一致性与「无 atk/sub」前提、按 id 搜到外观自己而本体仍独立 | 图鉴数据 |
 | `hesperides-period-end.test.mjs` | 挑战期日粒度结束值：`YYYY-MM-DD` 的 end 补到当天 23:59:59.999（月末最后一天中午仍属本期、次月零点不再是），上游显式给时刻的保持原语义（4:00 前后边界） | 无（打桩 periods.json） |
 | `admin-messages.test.mjs` | 初始化/更新的结果判定与群消息（**数据无关**）：`classifyScrapeResult` 先看产物可用性（产物可用 → `failed:false` + 告警，超时与「有条目未抓到」文案分开）、初始化与更新共用同一分类且完成消息带告警、**`missingGames(索引)` 行为级**（三游戏齐全 / 缺两个 / 只有玉璃记录 / 索引读不出）、三处流程（初始化·更新·定时任务）都在重新索引后做缺口判定并给「未完成 + 行动项」、**已有抓取在跑时四条入口都先预检**（只回 `BUSY_TEXT` 不通报，且更新把预检放在版本检查之前）、三条异步链拦 `ret.busy` 只写日志、进度消息不得出现 `nanoka`/`玉璃`/`子模块`/`全量模式`/`含图片`/`完整性检查` 等内部实现、启动文案用「开始」而非「正在」、异常路径必须带群文案（`err.message`/`ret.error` 不得单参数直发）、`admin.js` 不再自己调 `Bot.send*` | 无（只读源码 + `missingGames` 注入索引） |
 | `notify-targets.test.mjs` | 通知对象与文本路由（**数据无关**，假 Bot 记录发送）：四种 `notifyMode` 的目标（all / master_only / first_master / first_master_groups）、未知 mode 回落 all、取不到第一位主人时群仍照发、缺 `groups` 不抛；**主人收完整版、配置群收精简版**（群文案不含服务器路径）、不传 `groupMsg` 时两边一致、`scope === 'first'` 不调 `sendMasterMsg` | 无（只读纯函数 + 假 Bot） |

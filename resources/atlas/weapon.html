@@ -14,9 +14,10 @@
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>
       <div class="hero-title">{{name}}</div>
-      {{if hero && hero.weapon}}
+      {{if hero && (hero.weapon || hero.skin)}}
       <div class="hero-info">
-        <span class="hero-info-item">{{hero.weapon}}</span>
+        {{if hero.weapon}}<span class="hero-info-item">{{hero.weapon}}</span>{{/if}}
+        {{if hero.skin}}<span class="hero-info-item">皮肤</span>{{/if}}
       </div>
       {{/if}}
       {{if hero && hero.desc}}<div class="hero-desc">{{@hero.desc}}</div>{{/if}}

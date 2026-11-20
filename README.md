@@ -197,9 +197,11 @@ node src/cli.mjs --export
 
 ## 鸣谢
 
-- [Hesperides](https://github.com/AxiuCN/Hesperides) — 数据抓取引擎（多源：nanoka.cc 与玉璃 alioth.wiki），以子模块引入
+- [赫斯珀里得斯 Hesperides](https://github.com/AxiuCN/Hesperides) — 数据抓取引擎（多源：nanoka.cc 、玉璃 alioth.wiki 、月亮网 lunaris.moe 、强度研究院 gensri.wiki），以子模块引入
 - [nanoka.cc](https://nanoka.cc/) — 数据源之一，覆盖原神 / 星铁 / 绝区零全部页面
-- [玉璃 alioth.wiki](https://alioth.wiki/) — 数据源之一，提供原神 / 星铁全量页面，含终局期与期时间
+- [玉璃 alioth.wiki](https://alioth.wiki/) — 数据源之一，提供原神 / 星铁终局期与期时间
+- [月亮网 lunaris.moe](https://lunaris.moe/) — 数据源之一，提供原神深境螺旋、幻想真境剧诗数据
+- [强度研究院 gensri.wiki](https://www.gensri.wiki/) — 数据源之一，提供原神幽境危战期表、详情和图片。[幽境危战](https://www.gensri.wiki/985/)
 - [nanoka-atlas-backend](https://github.com/MOPELotus/nanoka-atlas-backend) — 上一代数据引擎（已归档，`tool/nanoka-atlas-backend/README.md` 保留了迁移记录）
 - [Lotus-ReFactor](https://github.com/MOPELotus/Lotus-ReFactor) — 搜索评分系统与别名机制参考
 

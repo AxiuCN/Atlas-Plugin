@@ -37,12 +37,14 @@ topIs('hsr', '三月七巡猎', '三月七·巡猎')
 
 console.log('\n=== ③ 同名条目的别名合并（改动前口径必须保持）===')
 {
-  // 武器：星锋剑 3 条同名，其余两条的 id / 文件名必须并入首条别名
+  // 武器外观（skin: true）是独立条目：名字带后缀、没有数值，不折叠到本体、
+  // 也不该被当成形态对（variantPair 只服务角色形态族）
   const res = search('gi', '390002')
-  check('[gi] 390002 → 星锋剑（重名武器 id 别名）', res?.results?.[0]?.name === '星锋剑',
+  check('[gi] 390002 → 星锋剑·源光（外观独立，不折叠到本体）', res?.results?.[0]?.name === '星锋剑·源光',
     `实际 ${res?.results?.[0]?.name || '-'}`)
   const wp = getPageRecords('gi', 'weapon').find(e => e.name === '星锋剑')
-  check('[gi] 星锋剑 保留 variantPair', Boolean(wp?.variantPair), `variantPair=${wp?.variantPair || 'null'}`)
+  check('[gi] 星锋剑 本体仍独立、且不挂 variantPair', Boolean(wp) && !wp.variantPair,
+    `name=${wp?.name || '-'} variantPair=${wp?.variantPair || 'null'}`)
 }
 {
   // ZZZ 物品：齿轮硬币 上百条同名 id 别名

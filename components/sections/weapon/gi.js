@@ -71,7 +71,10 @@ export function buildGIWeapon (list, detail, meta) {
     .trim()
   const hero = {
     weapon: weaponLabel(weaponType),
-    desc
+    desc,
+    // 武器外观：记录级 `skin: true`（没有 atk / sub，是独立图鉴条目，不折叠到本体）。
+    // 只在名字旁标一个「皮肤」方框，稀有度照记录显示，不借本体星级、也不额外造面板字段
+    skin: list.skin === true
   }
 
   // 精炼：1~5 档合并成一段（各档仅数值不同 → 一条，差异处写 12%/15%/18%/21%/24%；
