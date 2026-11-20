@@ -9,6 +9,7 @@
  */
 import { renderAtlas } from '../components/render.js'
 import { buildHesperidesChallengeSections, pickHesperidesTitle } from '../components/hesperidesChallenge.js'
+import { buildPreviewSections } from '../model/HesperidesPreview.js'
 import { readRawByPath } from '../model/HesperidesRepository.js'
 import { syntheticPath } from '../model/HesperidesRepository.js'
 import { pickCurrent, resolvePeriodSpec, periodMissReply, formatPeriodLabel, formatPeriodDate } from '../model/ChallengePeriod.js'
@@ -42,24 +43,40 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
     if (!resolved.period) {
       const latest = resolved.latest
       const tail = latest?.end ? `（数据截至 ${formatPeriodDate(latest.end)}）` : ''
-      await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}`)
+      const next = resolved.next
+      const hint = next
+        ? `；下一期${next.preview ? '（预告）' : ''}：${next.name || `第 ${next.no} 期`} ${formatPeriodDate(next.begin)} 起`
+        : ''
+      await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}${hint}`)
       return true
     }
   }
 
   const period = resolved.period
-  const record = readRawByPath(syntheticPath(gameId, hes.source, hes.page, period.id))
+  // 前瞻期：期表来自玉璃，内容来自预览源（月亮网/强度研究院/nanoka），读取路径随之切换
+  const isPreview = period.preview === true
+  const record = isPreview
+    ? readRawByPath(syntheticPath(gameId, period.previewSource, period.previewPage, period.previewRecordId))
+    : readRawByPath(syntheticPath(gameId, hes.source, hes.page, period.id))
   if (!record) {
-    await e.reply(`[Atlas] ${result.pageTitle} 第 ${period.no} 期的数据文件缺失，请执行 #图鉴更新`)
+    await e.reply(isPreview
+      ? `[Atlas] ${result.pageTitle} 第 ${period.no} 期是预告数据，对应的 ${period.previewSource} 记录还没抓到，请执行 #图鉴更新`
+      : `[Atlas] ${result.pageTitle} 第 ${period.no} 期的数据文件缺失，请执行 #图鉴更新`)
     return true
   }
 
   const data = {
     gameName: GAME_NAMES[gameId],
     pageTitle: result.pageTitle,
-    recordName: pickHesperidesTitle(record) || period.name || `第 ${period.no} 期`,
-    periodLine: formatPeriodLabel(gameId, period),
-    sections: buildHesperidesChallengeSections(result.pageKey, record),
+    recordName: pickHesperidesTitle(record) || period.name || (isPreview ? `第 ${period.no} 期预告` : `第 ${period.no} 期`),
+    periodLine: [
+      formatPeriodLabel(gameId, period),
+      isPreview ? '测试服预告，正式上线可能变动' : '',
+      period.suspect === 'long-span' ? '期跨度异常，待确认' : ''
+    ].filter(Boolean).join(' · '),
+    sections: isPreview
+      ? buildPreviewSections(period.previewSource, period.previewPage, record)
+      : buildHesperidesChallengeSections(result.pageKey, record),
     rawFields: [],
     image: '',
     desc: '',

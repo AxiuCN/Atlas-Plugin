@@ -105,7 +105,10 @@ export function formatPeriodLabel (gameId, period) {
   if (!period) return ''
   const parts = []
   if (period.no) parts.push(`第 ${period.no} 期`)
-  const version = getPeriodVersion(gameId, period)
+  // 上游给的 `Ver` 优先（玉璃按版本归档，`7.2-7.3` 这种跨版本区间也照原样显示）；
+  // 没有 Ver 时才按开启日在版本轴上推——版本轴锚点是「危战期起点」，比版本发布晚一周，
+  // 正好卡在版本首日的期会被推成上一个版本。前瞻期不参与日期推断，宁可不写版本。
+  const version = period.version || (period.preview ? '' : getPeriodVersion(gameId, period))
   if (version) parts.push(`${version} 版本`)
   if (period.begin && period.end) {
     const from = formatPeriodDate(period.begin)
@@ -114,6 +117,7 @@ export function formatPeriodLabel (gameId, period) {
     parts.push(`${from} → ${from.slice(0, 4) === to.slice(0, 4) ? to.slice(5) : to}`)
   }
   if (period.estimated) parts.push('（推定）')
+  if (period.preview) parts.push('（预告）')
   return parts.join(' · ')
 }
 

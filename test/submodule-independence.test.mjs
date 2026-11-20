@@ -56,9 +56,16 @@ const updater = await import(mod('model/AtlasUpdater.js'))
 if (fs.existsSync(path.join(pluginRoot, 'tool/Hesperides/Hesperides/src/sources/registry.mjs'))) {
   const ids = await updater.runtimeChannelIds()
   check('运行时频道非空', ids.length > 0, `${ids.length} 个`)
-  check('只含 nanoka 与玉璃终局（不含玉璃非终局页）',
-    ids.every((id) => id.startsWith('nanoka:') || ['alioth:gi:abyss', 'alioth:gi:theater', 'alioth:gi:stygian',
-      'alioth:hsr:chaos', 'alioth:hsr:fiction', 'alioth:hsr:as', 'alioth:hsr:arbitration'].includes(id)))
+  const ALIOTH_ENDGAME = ['alioth:gi:abyss', 'alioth:gi:theater', 'alioth:gi:stygian',
+    'alioth:hsr:chaos', 'alioth:hsr:fiction', 'alioth:hsr:as', 'alioth:hsr:arbitration']
+  check('只含 nanoka、玉璃终局与前瞻源（不含玉璃非终局页）',
+    ids.every((id) => id.startsWith('nanoka:') || ALIOTH_ENDGAME.includes(id) || updater.PREVIEW_CHANNEL_IDS.includes(id)))
+  check('停抓 nanoka 的 gi 深渊/危战（挑战页固定读玉璃，无消费路径）',
+    !ids.includes('nanoka:gi:tower') && !ids.includes('nanoka:gi:leyline'))
+  check('保留 nanoka gi 剧诗（miao-plugin 消费）', ids.includes('nanoka:gi:rolecombat'))
+  check('前瞻源三页都在范围内',
+    updater.PREVIEW_CHANNEL_IDS.every((id) => ids.includes(id)), updater.PREVIEW_CHANNEL_IDS.join(', '))
+  check('玉璃七页终局全在范围内', ALIOTH_ENDGAME.every((id) => ids.includes(id)))
   const gi = await updater.runtimeChannelIds(['gi'])
   check('按游戏过滤生效', gi.length > 0 && gi.every((id) => id.includes(':gi:')), `${gi.length} 个 gi 频道`)
   const diff = await updater.diffChannelIds()

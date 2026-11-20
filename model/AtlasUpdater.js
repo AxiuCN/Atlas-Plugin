@@ -43,6 +43,12 @@ const NANOKA_MANIFEST_URL = 'https://static.nanoka.cc/manifest.json'
 /** 三游戏 */
 const GAMES = ['gi', 'hsr', 'zzz']
 
+/** 停抓的频道（gi 深渊/危战：挑战页固定读玉璃，这两页没有消费路径） */
+export const RUNTIME_SKIP_IDS = new Set(['nanoka:gi:tower', 'nanoka:gi:leyline'])
+
+/** 前瞻源频道：提供比玉璃多一期的内容（月亮网深渊/剧诗、强度研究院危战） */
+export const PREVIEW_CHANNEL_IDS = ['lunaris:gi:tower', 'lunaris:gi:rolecombat', 'gensri:gi:stygian']
+
 /* ============================================================
  *  抓取范围
  * ============================================================ */
@@ -68,15 +74,24 @@ async function loadChannelTable () {
 }
 
 /**
- * 运行时抓取范围：nanoka 全部频道 + 玉璃终局频道
+ * 运行时抓取范围：nanoka 全部频道（gi 深渊/危战除外）+ 玉璃终局频道 + 前瞻源
  *
+ * - `nanoka:gi:tower` / `nanoka:gi:leyline` 停抓：gi 挑战页固定读玉璃（`CHALLENGE_PAGE_MAP`），
+ *   这两页没有消费路径；月名与日期同源错位，留着只会让人误以为有超前数据。
+ * - 保留 `nanoka:gi:rolecombat`：miao-plugin 的剧诗练度统计直接读它的 manifest 与记录。
+ * - 前瞻源：月亮网（深渊/剧诗）、强度研究院（危战）提供「比玉璃多一期」的内容，见 `model/HesperidesPreview.js`。
  * 来源两级：子模块 registry（权威）→ 产物 `manifest.json` 的 channels 键（有产物时够用）。
  * @returns {Promise<object[]>}
  */
 async function runtimeChannels () {
   const { channels, endgameIds } = await loadChannelTable()
   if (channels.length) {
-    return channels.filter((channel) => channel.source === 'nanoka' || (channel.source === 'alioth' && endgameIds.includes(channel.id)))
+    return channels.filter((channel) => {
+      if (RUNTIME_SKIP_IDS.has(channel.id)) return false
+      if (channel.source === 'nanoka') return true
+      if (channel.source === 'alioth' && endgameIds.includes(channel.id)) return true
+      return PREVIEW_CHANNEL_IDS.includes(channel.id)
+    })
   }
   const manifest = readManifest()
   return Object.entries(manifest?.channels || {}).map(([id, entry]) => ({ id, ...entry }))

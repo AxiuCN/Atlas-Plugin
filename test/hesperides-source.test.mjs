@@ -46,7 +46,7 @@ if (!hasHesperidesData()) {
   check('期序号连续', tower.periods.every((p, i) => i === 0 || tower.periods[i - 1].begin <= p.begin))
   check('zzz 走 nanoka 源', getHesperidesPeriods('zzz', 'boss')?.source === 'nanoka')
   check('未知页返回 null', getHesperidesPeriods('gi', 'character') === null)
-  const last = tower.periods.at(-1)
+  const last = tower.periods.filter((period) => !period.preview).at(-1)
   const record = readRawByPath(syntheticPath('gi', tower.source, tower.page, last.id))
   check('按 id 读到记录', !!record && typeof record === 'object', last.id)
   check('读不存在的 id 返回 null', readRawByPath(syntheticPath('gi', tower.source, tower.page, '0')) === null)

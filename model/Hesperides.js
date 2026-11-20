@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseDataTime } from './ChallengeVersion.js'
+import { buildPreviewPeriods } from './HesperidesPreview.js'
 
 /** 插件支持的 Hesperides schemaVersion（不兼容就整体视为无数据） */
 const SCHEMA_SUPPORTED = [2]
@@ -112,6 +113,20 @@ export function getHesperidesPage (gameId, source, pageDir) {
 }
 
 /**
+ * 取某源某页的**原始**期表（未适配，`begin`/`end` 仍是字符串）
+ *
+ * 只给超前层用：它需要原样比较 `version` 与时间字符串，不适配成 Date。
+ * @param {string} gameId
+ * @param {string} source
+ * @param {string} page
+ * @returns {object[]}
+ */
+export function getHesperidesPeriodPage (gameId, source, page) {
+  const list = load()?.periods?.games?.[gameId]?.[source]?.[page]
+  return Array.isArray(list) ? list : []
+}
+
+/**
  * 取某挑战玩法在 Hesperides 里的期表
  *
  * 返回的期对象与 `ChallengePeriod` 同形（`begin`/`end` 为 Date），供 `pickCurrent` /
@@ -143,7 +158,22 @@ export function getHesperidesPeriods (gameId, pageKey) {
     }
   }).filter((period) => period.begin && period.end)
   if (!periods.length) return null
-  return { source, page, periods }
+
+  // 超前层：主表之后还能再接上的下一期（预览源内容，日期由主表节奏外推）
+  const preview = buildPreviewPeriods({
+    gameId,
+    pageKey,
+    main: periods,
+    rawPeriods: getHesperidesPeriodPage,
+    pageIds: (game, sourceId, pageKey) => getHesperidesPage(game, sourceId, pageKey)?.ids || []
+  })
+  let lastNo = Number(periods.at(-1)?.no) || periods.length
+  for (const item of preview) {
+    item.no = ++lastNo
+    item.source = source
+  }
+  const merged = preview.length ? [...periods, ...preview].sort((a, b) => a.begin - b.begin) : periods
+  return { source, page, periods: merged }
 }
 
 /* ============================================================

@@ -4,14 +4,14 @@ This file provides project-level guidance to AI coding agents (DSH / Claude Code
 
 ## 项目概况
 
-Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：nanoka.cc、玉璃 alioth.wiki、Lunaris lunaris.moe，引擎侧**各源对等**、可抓的都抓且不裁剪；**本插件按自己的需要只消费 nanoka 全量 + 玉璃终局**，Lunaris 目前不消费，这是插件的取舍，不是源的属性），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧引擎 `nanoka-atlas-backend` 已退役并移除（子模块条目删除、数据清空），插件无任何旧数据回退。
+Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星铁 `*` / 绝区零 `%`），ESM（`"type": "module"`），GPL-3.0-only。数据引擎是 git 子模块 `tool/Hesperides/Hesperides/`（多源：nanoka.cc、玉璃 alioth.wiki、Lunaris lunaris.moe、强度研究院 gensri.wiki，引擎侧**各源对等**、可抓的都抓且不裁剪；**本插件按自己的需要只消费 nanoka 全量（gi 深渊/危战除外）+ 玉璃终局 + 三个前瞻源**，这是插件的取舍，不是源的属性），把图鉴抓成本地 JSON，运行期**纯文件读取**：不走网络、不依赖 Redis。旧引擎 `nanoka-atlas-backend` 已退役并移除（子模块条目删除、数据清空），插件无任何旧数据回退。
 
 - **单入口**：`index.js` → 配置初始化 → 启动编排（`model/startup.js`）→ `Promise.allSettled` 载入 `apps/*.js`
 - **分层**：`apps/`（事件绑定）→ `modules/`（业务编排）→ `model/`（数据访问）→ `components/`（共享件与 sections builder）→ `resources/`（模板与样式）；细节见 [`docs/架构.md`](docs/架构.md)
-- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 31 套件
+- **回归套件**：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 32 套件
 - **别名基础设施**：`modules/aliasApi.js` 对其它插件提供只读别名查询（四层来源合并 + 统一归一化 + 版本号），接入方见 [`docs/别名接入文档.md`](docs/别名接入文档.md)（已接入：ProfileImg-Plugin）
 - **Bot 侧命令**：`cd app && node .`（前台）/ `node . dev`（开发模式）/ `node . stop`
-- **数据准备**：`#图鉴初始化`（同步子模块 → 全量抓取，后台异步；Hesperides 零依赖）；抓取范围固定为 **nanoka 全部页 + 玉璃终局**，见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
+- **数据准备**：`#图鉴初始化`（同步子模块 → 全量抓取，后台异步；Hesperides 零依赖）；抓取范围 = **nanoka 全部页（gi 深渊/危战停抓）+ 玉璃终局 7 页 + 三个前瞻源**，见 [`docs/数据源与后端.md`](docs/数据源与后端.md)
 
 > **迁移说明**：角色攻略模块已剥离至独立插件 [Meta-Plugin](https://github.com/Hyposelenia-Moon/Meta-Plugin)（1.1.0）——本插件不再收录攻略页、攻略数据仓库同步与 `codex.enabled` 配置。
 
@@ -24,7 +24,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 | 别名管理 | `apps/alias.js`（8000） | `#图鉴别名设置` / `#图鉴别名删除` / `#图鉴别名列表` | 权限由 `checkPerm` 按 `config.yaml → alias.*` 统一裁决，缺省 master |
 | 版本更新记录 | `apps/updateLog.js`（9000） | `#版本更新记录` / `#变更项目` / `#新版本改动` / `#版本新增内容` | 必须早于常规查询；新增内容读 nanoka manifest 的 `new` |
 | 状态 / 帮助 / 管理 | `apps/status.js` · `apps/help.js` · `apps/admin.js` | `#图鉴状态` / `#图鉴帮助` / `#图鉴初始化` / `#图鉴强制初始化` / `#图鉴更新` / `#图鉴补丁` | 管理指令 master |
-| 定时任务 | `apps/admin.js` | 每日 5:00 | 版本检查 → 增量（nanoka 全量 + 玉璃终局）→ 重试 → 全量兜底 → diff 抓取 |
+| 定时任务 | `apps/admin.js` | 每日 5:00 | 版本检查 → 增量（nanoka 全量 + 玉璃终局 + 前瞻源）→ 重试 → 全量兜底 → diff 抓取 |
 | 图片去重 | `model/AtlasUpdater.js` | 每次抓取结束后 | 清理同资源多格式重复（`imagePrune.enabled` 默认开），只删多余格式并修引用 |
 
 子视图（7 种）、页面类型后缀（3 种）、专武后缀（`<角色>专武` / `<角色>专` / `<角色>新专武` / `<角色>新专`）、special 触发与怪物页后缀的完整清单见 [`docs/功能与命令.md`](docs/功能与命令.md)。
@@ -73,7 +73,7 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 
 ## 测试
 
-回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **31 套件**。
+回归套件在 `test/`（**入仓库**）：`pnpm test`（= `node test/run.mjs`，任意 cwd 可跑，缺前置打印「跳过」并 exit 0），当前 **32 套件**。
 
 ```bash
 cd plugins/Atlas-Plugin

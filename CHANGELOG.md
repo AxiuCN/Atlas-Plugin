@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.5
+
+**终局超前层：正式期表仍用玉璃，超前内容接在同一张期表后面**
+
+- **抓取范围**：停抓 `nanoka:gi:tower` / `nanoka:gi:leyline`（挑战页固定读玉璃，两页没有消费路径；其月名与日期同源错位，留着只会显得有超前数据）；保留 `nanoka:gi:rolecombat`（miao-plugin 直接读它的 manifest 与记录）；新增前瞻源 `lunaris:gi:tower`、`lunaris:gi:rolecombat`、`gensri:gi:stygian`（`AtlasUpdater.PREVIEW_CHANNEL_IDS`）。
+- **超前层（`model/HesperidesPreview.js`）**：主表（玉璃）之后接一条「下一期」，身份键按玩法推断、不写死期号或偏移——深渊→祝福名（玉璃 `Blessings[].Name` vs 月亮网 `chsBuffName`）、剧诗→序号（月亮网有效期条数减主表条数）、危战→版本号（强度研究院 `version` 不在主表集合）、末日幻影→期 id（nanoka 目录多出的期）。日期一律由主表节奏外推，不采信预览源自己的时间（Lunaris 的 `openTime` 已知与期错位）；跨度超过主表中位数 1.5 倍标 `suspect: 'long-span'`。推断不成立就返回空数组，宁可不预告也不猜。
+- **展示**：预告期标签带 `（预告）`，hero 追加「测试服预告，正式上线可能变动」；「本期未开放」时提示下一期的名称与开启日。内容按源渲染（月亮网深渊出月之祝福与楼层、剧诗出元素限制与商店；强度研究院危战出期名与敌阵；nanoka 末日出增益与关卡）。
+- **期 → 版本口径修正**：`formatPeriodLabel()` 优先用上游 `Ver`（玉璃按版本归档，`7.2-7.3` 这种跨版本区间照原样显示），没有 `Ver` 时才按开启日在版本轴上推。版本轴锚点是「危战期起点」，比版本发布晚一周，此前卡在版本首日的期（玉璃深渊 60 期 = 12-16、危战 13 期 = 11-11）会被推成上一个版本。
+- 测试：新增 `preview-periods`（42 条，覆盖四种身份键、日期外推、可疑跨度、无超前不硬造、标签标注），新增文件 `model/HesperidesPreview.js`。
+
 ## 1.5.4
 
 **修复：星铁怪物面板速度未按等级缩放**
