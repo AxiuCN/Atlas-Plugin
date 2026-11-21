@@ -281,11 +281,14 @@ export function giStygianView (record, ctx = {}) {
       paragraphs: [plain(stripHighlight(buff?.Desc), 200)]
     }))))
     // 其他难度：N4 与 N1-3（N1/N2 无血量数据就不写）
+    // 其他难度：逐档列出（N3 常形 / N4 各有自己的名字与血量，不能合并成「1-3」）
     const others = []
-    const n4 = findTierMonster(monsters, levels, 4, id, levels.length - 1)
-    if (n4 && (n4.name || n4.hp)) others.push({ name: '难度 4', paragraphs: [[n4.name, n4.hp].filter(Boolean).join(' · ')] })
-    const common = findTierMonster(monsters, levels, 3, id, levels.length - 1)
-    if (common && common.hp) others.push({ name: '难度 1-3', paragraphs: [[common.name, common.hp].filter(Boolean).join(' · ')] })
+    for (const difficulty of [4, 3]) {
+      const tier = findTierMonster(monsters, levels, difficulty, id, levels.length - 1)
+      if (tier && (tier.name || tier.hp)) {
+        others.push({ name: `难度 ${difficulty}`, paragraphs: [[tier.name, tier.hp].filter(Boolean).join(' · ')] })
+      }
+    }
     pushGroup(blocks, block('其他难度', others))
 
     cards.push({
@@ -327,11 +330,6 @@ function readGensri (ctx) {
 export function gensriStygianView (record, raw) {
   const detail = raw?.detail || {}
   const groups = []
-  const difficulties = detail.difficulties || {}
-  pushGroup(groups, listGroup('难度', Object.values(difficulties).map((item) => ({
-    label: plain(item?.label),
-    value: item?.level ? `Lv.${item.level}` : ''
-  }))))
 
   const cards = (Array.isArray(detail.enemies) ? detail.enemies : []).map((enemy, index) => {
     const five = enemy?.hp?.five
