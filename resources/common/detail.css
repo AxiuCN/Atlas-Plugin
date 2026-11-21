@@ -352,7 +352,9 @@
 
 /* ===== 战斗卡内分块（研究 / 官方解释）：小标题独立成行，不占左列 ===== */
 .battle-lead {
-  margin-top: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e2df;
   font-size: 20px;
   line-height: 1.55;
   color: #555555;

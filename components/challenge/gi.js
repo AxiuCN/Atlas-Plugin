@@ -258,8 +258,10 @@ export function giStygianView (record, ctx = {}) {
   }
 
   const strongIds = (levels.at(-1)?.Monsters || Object.keys(monsters)).map(String)
+  const gensri = readGensri(ctx)
+  const gensriEnemies = Array.isArray(gensri?.raw?.detail?.enemies) ? gensri.raw.detail.enemies : []
   const cards = []
-  for (const id of strongIds) {
+  for (const [index, id] of strongIds.entries()) {
     const raw = monsters[id] || {}
     const info = resolve(id)
     const tiers = hpTiers.get(String(raw?.ID || id)) || []
@@ -290,7 +292,12 @@ export function giStygianView (record, ctx = {}) {
       title: info.name,
       sub: plain(raw.Title),
       big: true,
-      monsters: [battleMonster({ icon: info.icon, hp: hpText, chips: [...new Set([...roleChips(raw.Advantage), ...roleChips(raw.Disadvantage), ...resChips(raw.RES)])] })],
+      // 头图优先强度研究院的怪物立绘（玉璃只给小图标，放大到 380px 会糊），取不到才回落图标
+      monsters: [battleMonster({
+        icon: fieldImage(gensri?.record, `detail.enemies.${index}.image`) || info.icon,
+        hp: hpText,
+        chips: [...new Set([...roleChips(raw.Advantage), ...roleChips(raw.Disadvantage), ...resChips(raw.RES)])]
+      })],
       lead: plain(raw.Desc, 160),
       blocks
     })
@@ -303,6 +310,46 @@ export function giStygianView (record, ctx = {}) {
   return groups
 }
 
+/** 同版本的强度研究院危战记录（原始 + 插件记录；后者带 imagerefs，用来取怪物立绘） */
+function readGensri (ctx) {
+  const version = String(ctx?.period?.version || '')
+  if (!version || typeof ctx?.rawPeriods !== 'function' || typeof ctx?.readRecord !== 'function') return null
+  const entry = (ctx.rawPeriods('gi', 'gensri', 'stygian') || []).find((item) => String(item.version) === version)
+  if (!entry) return null
+  const id = String(entry.id)
+  return {
+    raw: ctx.readRecord('gi', 'gensri', 'stygian', id),
+    record: typeof ctx.loadRecord === 'function' ? ctx.loadRecord('gi', 'gensri', 'stygian', id) : null,
+    id
+  }
+}
+/** 强度研究院（预览期）危战：一敌一框（大图 + N5/N6 血量 + 强敌机制） */
+export function gensriStygianView (record, raw) {
+  const detail = raw?.detail || {}
+  const groups = []
+  const difficulties = detail.difficulties || {}
+  pushGroup(groups, listGroup('难度', Object.values(difficulties).map((item) => ({
+    label: plain(item?.label),
+    value: item?.level ? `Lv.${item.level}` : ''
+  }))))
+
+  const cards = (Array.isArray(detail.enemies) ? detail.enemies : []).map((enemy, index) => {
+    const five = enemy?.hp?.five
+    const six = enemy?.hp?.six
+    const hpText = five || six ? [five, six].filter(Boolean).map((hp) => num(hp, 0)).join(' / ') : ''
+    return {
+      title: plain(enemy?.name),
+      big: true,
+      monsters: [battleMonster({ icon: fieldImage(record, `detail.enemies.${index}.image`), hp: hpText })],
+      blocks: [block('强敌机制', (enemy?.mechanism || []).map((text, i) => ({
+        name: `解析 ${i + 1}`,
+        paragraphs: [plain(text, 260)]
+      })))].filter(Boolean)
+    }
+  })
+  pushGroup(groups, battleGroup('强敌', cards, { cols: 1 }))
+  return groups
+}
 /** 优势/劣势里的角色标签（去掉内联 `<img>` 后按 `|` 拆开） */
 function roleChips (text) {
   return String(text ?? '').replace(/<[^>]*>/g, '').split('|').map((item) => item.trim()).filter(Boolean)
@@ -338,7 +385,7 @@ function buildGensriResearch (ctx) {
     const five = enemy?.hp?.five
     const six = enemy?.hp?.six
     const blocks = []
-    pushGroup(blocks, block('强度研究院 · 官方解析', (enemy?.mechanism || []).map((text, index) => ({
+    pushGroup(blocks, block('强敌机制', (enemy?.mechanism || []).map((text, index) => ({
       name: `解析 ${index + 1}`,
       paragraphs: [plain(text, 220)]
     }))))
