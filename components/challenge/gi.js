@@ -5,6 +5,7 @@
  * 卡内再按「研究 / 官方解释」分块（小标题独立成行，不占左列）。
  */
 import { giCurveValue } from '../../model/monsterIndex/curve.js'
+import { listMonsterEntries } from '../../model/monsterIndex/index.js'
 import {
   plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon,
   listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, block, pushGroup
@@ -325,6 +326,67 @@ function readGensri (ctx) {
     record: typeof ctx.loadRecord === 'function' ? ctx.loadRecord('gi', 'gensri', 'stygian', id) : null,
     id
   }
+}
+/**
+ * 月亮网（预览期）深渊：月之祝福 → 每层（地脉异常）→ 各间战斗卡（上半/下半）
+ *
+ * 预览期玉璃还没有这一期，数据只有月亮网的 `tower/<id>.json`：
+ *   `detail.floors[].chambers[].{firstHalfMonsters, secondHalfMonsters, monsterLevel, levelId}`
+ * 怪物带 `id/name/hp/icon`；**id 与 nanoka 怪物页同号**，图标按 id 去 nanoka 取本地图。
+ */
+export function lunarisAbyssView (record, raw, ctx = {}) {
+  const detail = raw?.detail || {}
+  const groups = []
+  const buffName = plain(raw?.chsBuffName) || plain(detail?.buffName)
+  const buffDesc = plain(detail?.monthlyBuff?.description, 240)
+  if (buffName || buffDesc) {
+    pushGroup(groups, cardsGroup('月之祝福', [{ title: buffName, fields: buffDesc ? [{ label: '效果', value: buffDesc }] : [] }]))
+  }
+
+  // 图标：先按 id 取 nanoka 怪物图；id 对不上（月亮网用另一套 id）时按名字反查
+  let nameIndex = null
+  const monsterIcon = (id, name) => {
+    if (typeof ctx.loadRecord !== 'function') return ''
+    const byId = id ? ctx.loadRecord('gi', 'nanoka', 'monster', String(id)) : null
+    if (byId) return fieldImage(byId, 'icon')
+    if (!name) return ''
+    if (!nameIndex) {
+      nameIndex = new Map()
+      for (const entry of listMonsterEntries('gi') || []) nameIndex.set(entry.name, entry.recordId)
+    }
+    const recordId = nameIndex.get(String(name))
+    if (!recordId) return ''
+    const byName = ctx.loadRecord('gi', 'nanoka', 'monster', String(recordId))
+    return byName ? fieldImage(byName, 'icon') : ''
+  }
+  const toRows = (value) => {
+    const list = Array.isArray(value) ? value : (value && typeof value === 'object' ? [value] : [])
+    return list.map((monster) => battleMonster({
+      name: plain(monster?.name),
+      icon: monsterIcon(monster?.id, monster?.name),
+      hp: monster?.hp ? num(monster.hp, 0) : ''
+    })).filter((row) => row.name)
+  }
+
+  for (const floor of Array.isArray(detail.floors) ? detail.floors : []) {
+    const floorNo = floor?.floorIndex ?? '?'
+    if (floor?.firstHalfBuff || floor?.secondHalfBuff) {
+      pushGroup(groups, listGroup(`第 ${floorNo} 层 · 地脉异常`, [
+        { label: '上半', value: plain(floor.firstHalfBuff?.description || floor.firstHalfBuff, 200) },
+        { label: '下半', value: plain(floor.secondHalfBuff?.description || floor.secondHalfBuff, 200) }
+      ]))
+    }
+    const cards = []
+    for (const [index, chamber] of (floor?.chambers || []).entries()) {
+      const level = chamber?.monsterLevel ? `Lv.${chamber.monsterLevel}` : ''
+      const first = toRows(chamber?.firstHalfMonsters)
+      const second = toRows(chamber?.secondHalfMonsters)
+      if (first.length) cards.push({ title: `${floorNo}-${index + 1} 上半`, sub: level, monsters: first })
+      if (second.length) cards.push({ title: `${floorNo}-${index + 1} 下半`, sub: level, monsters: second })
+    }
+    pushGroup(groups, battleGroup(`第 ${floorNo} 层`, cards))
+  }
+  return groups
 }
 /** 强度研究院（预览期）危战：一敌一框（大图 + N5/N6 血量 + 强敌机制） */
 export function gensriStygianView (record, raw) {
