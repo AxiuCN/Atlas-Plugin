@@ -42,7 +42,7 @@
         <h3>{{group.title}}</h3>
         <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}">
           {{each group.cards card}}
-          <div class="battle-card">
+          <div class="battle-card{{if card.big}} battle-card--big{{/if}}">
             {{if card.title || card.sub}}
             <div class="battle-card-head">{{card.title}}{{if card.sub}}<span class="battle-card-sub">{{card.sub}}</span>{{/if}}</div>
             {{/if}}

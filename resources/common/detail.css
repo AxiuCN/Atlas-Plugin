@@ -387,3 +387,57 @@
   line-height: 1.55;
   color: #4a4a4a;
 }
+
+/* ===== 大图战斗卡（危战强敌：向玉璃看齐，图片与文字居中放大） ===== */
+.battle-card--big {
+  text-align: center;
+  padding: 16px 18px 18px;
+}
+
+.battle-card--big .battle-card-head {
+  font-size: 34px;
+  margin-bottom: 10px;
+}
+
+.battle-card--big .battle-card-sub {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: #6b6b6b;
+}
+
+.battle-card--big .battle-monsters {
+  justify-content: center;
+}
+
+.battle-card--big .battle-monster {
+  width: 100%;
+}
+
+.battle-card--big .battle-icon-wrap {
+  width: 300px;
+  height: 300px;
+  margin: 0 auto 6px;
+}
+
+.battle-card--big .battle-name {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.battle-card--big .battle-hp {
+  font-size: 34px;
+  font-weight: 700;
+  color: #e05a1e;
+}
+
+.battle-card--big .battle-chips {
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.battle-card--big .battle-chip {
+  font-size: 20px;
+  padding: 1px 8px;
+}

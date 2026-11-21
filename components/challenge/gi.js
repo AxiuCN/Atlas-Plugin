@@ -242,7 +242,7 @@ export function giTheaterView (record, ctx = {}) {
  *  幽境危战
  * ============================================================ */
 
-/** 幽境危战：一敌一框 —— 名字 → 玉璃的研究（机制）→ 首领特性（官方解释）→ 其他难度 */
+/** 幽境危战：一敌一框 —— 名字 → 玉璃的研究（官方解析）→ 首领特性（概述）→ 其他难度 */
 export function giStygianView (record, ctx = {}) {
   const list = record?.content?.list || {}
   const groups = []
@@ -268,15 +268,15 @@ export function giStygianView (record, ctx = {}) {
     const hpText = n5 && n6 ? `${num(n5, 0)} / ${num(n6, 0)}` : (n5 ? num(n5, 0) : '')
 
     const blocks = []
-    // 玉璃的研究：机制概览（Buff[]，名称 + 概括描述）
-    pushGroup(blocks, block('「玉璃的研究」· 强敌机制', (raw.Buff || []).map((buff) => ({
-      name: plain(buff?.Name),
-      paragraphs: [plain(stripHighlight(buff?.Desc), 200)]
-    }))))
-    // 首领特性：官方解释（Tutorial[]，分段落）
-    pushGroup(blocks, block('首领特性（官方解释）', (raw.Tutorial || []).map((tutorial) => ({
+    // 「玉璃的研究」= Tutorial[]（官方文案的编号解析，站点就是这一份）；
+    // 「首领特性」= Buff[]（同名机制的一段式概述）——两者顺序不能反
+    pushGroup(blocks, block('「玉璃的研究」', (raw.Tutorial || []).map((tutorial) => ({
       name: plain(tutorial?.Title),
       paragraphs: (tutorial?.DescList || []).map((text) => plain(stripHighlight(text), 220))
+    }))))
+    pushGroup(blocks, block('首领特性', (raw.Buff || []).map((buff) => ({
+      name: plain(buff?.Name),
+      paragraphs: [plain(stripHighlight(buff?.Desc), 200)]
     }))))
     // 其他难度：N4 与 N1-3（N1/N2 无血量数据就不写）
     const others = []
@@ -288,7 +288,9 @@ export function giStygianView (record, ctx = {}) {
 
     cards.push({
       title: info.name,
-      monsters: [battleMonster({ icon: info.icon, hp: hpText, chips: resChips(raw.RES) })],
+      sub: plain(raw.Title),
+      big: true,
+      monsters: [battleMonster({ icon: info.icon, hp: hpText, chips: [...new Set([...roleChips(raw.Advantage), ...roleChips(raw.Disadvantage), ...resChips(raw.RES)])] })],
       lead: plain(raw.Desc, 160),
       blocks
     })
@@ -304,6 +306,11 @@ export function giStygianView (record, ctx = {}) {
   }))
   pushGroup(groups, collapseGroup('血量档位', hpRows))
   return groups
+}
+
+/** 优势/劣势里的角色标签（去掉内联 `<img>` 后按 `|` 拆开） */
+function roleChips (text) {
+  return String(text ?? '').replace(/<[^>]*>/g, '').split('|').map((item) => item.trim()).filter(Boolean)
 }
 
 /** 官方文案里的 `@高亮#` 标记：只留正文 */
