@@ -9,7 +9,7 @@
  */
 import {
   plain, num, fieldImage,
-  listGroup, iconGroup, cardsGroup, collapseGroup, pushGroup
+  listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, collapseGroup, pushGroup
 } from './view.js'
 
 const ELEM_LABEL = {
@@ -59,17 +59,20 @@ function floorCards (floors) {
   })
 }
 
-/** 敌方阵容（带弱点） */
-function monsterIcons (record, monsters, container = 'Monsters') {
+/** 敌方阵容（战斗卡：大图 + 弱点/抗性小标签） */
+function monsterBattleCards (record, monsters, container = 'Monsters') {
   return Object.entries(monsters || {}).map(([id, item]) => {
-    const weak = Array.isArray(item?.Weak) ? item.Weak.map(elemLabel).join(' / ') : ''
-    const res = item?.RES && Object.keys(item.RES).length
-      ? Object.entries(item.RES).map(([key, value]) => `${elemLabel(key)} ${num(Number(value) * 100)}%`).join('、')
-      : ''
+    const chips = []
+    if (Array.isArray(item?.Weak) && item.Weak.length) chips.push(`弱点 ${item.Weak.map(elemLabel).join(' / ')}`)
+    for (const [key, value] of Object.entries(item?.RES || {})) chips.push(`${elemLabel(key)} ${num(Number(value) * 100)}%`)
     return {
-      icon: fieldImage(record, `${container}.${id}.Icon`) || fieldImage(record, `${container}.${id}`),
-      name: plain(item?.Name) || String(id),
-      sub: [weak ? `弱点 ${weak}` : '', res].filter(Boolean).join(' · ')
+      title: '',
+      sub: '',
+      monsters: [battleMonster({
+        name: plain(item?.Name) || String(id),
+        icon: fieldImage(record, `${container}.${id}.Icon`) || fieldImage(record, `${container}.${id}`) || fieldImage(record, `${container}.${id}.Figure`),
+        chips
+      })]
     }
   })
 }
@@ -80,7 +83,7 @@ function commonGroups (record, list, { buffs = [], tags = null, tutorials = null
   for (const item of buffs) pushGroup(groups, cardsGroup(item.title, buffCards(item.list), { cols: 2 }))
   pushGroup(groups, cardsGroup('楼层', floorCards(list.Floors)))
   if (tags) pushGroup(groups, cardsGroup('楼层特性', tagCards(tags)))
-  pushGroup(groups, iconGroup('敌方阵容', monsterIcons(record, list.Monsters)))
+  pushGroup(groups, battleGroup('敌方阵容', monsterBattleCards(record, list.Monsters)))
   if (tutorials) {
     pushGroup(groups, collapseGroup('机制说明', (Array.isArray(tutorials) ? tutorials : []).map((item, index) => ({
       label: plain(item?.Name) || `说明 ${index + 1}`,
@@ -139,7 +142,7 @@ export function hsrArbitrationView (record) {
   }
 
   pushGroup(groups, cardsGroup('增益', buffCards(list.Buffs), { cols: 2 }))
-  pushGroup(groups, iconGroup('敌方阵容', monsterIcons(record, list.Monsters)))
+  pushGroup(groups, battleGroup('敌方阵容', monsterBattleCards(record, list.Monsters)))
 
   const hp = []
   if (list.HP_Knight) hp.push({ label: '骑士生命', value: num(list.HP_Knight, 0) })

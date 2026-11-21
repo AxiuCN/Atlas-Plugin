@@ -17,7 +17,7 @@ const { syntheticPath, readRawByPath } = await import(mod('model/HesperidesRepos
 const { loadRecord } = await import(mod('model/AtlasRepository.js'))
 const { check, finish } = checker()
 
-const KINDS = new Set(['list', 'icons', 'cards', 'collapse'])
+const KINDS = new Set(['list', 'icons', 'cards', 'battle', 'collapse'])
 const tpl = fs.readFileSync(path.join(pluginRoot, 'resources/atlas/challenge.html'), 'utf8')
 
 /** 取某玩法最新已开期的记录（跳过预告期） */
@@ -68,24 +68,32 @@ for (const [gameId, pageKey] of MODES) {
     if (group.kind === 'list') return group.fields.length > 0
     if (group.kind === 'icons') return group.items.length > 0 && group.items.every((item) => item.name || item.icon)
     if (group.kind === 'cards') return group.cards.length > 0 && group.cards.every((card) => card.title || card.fields?.length)
+    if (group.kind === 'battle') return group.cards.length > 0 && group.cards.every((card) => card.monsters?.length > 0)
     return group.fields.length > 0
   }))
 }
 
-console.log('\n=== ③ 怪物信息（图标 / 元素 / 抗性）===')
+console.log('\n=== ③ 怪物信息（战斗卡：图标 / 元素 / 抗性 / 血量）===')
 {
   const tower = views.get('gi/tower')
-  const monsterGroup = tower?.view?.groups.find((group) => group.kind === 'icons' && group.title === '怪物')
-  check('深渊有怪物图标段', Boolean(monsterGroup), `${monsterGroup?.items?.length || 0} 个`)
-  check('深渊怪物条目带名字', Boolean(monsterGroup?.items.every((item) => item.name)))
-  check('深渊怪物条目有本地图标（fieldPath 命中 imagerefs）',
-    Boolean(monsterGroup?.items.some((item) => String(item.icon || '').startsWith('file://'))))
-  check('图标能按 fieldPath 解析', String(fieldImage(tower?.ctx?.record, 'Monsters.51337.Icon') || '').startsWith('file://') ||
-    Boolean(fieldImage(tower?.ctx?.record, 'Monsters.51337.Icon')))
+  // 仿玉璃：怪物不再单独成段，只作为楼层「间」的战斗卡出现
+  const battle = tower?.view?.groups.find((group) => group.kind === 'battle' && /第 .+ 层/.test(group.title || ''))
+  const monsters = (battle?.cards || []).flatMap((card) => card.monsters || [])
+  check('深渊怪物只在楼层的间卡里出现', Boolean(battle) && monsters.length > 0, `${monsters.length} 只`)
+  check('深渊没有独立的「怪物」段', !tower?.view?.groups.some((group) => group.title === '怪物'))
+  check('深渊战斗卡带数量/血量/抗性标签',
+    monsters.every((monster) => monster.name) && monsters.some((monster) => monster.hp) && monsters.some((monster) => monster.chips.length > 0))
+  check('深渊战斗卡图标能按 fieldPath 解析',
+    monsters.some((monster) => String(monster.icon || '').startsWith('file://')))
+
+  const theater = views.get('gi/rolecombat')
+  const bossCards = (theater?.view?.groups.find((group) => group.kind === 'battle' && group.title === '首领')?.cards || [])
+  check('剧诗首领是战斗卡且带名字', bossCards.length > 0 && bossCards.every((card) => card.monsters.every((monster) => monster.name && !/^\d+$/.test(monster.name))))
 
   const stygian = views.get('gi/leyline')
-  const strong = stygian?.view?.groups.find((group) => group.kind === 'cards' && group.title === '强敌')
-  check('危战强敌卡带抗性/机制字段', Boolean(strong?.cards.some((card) => card.fields.some((field) => /抗性|机制|生命/.test(field.label)))))
+  const strong = stygian?.view?.groups.find((group) => group.kind === 'battle' && group.title === '强敌')
+  check('危战强敌是战斗卡（大图 + 血量 + 抗性）',
+    Boolean(strong?.cards.some((card) => card.monsters.some((monster) => monster.hp && monster.chips.length > 0))))
   const hp = stygian?.view?.groups.find((group) => group.kind === 'collapse')
   check('危战血量档位走折叠', hp?.title === '血量档位' && hp.fields.length > 0)
   const arb = views.get('hsr/maze_peak')
@@ -111,7 +119,22 @@ console.log('\n=== ④ 模板渲染（真实视图）===')
   })
   check('模板渲染无残留 {{', !html.includes('{{'))
   check('卡片段渲染成 .challenge-card', html.includes('challenge-card'))
-  check('图标段复用 .material-grid', html.includes('material-grid'))
+  check('深渊渲染成战斗卡 .battle-card', html.includes('battle-card') && html.includes('battle-monster'))
+  const theaterHtml = template.render(tpl, {
+    gameName: '原神',
+    pageTitle: '幻想真境剧诗',
+    recordName: '第 30 期',
+    periodLine: '',
+    summary: [],
+    groups: views.get('gi/rolecombat')?.view?.groups || [],
+    rawFields: [],
+    image: '',
+    desc: '',
+    rarity: '',
+    renderScale: 1.5,
+    _res_path: 'file:///atlas-res'
+  })
+  check('角色图标段复用 .material-grid', theaterHtml.includes('material-grid'))
   check('期标识仍在 hero', html.includes('第 60 期'))
   check('折叠段渲染成 details', template.render(tpl, {
     gameName: '原神', pageTitle: '危战', recordName: 'x', periodLine: '', summary: [],

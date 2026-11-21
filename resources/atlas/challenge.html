@@ -78,6 +78,34 @@
           {{/each}}
         </div>
       </div>
+      {{else if group.kind === 'battle'}}
+      <div class="detail-section">
+        <h3>{{group.title}}</h3>
+        <div class="battle-grid{{if group.cols === 2}} cols-2{{/if}}">
+          {{each group.cards card}}
+          <div class="battle-card">
+            {{if card.title || card.sub}}
+            <div class="battle-card-head">{{card.title}}{{if card.sub}}<span class="battle-card-sub">{{card.sub}}</span>{{/if}}</div>
+            {{/if}}
+            <div class="battle-monsters">
+              {{each card.monsters monster}}
+              <div class="battle-monster">
+                <div class="battle-icon-wrap">
+                  {{if monster.icon}}<img class="battle-icon" src="{{monster.icon}}"/>{{/if}}
+                  {{if monster.count}}<span class="battle-count">×{{monster.count}}</span>{{/if}}
+                </div>
+                <div class="battle-name">{{monster.name}}</div>
+                {{if monster.hp}}<div class="battle-hp">{{monster.hp}}</div>{{/if}}
+                {{if monster.chips && monster.chips.length > 0}}
+                <div class="battle-chips">{{each monster.chips chip}}<span class="battle-chip">{{chip}}</span>{{/each}}</div>
+                {{/if}}
+              </div>
+              {{/each}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
       {{else if group.kind === 'collapse'}}
       <details class="detail-section challenge-collapse" open>
         <summary>{{group.title}}</summary>

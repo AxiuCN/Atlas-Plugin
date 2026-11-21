@@ -156,7 +156,11 @@ export const SPECIAL_TRIGGERS = {
     '深渊': { pageKey: 'tower', type: 'page_detail' },
     '深境螺旋': { pageKey: 'tower', type: 'page_detail' },
     '剧诗': { pageKey: 'rolecombat', type: 'page_detail' },
-    '幻想真境剧诗': { pageKey: 'rolecombat', type: 'page_detail' }
+    '幻想真境剧诗': { pageKey: 'rolecombat', type: 'page_detail' },
+    // 危战：页是玉璃的 stygian（地脉异常是 nanoka 的 leyline，两者不同页，标题按玩法给）
+    '危战': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' },
+    '幽境危战': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' },
+    '幽境': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' }
   },
   hsr: {
     '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
@@ -165,7 +169,9 @@ export const SPECIAL_TRIGGERS = {
     '末日': { pageKey: 'maze_boss', type: 'page_detail' },
     '末日幻影': { pageKey: 'maze_boss', type: 'page_detail' },
     '虚构': { pageKey: 'maze_extra', type: 'page_detail' },
-    '虚构叙事': { pageKey: 'maze_extra', type: 'page_detail' }
+    '虚构叙事': { pageKey: 'maze_extra', type: 'page_detail' },
+    '仲裁': { pageKey: 'maze_peak', type: 'page_detail' },
+    '异相仲裁': { pageKey: 'maze_peak', type: 'page_detail' }
   },
   zzz: {
     '成就': { pageKey: 'achievement/achievement', type: 'page_list' },

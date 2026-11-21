@@ -1,47 +1,53 @@
 /**
  * 原神终局视图（深渊 / 幻想真境剧诗 / 幽境危战）
  *
- * 数据来自玉璃的 `abyss` / `theater` / `stygian` 三页；结构差异很大，这里各自适配成视图模型，
- * 字段缺失就不出该段（`pushGroup` 会丢弃空段）。
+ * 版面仿玉璃站：怪物不单独成段，只作为「这一间 / 这一关 / 这张牌」里的战斗卡出现，
+ * 每只怪带自己的图标（图标放大占位）、数量、血量与抗性。
  */
 import {
-  plain, num, percent, fieldImage, makeMonsterResolver,
-  listGroup, iconGroup, cardsGroup, collapseGroup, pushGroup
+  plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon,
+  listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, collapseGroup, pushGroup
 } from './view.js'
 
 /** 元素/颜色码 → 中文（玉璃用英文枚举） */
 const ELEM_LABEL = {
   Fire: '火', Water: '水', Wind: '风', Elec: '雷', Ice: '冰', Rock: '岩', Grass: '草',
-  Quantum: '量子', Imaginary: '虚数', Physical: '物理', None: '无'
+  Quantum: '量子', Imaginary: '虚数', Physical: '物理', None: '无', All: '全抗'
 }
 
-/** `["Ice"]` / `"Ice"` → `冰` */
-function elemLabel (value) {
-  if (Array.isArray(value)) return value.map((item) => ELEM_LABEL[item] || String(item)).join(' / ')
-  return ELEM_LABEL[value] || plain(value)
-}
+const elemLabel = (value) => (Array.isArray(value) ? value.map((item) => ELEM_LABEL[item] || String(item)).join(' / ') : (ELEM_LABEL[value] || plain(value)))
 
-/** 抗性数组（`[[元素...], "30%"]`）→ 文本 */
-function resText (res) {
-  if (!res) return ''
-  if (typeof res === 'object' && !Array.isArray(res)) {
-    return Object.entries(res).map(([key, value]) => `${elemLabel(key)} ${percent(value)}`).join('、')
-  }
+/** 抗性 → 小标签（`[[["Ice"],"30%"]]` 或 `{Water:0.7}`） */
+function resChips (res) {
+  if (!res) return []
   if (Array.isArray(res)) {
     return res.map((item) => {
-      if (!Array.isArray(item)) return plain(item)
+      if (!Array.isArray(item)) return ''
       const [elems, value] = item
       return `${elemLabel(elems)} ${percent(value)}`
-    }).filter(Boolean).join('、')
+    }).filter(Boolean)
   }
-  return ''
+  if (typeof res === 'object') {
+    return Object.entries(res).map(([key, value]) => `${elemLabel(key)} ${percent(value)}`)
+  }
+  return []
 }
 
-/** 深境螺旋：月之祝福 → 楼层 → 房间 → 怪物 */
+/** 元素 + 抗性合并成标签：元素名与某条抗性同名时不重复写（`冰` + `冰 30%` → 只留后者） */
+function composeChips (color, res) {
+  const chips = resChips(res)
+  const element = color ? elemLabel(color) : ''
+  if (!element) return chips
+  if (chips.some((chip) => chip.startsWith(element))) return chips
+  return [element, ...chips]
+}
+
+/** 深境螺旋：月之祝福 → 每层（地脉异常 + 各间战斗卡） */
 export function giAbyssView (record) {
   const list = record?.content?.list || {}
   const groups = []
-  const resolve = makeMonsterResolver('gi', record, list.Monsters || {})
+  const monsters = list.Monsters || {}
+  const resolve = makeMonsterResolver('gi', record, monsters)
 
   const blessings = Array.isArray(list.Blessings) ? list.Blessings : []
   pushGroup(groups, cardsGroup('月之祝福', blessings.map((item) => ({
@@ -49,121 +55,111 @@ export function giAbyssView (record) {
     fields: [{ label: '效果', value: plain(item?.Desc, 220) }]
   }))))
 
-  const floors = Array.isArray(list.Floors) ? list.Floors : []
-  pushGroup(groups, cardsGroup('楼层', floors.map((floor) => {
-    const icons = []
-    const rows = []
+  for (const floor of Array.isArray(list.Floors) ? list.Floors : []) {
+    const floorNo = floor?.Index ?? '?'
+    if (floor?.Disorder || floor?.HPRatio) {
+      pushGroup(groups, listGroup(`第 ${floorNo} 层 · 地脉异常`, [
+        { label: '生命倍率', value: floor?.HPRatio ? `×${num(floor.HPRatio, 2)}` : '' },
+        { label: '效果', value: floor?.Disorder ? plain(floor.Disorder, 240) : '' }
+      ]))
+    }
+    const cards = []
     for (const chamber of floor?.Chambers || []) {
-      const half = chamber?.Half === 2 ? '下半' : '上半'
-      const names = []
+      const rows = []
       for (const wave of chamber?.Waves || []) {
         for (const monster of wave?.Monsters || []) {
-          const info = resolve(monster?.ID)
-          names.push(info.name)
-          if (info.icon) icons.push({ icon: info.icon, name: info.name })
+          const id = String(monster?.ID ?? '')
+          const raw = monsters[id] || {}
+          const info = resolve(id)
+          rows.push(battleMonster({
+            name: info.name,
+            icon: info.icon,
+            count: monster?.Num,
+            hp: monster?.HP ? num(monster.HP, 0) : '',
+            chips: composeChips(raw.Color, raw.RES)
+          }))
         }
       }
-      rows.push({
-        label: `第 ${chamber?.Index ?? '?'} 间 · ${half} · Lv.${chamber?.Level ?? '-'}`,
-        value: names.length ? [...new Set(names)].join('、') : '—'
+      cards.push({
+        title: `${floorNo}-${chamber?.Index ?? '?'} P${chamber?.Half ?? 1}`,
+        sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
+        monsters: rows
       })
     }
-    return {
-      title: `第 ${floor?.Index ?? '?'} 层`,
-      sub: floor?.HPRatio ? `生命倍率 ×${num(floor.HPRatio, 2)}` : '',
-      fields: [
-        ...(floor?.Disorder ? [{ label: '地脉异常', value: plain(floor.Disorder, 160) }] : []),
-        ...rows
-      ],
-      icons
-    }
-  })))
-
-  const monsters = Object.entries(list.Monsters || {}).map(([id, item]) => {
-    const info = resolve(id)
-    const tags = [elemLabel(item?.Color), resText(item?.RES)].filter(Boolean).join(' · ')
-    return { icon: info.icon, name: info.name, sub: tags }
-  })
-  pushGroup(groups, iconGroup('怪物', monsters))
+    pushGroup(groups, battleGroup(`第 ${floorNo} 层`, cards))
+  }
   return groups
 }
 
-/** 幻想真境剧诗：元素限制 → 角色 → 幕/房间 → 神谕 → 怪物 */
+/** 幻想真境剧诗：元素限制 → 开幕/特邀角色 → 首领 → 圣牌 */
 export function giTheaterView (record) {
   const list = record?.content?.list || {}
   const groups = []
-  const resolve = makeMonsterResolver('gi', record, list.Monsters || {})
+  const monsters = list.Monsters || {}
+  const resolve = makeMonsterResolver('gi', record, monsters)
 
   const elems = Array.isArray(list.Elem) ? list.Elem : []
   pushGroup(groups, listGroup('本期限制', [
     elems.length ? { label: '可用元素', value: elems.map(elemLabel).join(' / ') } : null,
-    list.Initial?.length ? { label: '开幕角色', value: String(list.Initial.length) + ' 名' } : null,
-    list.Invitation?.length ? { label: '邀请角色', value: String(list.Invitation.length) + ' 名' } : null
+    list.Initial?.length ? { label: '开幕角色', value: `${list.Initial.length} 名` } : null,
+    list.Invitation?.length ? { label: '特邀角色', value: `${list.Invitation.length} 名` } : null
   ]))
 
-  const initial = (list.Initial || []).map((item, index) => ({
+  pushGroup(groups, iconGroup('开幕角色', (list.Initial || []).map((item, index) => ({
     icon: fieldImage(record, `Initial.${index}.Icon`),
-    name: plain(item?.Name),
+    name: plain(item?.Name) || nameByIcon('gi', item?.Icon),
     sub: ''
-  }))
-  pushGroup(groups, iconGroup('开幕角色', initial))
-
-  const invitation = (list.Invitation || []).map((item, index) => ({
+  }))))
+  pushGroup(groups, iconGroup('特邀角色', (list.Invitation || []).map((item, index) => ({
     icon: fieldImage(record, `Invitation.${index}.Icon`),
-    name: plain(item?.Name),
+    name: plain(item?.Name) || nameByIcon('gi', item?.Icon),
     sub: ''
-  }))
-  pushGroup(groups, iconGroup('邀请角色', invitation))
-
-  const mp = list.MP || {}
-  const chambers = (list.Chambers || []).map((chamber) => {
-    const configs = Array.isArray(chamber?.Configs) ? chamber.Configs : []
-    const names = []
-    const icons = []
-    for (const configId of configs) {
-      for (const monsterId of mp[configId] || []) {
-        const info = resolve(monsterId)
-        names.push(info.name)
-        if (info.icon) icons.push({ icon: info.icon, name: info.name })
-      }
-    }
-    return {
-      title: `第 ${chamber?._id ?? '?'} 幕 · Lv.${chamber?.Level ?? '-'}`,
-      fields: names.length ? [{ label: '敌人', value: [...new Set(names)].join('、') }] : [],
-      icons
-    }
-  })
-  pushGroup(groups, cardsGroup('各幕', chambers))
-
-  const arcana = (list.Arcana || []).map((item, index) => ({
-    title: plain(item?.Time) || `神谕 ${index + 1}`,
-    fields: (item?.Monsters || []).map((monster, i) => ({ label: `敌人 ${i + 1}`, value: `${plain(monster?.Name) || monster?.ID} · HP ${num(monster?.HP, 0)}` })),
-    icons: (item?.Monsters || []).map((monster) => ({
-      icon: fieldImage(record, `Arcana.${index}.Monsters.${(item?.Monsters || []).indexOf(monster)}.Icon`),
-      name: plain(monster?.Name) || String(monster?.ID || '')
-    }))
-  }))
-  pushGroup(groups, cardsGroup('神谕牌', arcana, { cols: 2 }))
-
-  const boss = Array.isArray(list.Boss) ? list.Boss : []
-  pushGroup(groups, cardsGroup('首领', boss.map((item, index) => ({
-    title: plain(item?.Time) || `首领 ${index + 1}`,
-    fields: (item?.Monsters || []).map((monster, i) => ({ label: `敌人 ${i + 1}`, value: `${plain(monster?.Name) || monster?.ID} · HP ${num(monster?.HP, 0)}` })),
-    icons: []
   }))))
 
-  pushGroup(groups, iconGroup('怪物', Object.entries(list.Monsters || {}).map(([id]) => {
-    const info = resolve(id)
-    return { icon: info.icon, name: info.name, sub: '' }
-  })))
+  const bossCards = (Array.isArray(list.Boss) ? list.Boss : []).map((item, index) => ({
+    title: '',
+    sub: plain(item?.Time) || `首领 ${index + 1}`,
+    monsters: (item?.Monsters || []).map((monster, i) => {
+      const id = String(monster?.ID ?? '')
+      const info = resolve(id)
+      return battleMonster({
+        name: plain(monster?.Name) || nameByIcon('gi', monster?.Icon) || info.name,
+        icon: info.icon || fieldImage(record, `Boss.${index}.Monsters.${i}.Icon`),
+        hp: monster?.HP ? num(monster.HP, 0) : '',
+        chips: [elemLabel(monster?.Color)]
+      })
+    })
+  }))
+  pushGroup(groups, battleGroup('首领', bossCards))
+
+  const arcanaCards = (Array.isArray(list.Arcana) ? list.Arcana : []).map((item, index) => {
+    const count = /^x?(\d+)$/i.exec(String(item?.Time || '').trim())
+    return {
+      title: '',
+      sub: item?.Time ? String(item.Time) : '',
+      monsters: (item?.Monsters || []).map((monster, i) => {
+        const id = String(monster?.ID ?? '')
+        const info = resolve(id)
+        return battleMonster({
+          name: plain(monster?.Name) || nameByIcon('gi', monster?.Icon) || info.name,
+          icon: info.icon || fieldImage(record, `Arcana.${index}.Monsters.${i}.Icon`),
+          count: count ? count[1] : '',
+          hp: monster?.HP ? num(monster.HP, 0) : '',
+          chips: [elemLabel(monster?.Color)]
+        })
+      })
+    }
+  })
+  pushGroup(groups, battleGroup('圣牌', arcanaCards, { cols: 2 }))
   return groups
 }
 
-/** 幽境危战：难度 → 强敌 → 血量档位（折叠） */
+/** 幽境危战：难度档 → 强敌战斗卡 → 每个强敌的机制卡 → 血量档位 */
 export function giStygianView (record) {
   const list = record?.content?.list || {}
   const groups = []
-  const resolve = makeMonsterResolver('gi', record, list.Monsters || {})
+  const monsters = list.Monsters || {}
+  const resolve = makeMonsterResolver('gi', record, monsters)
 
   const levels = Array.isArray(list.Levels) ? list.Levels : []
   pushGroup(groups, listGroup('难度', levels.map((level) => ({
@@ -171,33 +167,48 @@ export function giStygianView (record) {
     value: (level?.Monsters || []).map((id) => resolve(id).name).join('、') || '—'
   }))))
 
-  const enemies = Object.entries(list.Monsters || {}).map(([id, monster]) => {
+  // 强敌取最高难度档的那批（玉璃站首页只摆这几个）
+  const strongIds = (levels.at(-1)?.Monsters || Object.keys(monsters)).map(String)
+  // 血量双档：基础 HP / 最高档 HP（对应站点的「普通 / 困难」两行）
+  const hpTiers = new Map()
+  for (const item of Array.isArray(list.HPShow) ? list.HPShow : []) {
+    const tiers = (item?.HP || []).map(Number).filter((n) => Number.isFinite(n))
+    if (item?.ID && tiers.length) hpTiers.set(String(item.ID), tiers)
+  }
+  const strongCards = []
+  const mechanisms = []
+  for (const id of strongIds) {
+    const raw = monsters[id] || {}
     const info = resolve(id)
+    const res = resChips(raw.RES)
+    const baseHp = Number(raw?.Stats?.HP || 0)
+    const tiers = hpTiers.get(String(raw?.ID || id)) || []
+    const topHp = tiers.length ? Math.max(...tiers) : 0
+    const hpText = baseHp
+      ? (topHp > baseHp ? `${num(baseHp, 0)} / ${num(topHp, 0)}` : num(baseHp, 0))
+      : ''
+    strongCards.push({
+      title: '',
+      sub: plain(raw.Title),
+      monsters: [battleMonster({
+        name: info.name,
+        icon: info.icon,
+        hp: hpText,
+        chips: [raw?.Level ? `Lv.${raw.Level}` : '', ...res]
+      })]
+    })
     const fields = []
-    if (monster?.Title) fields.push({ label: '称号', value: plain(monster.Title) })
-    if (monster?.Level) fields.push({ label: '等级', value: `Lv.${monster.Level}` })
-    if (monster?.Stats?.HP) fields.push({ label: '生命', value: num(monster.Stats.HP, 0) })
-    const res = resText(monster?.RES)
-    if (res) fields.push({ label: '抗性', value: res })
-    if (monster?.Advantage) fields.push({ label: '优势', value: plain(monster.Advantage, 120) })
-    if (monster?.Disadvantage) fields.push({ label: '劣势', value: plain(monster.Disadvantage, 120) })
-    if (monster?.Desc) fields.push({ label: '说明', value: plain(monster.Desc, 80) })
-    for (const buff of monster?.Buff || []) {
-      fields.push({ label: plain(buff?.Name) || '机制', value: plain(buff?.Desc, 80) })
-    }
-    return { title: info.name, sub: plain(monster?.Title), fields, icons: [] }
-  })
-  pushGroup(groups, cardsGroup('强敌', enemies, { cols: 2 }))
+    if (raw?.Desc) fields.push({ label: '说明', value: plain(raw.Desc, 220) })
+    for (const buff of raw?.Buff || []) fields.push({ label: plain(buff?.Name) || '机制', value: plain(buff?.Desc, 220) })
+    if (fields.length) mechanisms.push({ title: info.name, sub: plain(raw.Title), fields, icons: [] })
+  }
+  pushGroup(groups, battleGroup('强敌', strongCards))
+  pushGroup(groups, cardsGroup('机制', mechanisms))
 
   const hpRows = (Array.isArray(list.HPShow) ? list.HPShow : []).map((item, index) => ({
     label: `第 ${index + 1} 组`,
     value: (item?.HP || []).map((hp, i) => `${num(hp, 0)}${item?.HPMult?.[i] ? `（×${num(item.HPMult[i], 1)}）` : ''}`).join(' / ')
   }))
   pushGroup(groups, collapseGroup('血量档位', hpRows))
-
-  pushGroup(groups, iconGroup('怪物', Object.keys(list.Monsters || {}).map((id) => {
-    const info = resolve(id)
-    return { icon: info.icon, name: info.name, sub: '' }
-  })))
   return groups
 }

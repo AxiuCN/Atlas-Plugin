@@ -673,7 +673,7 @@ function checkSpecial (gameId, keyword) {
     gameId,
     specialType: hit.type,
     pageKey: hit.pageKey,
-    pageTitle: PAGE_LABELS[hit.pageKey] || hit.pageKey
+    pageTitle: hit.title || PAGE_LABELS[hit.pageKey] || hit.pageKey
   }
 }
 

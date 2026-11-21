@@ -24,6 +24,8 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { HESPERIDES_DIR } from '../../model/Hesperides.js'
 import { getMonsterEntry } from '../../model/monsterIndex/index.js'
+import { getPageRecords } from '../../model/AtlasService.js'
+import { loadRecord } from '../../model/AtlasRepository.js'
 
 const TEXT_MAX = 140
 
@@ -32,6 +34,8 @@ export function plain (value, max = TEXT_MAX) {
   if (value === null || value === undefined) return ''
   const text = String(value)
     .replace(/<br\s*\/?>/gi, '；')
+    .replace(/[。！？]；/g, (m) => m[0])
+    .replace(/；+/g, '；')
     .replace(/<[^>]+>/g, '')
     .replace(/\\[nr]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -79,10 +83,51 @@ export function fieldImage (record, fieldPath) {
 }
 
 /**
+ * 图标名 → 条目名（懒建缓存）
+ *
+ * 剧诗/危战记录里有些引用只给 `Icon`（`UI_MonsterIcon_*` / `UI_AvatarIcon_*`），不带名字，
+ * 而怪物索引按 id 也查不到（活动关卡怪、内部编号）。这里用条目页的 `icon` 字段反查名字。
+ * @param {string} gameId
+ * @param {'character'|'monster'} pageKey
+ * @returns {Map<string,string>}
+ */
+function iconNameMap (gameId, pageKey) {
+  const key = `${gameId}|${pageKey}`
+  const cached = iconNameMap.cache.get(key)
+  if (cached) return cached
+  const map = new Map()
+  try {
+    for (const entry of getPageRecords(gameId, pageKey) || []) {
+      const record = loadRecord(entry.filePath)
+      const list = record?.content?.list || {}
+      const icon = list.icon || list.Icon
+      const name = list.zh || list.name || list.Name || entry.name
+      if (icon && name) map.set(String(icon), String(name))
+    }
+  } catch { /* 索引还没建好：返回空表，调用方回落 id */ }
+  iconNameMap.cache.set(key, map)
+  return map
+}
+iconNameMap.cache = new Map()
+
+/**
+ * 按图标名查条目名
+ * @param {string} gameId
+ * @param {string} icon
+ * @returns {string}
+ */
+export function nameByIcon (gameId, icon) {
+  if (!icon) return ''
+  return iconNameMap(gameId, 'monster').get(String(icon)) ||
+    iconNameMap(gameId, 'character').get(String(icon)) ||
+    ''
+}
+
+/**
  * 怪物名/图标解析器
  *
  * 优先用记录内自带的 `Name` / `Icon`（玉璃的终局页把名字写在记录里），
- * 只有缺名字时才回落到怪物索引（zzz 的 `monster_list` 只有 id）。
+ * 其次按 `Icon` 反查条目页，最后才回落怪物索引 / id。
  * @param {string} gameId
  * @param {object} record
  * @param {object} [local] - 该玩法记录里 id → 原始怪物对象的映射
@@ -93,12 +138,13 @@ export function makeMonsterResolver (gameId, record, local = {}, container = 'Mo
     const key = String(id)
     const raw = local?.[key]
     const fromIndex = getMonsterEntry(gameId, key)
-    const name = plain(raw?.Name || raw?.name || fromIndex?.name || '') || key
-    // 玉璃不同玩法的图标字段位置不同：深渊是 `Monsters.<id>.Icon`，剧诗直接是 `Monsters.<id>`
     const icon = fieldImage(record, `${container}.${key}.Icon`) ||
       fieldImage(record, `${container}.${key}`) ||
       fieldImage(record, `Monsters.${key}.Icon`) ||
       fieldImage(record, `Monsters.${key}`)
+    const name = plain(raw?.Name || raw?.name || fromIndex?.name || '') ||
+      nameByIcon(gameId, raw?.Icon || raw?.icon) ||
+      key
     return { name, icon }
   }
 }
@@ -122,6 +168,30 @@ export function cardsGroup (title, cards, { cols = 1 } = {}) {
   const group = { kind: 'cards', title, cards: rows }
   if (cols === 2) group.cols = 2
   return group
+}
+
+/**
+ * 战斗卡段（仿玉璃：一卡一「间/关/房间」，卡里就是这间的怪）
+ *
+ * @param {string} title
+ * @param {Array<{title?: string, sub?: string, monsters?: object[], notes?: {label:string,value:string}[]}>} cards
+ * @param {{cols?: number}} [opts]
+ */
+export function battleGroup (title, cards, { cols = 3 } = {}) {
+  const rows = (cards || []).filter((card) => card && (card.title || card.monsters?.length))
+  if (!rows.length) return null
+  return { kind: 'battle', title, cards: rows, cols }
+}
+
+/** 一只怪物 → 战斗卡里的条目（图标放大占位、数量、血量、抗性） */
+export function battleMonster ({ name, icon, count = 0, hp = '', chips = [] } = {}) {
+  return {
+    name: name || '',
+    icon: icon || '',
+    count: Number(count) > 1 ? String(count) : '',
+    hp: hp === '' || hp === null || hp === undefined ? '' : String(hp),
+    chips: (chips || []).filter(Boolean)
+  }
 }
 
 /** 折叠段（血量档位这类「有数据但不必抢眼」的信息） */

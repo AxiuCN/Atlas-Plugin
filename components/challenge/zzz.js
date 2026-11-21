@@ -1,13 +1,10 @@
 /**
  * 绝区零终局视图（式舆防卫战 / 危局强袭战）
  *
- * 数据来自 nanoka 的 `shiyu` / `boss` 两页，形状与玉璃完全不同：
- *   - `detail.zone.<zoneId>`：一个防区（名字、关卡数、怪物等级、`layer_buff`、`layer_room`）
- *   - `detail.modes[].zone`：危局的模式（多一组 S/A/B 评分线）
- *   - `layer_room.<roomId>.monster_list` 只有 id（值为空串），名字要回落到怪物索引
+ * 版面仿玉璃：防区只作概览，怪物按「房间」成战斗卡（大图图标占位 + 波次 + 弱点/抗性）。
+ * nanoka 的 `layer_room.<roomId>.monster_list` 只有 id，名字回落到怪物索引。
  */
-import { plain, fieldImage } from './view.js'
-import { iconGroup, cardsGroup, pushGroup } from './view.js'
+import { plain, fieldImage, battleGroup, battleMonster, cardsGroup, pushGroup } from './view.js'
 import { getMonsterEntry } from '../../model/monsterIndex/index.js'
 
 /** `{200:"物理", 201:"火属性"}` → `物理 / 火属性` */
@@ -16,35 +13,33 @@ function mapValues (object) {
   return Object.values(object).map((value) => plain(value)).filter(Boolean).join(' / ')
 }
 
-/** 房间里的怪物 id → 名称与图标 */
+/** 房间里的怪物 id → 战斗卡条目 */
 function roomMonsters (record, room, fieldPathBase) {
-  const ids = Object.keys(room?.monster_list || {})
-  return ids.map((id) => {
+  return Object.keys(room?.monster_list || {}).map((id) => {
     const entry = getMonsterEntry('zzz', id)
     const icon = fieldImage(record, `${fieldPathBase}.monster_icon.${id}`) ||
       fieldImage(record, `${fieldPathBase}.monster_icon`)
-    return { icon, name: entry?.name || `怪物 ${id}`, sub: '' }
+    return battleMonster({ name: entry?.name || `怪物 ${id}`, icon })
   })
 }
 
-/** 房间 → 一行摘要（波次 / 弱点 / 抗性 / 怪物名） */
-function roomRow (room, monsters, label) {
+/** 房间 → 战斗卡（标题：房间号；副标题：波次；标签：弱点/抗性） */
+function roomBattleCard (record, zoneName, roomId, room, fieldPathBase) {
+  const chips = []
+  const weakness = mapValues(room?.monster_weakness)
+  const resistance = mapValues(room?.monster_resistance)
+  if (weakness) chips.push(`弱点 ${weakness}`)
+  if (resistance) chips.push(`抗性 ${resistance}`)
   return {
-    label,
-    value: [
-      room?.waves_num ? `${room.waves_num} 波` : '',
-      mapValues(room?.monster_weakness) ? `弱点 ${mapValues(room.monster_weakness)}` : '',
-      mapValues(room?.monster_resistance) ? `抗性 ${mapValues(room.monster_resistance)}` : '',
-      monsters.slice(0, 6).map((monster) => monster.name).join('、') +
-        (monsters.length > 6 ? ` 等 ${monsters.length} 种` : '')
-    ].filter(Boolean).join(' · ')
+    title: `${zoneName} · 房间 ${roomId}`,
+    sub: [room?.waves_num ? `${room.waves_num} 波` : '', chips.join(' · ')].filter(Boolean).join(' · '),
+    monsters: roomMonsters(record, room, fieldPathBase)
   }
 }
 
-/** 单个防区 → 卡片（含房间行）与怪物图标 */
-function zoneCard (record, item, zoneId, pathBase) {
+/** 防区概览（名字 / 关卡数 / 评分线 / 增益） */
+function zoneSummaryCard (item, zoneId) {
   const fields = []
-  const icons = []
   if (item?.stage_num) fields.push({ label: '关卡数', value: String(item.stage_num) })
   if (item?.monster_level) fields.push({ label: '怪物等级', value: `Lv.${item.monster_level}` })
   for (const [key, label] of [['s_rank_goal', 'S'], ['a_rank_goal', 'A'], ['b_rank_goal', 'B']]) {
@@ -53,57 +48,53 @@ function zoneCard (record, item, zoneId, pathBase) {
   for (const buff of Object.values(item?.layer_buff || {})) {
     if (buff?.title) fields.push({ label: plain(buff.title), value: plain(buff.desc, 200) })
   }
-  for (const [roomId, room] of Object.entries(item?.layer_room || {})) {
-    const monsters = roomMonsters(record, room, `${pathBase}.layer_room.${roomId}`)
-    icons.push(...monsters)
-    fields.push(roomRow(room, monsters, `房间 ${roomId}`))
-  }
   return {
-    card: {
-      title: plain(item?.name) || `防区 ${zoneId}`,
-      sub: item?.monster_level ? `Lv.${item.monster_level}` : '',
-      fields,
-      icons: []
-    },
-    icons
+    title: plain(item?.name) || `防区 ${zoneId}`,
+    sub: item?.monster_level ? `Lv.${item.monster_level}` : '',
+    fields,
+    icons: []
   }
 }
 
-/** 式舆防卫战：防区 → 房间 → 怪物 */
+/** 式舆防卫战 */
 export function zzzShiyuView (record) {
   const detail = record?.content?.detail || {}
-  const cards = []
-  const icons = []
+  const summary = []
+  const battles = []
   for (const [zoneId, item] of Object.entries(detail.zone || {})) {
-    const result = zoneCard(record, item, zoneId, `detail.zone.${zoneId}`)
-    cards.push(result.card)
-    icons.push(...result.icons)
+    summary.push(zoneSummaryCard(item, zoneId))
+    for (const [roomId, room] of Object.entries(item?.layer_room || {})) {
+      battles.push(roomBattleCard(record, plain(item?.name) || `防区 ${zoneId}`, roomId, room, `detail.zone.${zoneId}.layer_room.${roomId}`))
+    }
   }
   const groups = []
-  pushGroup(groups, cardsGroup('防区', cards))
-  pushGroup(groups, iconGroup('怪物', icons))
+  pushGroup(groups, cardsGroup('防区', summary, { cols: 2 }))
+  pushGroup(groups, battleGroup('房间', battles))
   return groups
 }
 
-/** 危局强袭战：模式 → 防区（含评分线）→ 怪物 */
+/** 危局强袭战 */
 export function zzzBossView (record) {
   const detail = record?.content?.detail || {}
-  const cards = []
-  const icons = []
+  const summary = []
+  const battles = []
   const entries = []
   for (const mode of Array.isArray(detail.modes) ? detail.modes : []) {
-    for (const [zoneId, item] of Object.entries(mode?.zone || {})) entries.push([zoneId, item, `detail.modes.${mode?.id ?? zoneId}.zone.${zoneId}`])
+    for (const [zoneId, item] of Object.entries(mode?.zone || {})) {
+      entries.push([zoneId, item, `detail.modes.${mode?.id ?? zoneId}.zone.${zoneId}`])
+    }
   }
   if (!entries.length) {
     for (const [zoneId, item] of Object.entries(detail.zone || {})) entries.push([zoneId, item, `detail.zone.${zoneId}`])
   }
   for (const [zoneId, item, pathBase] of entries) {
-    const result = zoneCard(record, item, zoneId, pathBase)
-    cards.push(result.card)
-    icons.push(...result.icons)
+    summary.push(zoneSummaryCard(item, zoneId))
+    for (const [roomId, room] of Object.entries(item?.layer_room || {})) {
+      battles.push(roomBattleCard(record, plain(item?.name) || `防区 ${zoneId}`, roomId, room, `${pathBase}.layer_room.${roomId}`))
+    }
   }
   const groups = []
-  pushGroup(groups, cardsGroup('防区', cards))
-  pushGroup(groups, iconGroup('怪物', icons))
+  pushGroup(groups, cardsGroup('防区', summary, { cols: 2 }))
+  pushGroup(groups, battleGroup('房间', battles))
   return groups
 }
