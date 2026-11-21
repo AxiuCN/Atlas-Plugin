@@ -43,6 +43,21 @@
         <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}">
           {{each group.cards card}}
           <div class="battle-card{{if card.big}} battle-card--big{{/if}}">
+            {{if card.big}}
+            <div class="battle-hero">
+              {{each card.monsters monster}}
+              {{if monster.icon}}<img class="battle-hero-icon" src="{{monster.icon}}"/>{{/if}}
+              {{/each}}
+              <div class="battle-hero-name">{{card.title}}</div>
+              {{if card.sub}}<div class="battle-hero-sub">{{card.sub}}</div>{{/if}}
+              {{each card.monsters monster}}
+              {{if monster.hp}}<div class="battle-hero-hp">{{monster.hp}}</div>{{/if}}
+              {{if monster.chips && monster.chips.length > 0}}
+              <div class="battle-chips">{{each monster.chips chip}}<span class="battle-chip">{{chip}}</span>{{/each}}</div>
+              {{/if}}
+              {{/each}}
+            </div>
+            {{else}}
             {{if card.title || card.sub}}
             <div class="battle-card-head">{{card.title}}{{if card.sub}}<span class="battle-card-sub">{{card.sub}}</span>{{/if}}</div>
             {{/if}}
@@ -63,7 +78,7 @@
               {{/each}}
             </div>
             {{/if}}
-            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
+            {{/if}}
             {{each card.blocks sect}}
             <div class="battle-block">
               <div class="battle-block-title">{{sect.title}}</div>
@@ -85,6 +100,7 @@
               {{/each}}
             </table>
             {{/if}}
+            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
           </div>
           {{/each}}
         </div>
@@ -131,6 +147,7 @@
               {{/each}}
             </table>
             {{/if}}
+            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
           </div>
           {{/each}}
         </div>

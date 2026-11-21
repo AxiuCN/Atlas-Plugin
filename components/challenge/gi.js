@@ -7,7 +7,7 @@
 import { giCurveValue } from '../../model/monsterIndex/curve.js'
 import {
   plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon,
-  listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, block, collapseGroup, pushGroup
+  listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, block, pushGroup
 } from './view.js'
 
 /** 元素/颜色码 → 中文（玉璃用英文枚举） */
@@ -300,11 +300,6 @@ export function giStygianView (record, ctx = {}) {
   // 强度研究院：同版本的官方文案解析（一敌一卡，按解析条目分段）
   pushGroup(groups, cardsGroup('强度研究院', buildGensriResearch(ctx), { cols: 1 }))
 
-  const hpRows = (Array.isArray(list.HPShow) ? list.HPShow : []).map((item, index) => ({
-    label: `第 ${index + 1} 组`,
-    value: (item?.HP || []).map((hp, i) => `${num(hp, 0)}${item?.HPMult?.[i] ? `（×${num(item.HPMult[i], 1)}）` : ''}`).join(' / ')
-  }))
-  pushGroup(groups, collapseGroup('血量档位', hpRows))
   return groups
 }
 
@@ -349,7 +344,6 @@ function buildGensriResearch (ctx) {
     }))))
     return {
       title: plain(enemy?.name) || '敌人',
-      lead: five || six ? `血量（N5 / N6）：${[five, six].filter(Boolean).map((hp) => num(hp, 0)).join(' / ')}` : '',
       fields: [],
       icons: [],
       blocks

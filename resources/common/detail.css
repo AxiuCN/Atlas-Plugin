@@ -388,10 +388,46 @@
   color: #4a4a4a;
 }
 
-/* ===== 大图战斗卡（危战强敌：向玉璃看齐，图片与文字居中放大） ===== */
+/* ===== 大图战斗卡（危战强敌：头部居中放大，正文靠左） ===== */
 .battle-card--big {
-  text-align: center;
   padding: 16px 18px 18px;
+}
+
+.battle-hero {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.battle-hero-icon {
+  width: 380px;
+  height: 380px;
+  object-fit: contain;
+}
+
+.battle-hero-name {
+  font-size: 36px;
+  font-weight: 700;
+  color: #23221e;
+  line-height: 1.35;
+}
+
+.battle-hero-sub {
+  font-size: 22px;
+  font-weight: 500;
+  color: #6b6b6b;
+  margin-bottom: 4px;
+}
+
+.battle-hero-hp {
+  font-size: 36px;
+  font-weight: 700;
+  color: #e05a1e;
+  line-height: 1.3;
+}
+
+.battle-card--big .battle-hero .battle-chips {
+  justify-content: center;
+  margin-top: 6px;
 }
 
 .battle-card--big .battle-card-head {
