@@ -37,33 +37,44 @@
     {{/if}}
 
     {{each groups group}}
-      {{if group.kind === 'icons'}}
+      {{if group.kind === 'battle'}}
       <div class="detail-section">
         <h3>{{group.title}}</h3>
-        <div class="material-grid">
-          {{each group.items item}}
-          <div class="material-card">
-            {{if item.icon}}<img class="material-card-icon" src="{{item.icon}}"/>{{/if}}
-            <div class="material-card-name">{{item.name}}</div>
-            {{if item.sub}}<div class="material-card-count">{{item.sub}}</div>{{/if}}
-          </div>
-          {{/each}}
-        </div>
-      </div>
-      {{else if group.kind === 'cards'}}
-      <div class="detail-section">
-        <h3>{{group.title}}</h3>
-        <div class="challenge-cards{{if group.cols === 2}} cols-2{{/if}}">
+        <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}">
           {{each group.cards card}}
-          <div class="challenge-card">
-            {{if card.title}}
-            <div class="challenge-card-title">{{card.title}}{{if card.sub}}<span class="challenge-card-sub">{{card.sub}}</span>{{/if}}</div>
+          <div class="battle-card">
+            {{if card.title || card.sub}}
+            <div class="battle-card-head">{{card.title}}{{if card.sub}}<span class="battle-card-sub">{{card.sub}}</span>{{/if}}</div>
             {{/if}}
-            {{if card.icons && card.icons.length > 0}}
-            <div class="challenge-card-icons">
-              {{each card.icons icon}}<img class="challenge-card-icon" src="{{icon.icon}}" title="{{icon.name}}"/>{{/each}}
+            {{if card.monsters && card.monsters.length > 0}}
+            <div class="battle-monsters">
+              {{each card.monsters monster}}
+              <div class="battle-monster">
+                <div class="battle-icon-wrap">
+                  {{if monster.icon}}<img class="battle-icon" src="{{monster.icon}}"/>{{/if}}
+                  {{if monster.count}}<span class="battle-count">×{{monster.count}}</span>{{/if}}
+                </div>
+                {{if monster.name}}<div class="battle-name">{{monster.name}}</div>{{/if}}
+                {{if monster.hp}}<div class="battle-hp">{{monster.hp}}</div>{{/if}}
+                {{if monster.chips && monster.chips.length > 0}}
+                <div class="battle-chips">{{each monster.chips chip}}<span class="battle-chip">{{chip}}</span>{{/each}}</div>
+                {{/if}}
+              </div>
+              {{/each}}
             </div>
             {{/if}}
+            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
+            {{each card.blocks sect}}
+            <div class="battle-block">
+              <div class="battle-block-title">{{sect.title}}</div>
+              {{each sect.items item}}
+              <div class="battle-block-item">
+                {{if item.name}}<div class="battle-block-name">{{item.name}}</div>{{/if}}
+                {{each item.paragraphs text}}<div class="battle-block-text">{{text}}</div>{{/each}}
+              </div>
+              {{/each}}
+            </div>
+            {{/each}}
             {{if card.fields && card.fields.length > 0}}
             <table class="detail-table">
               {{each card.fields field}}
@@ -78,30 +89,38 @@
           {{/each}}
         </div>
       </div>
-      {{else if group.kind === 'battle'}}
+      {{else if group.kind === 'icons'}}
       <div class="detail-section">
         <h3>{{group.title}}</h3>
-        <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}">
+        <div class="material-grid">
+          {{each group.items item}}
+          <div class="material-card">
+            {{if item.icon}}<img class="material-card-icon" src="{{item.icon}}"/>{{/if}}
+            {{if item.name}}<div class="material-card-name">{{item.name}}</div>{{/if}}
+            {{if item.sub}}<div class="material-card-count">{{item.sub}}</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{else if group.kind === 'cards'}}
+      <div class="detail-section">
+        <h3>{{group.title}}</h3>
+        <div class="challenge-cards{{if group.cols === 2}} cols-2{{/if}}">
           {{each group.cards card}}
-          <div class="battle-card">
-            {{if card.title || card.sub}}
-            <div class="battle-card-head">{{card.title}}{{if card.sub}}<span class="battle-card-sub">{{card.sub}}</span>{{/if}}</div>
-            {{/if}}
-            <div class="battle-monsters">
-              {{each card.monsters monster}}
-              <div class="battle-monster">
-                <div class="battle-icon-wrap">
-                  {{if monster.icon}}<img class="battle-icon" src="{{monster.icon}}"/>{{/if}}
-                  {{if monster.count}}<span class="battle-count">×{{monster.count}}</span>{{/if}}
-                </div>
-                <div class="battle-name">{{monster.name}}</div>
-                {{if monster.hp}}<div class="battle-hp">{{monster.hp}}</div>{{/if}}
-                {{if monster.chips && monster.chips.length > 0}}
-                <div class="battle-chips">{{each monster.chips chip}}<span class="battle-chip">{{chip}}</span>{{/each}}</div>
-                {{/if}}
+          <div class="challenge-card">
+            {{if card.title}}<div class="challenge-card-title">{{card.title}}{{if card.sub}}<span class="challenge-card-sub">{{card.sub}}</span>{{/if}}</div>{{/if}}
+            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
+            {{each card.blocks sect}}
+            <div class="battle-block">
+              <div class="battle-block-title">{{sect.title}}</div>
+              {{each sect.items item}}
+              <div class="battle-block-item">
+                {{if item.name}}<div class="battle-block-name">{{item.name}}</div>{{/if}}
+                {{each item.paragraphs text}}<div class="battle-block-text">{{text}}</div>{{/each}}
               </div>
               {{/each}}
             </div>
+            {{/each}}
             {{if card.fields && card.fields.length > 0}}
             <table class="detail-table">
               {{each card.fields field}}

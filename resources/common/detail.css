@@ -349,3 +349,41 @@
   font-size: 20px;
   line-height: 1.45;
 }
+
+/* ===== 战斗卡内分块（研究 / 官方解释）：小标题独立成行，不占左列 ===== */
+.battle-lead {
+  margin-top: 8px;
+  font-size: 20px;
+  line-height: 1.55;
+  color: #555555;
+}
+
+.battle-block {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e2df;
+}
+
+.battle-block-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #3a3a3a;
+  margin-bottom: 4px;
+}
+
+.battle-block-item {
+  margin-bottom: 6px;
+}
+
+.battle-block-name {
+  font-size: 21px;
+  font-weight: 700;
+  color: #6a4a2a;
+  line-height: 1.4;
+}
+
+.battle-block-text {
+  font-size: 20px;
+  line-height: 1.55;
+  color: #4a4a4a;
+}

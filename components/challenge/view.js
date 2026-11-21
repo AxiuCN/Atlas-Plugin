@@ -196,6 +196,23 @@ export function battleMonster ({ name, icon, count = 0, hp = '', chips = [] } = 
   }
 }
 
+/**
+ * 卡内分块（玉璃那种「研究 / 官方解释」的层级）
+ *
+ * 每条是「小标题 + 若干段落」，**不占左列**（表格两列会让短标题吃掉三分之一宽度）。
+ * @param {string} title
+ * @param {Array<{name?: string, paragraphs?: string[]}>} items
+ */
+export function block (title, items) {
+  const rows = (items || [])
+    .filter((item) => item && (item.name || item.paragraphs?.length))
+    .map((item) => ({
+      name: item.name || '',
+      paragraphs: (item.paragraphs || []).filter(Boolean)
+    }))
+  return rows.length ? { title, items: rows } : null
+}
+
 /** 折叠段（血量档位这类「有数据但不必抢眼」的信息） */
 export function collapseGroup (title, fields) {
   const rows = (fields || []).filter((field) => field?.label && field?.value)
