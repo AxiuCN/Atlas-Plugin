@@ -49,6 +49,9 @@ export const RUNTIME_SKIP_IDS = new Set(['nanoka:gi:tower', 'nanoka:gi:leyline']
 /** 前瞻源频道：提供比玉璃多一期的内容（月亮网深渊/剧诗、强度研究院危战） */
 export const PREVIEW_CHANNEL_IDS = ['lunaris:gi:tower', 'lunaris:gi:rolecombat', 'gensri:gi:stygian']
 
+/** 口径依赖的辅助页：剧诗幕内血量要用玉璃自己的成长曲线表（单文件，很小） */
+export const UTILITY_CHANNEL_IDS = ['alioth:gi:grow-curves']
+
 /* ============================================================
  *  抓取范围
  * ============================================================ */
@@ -90,7 +93,7 @@ async function runtimeChannels () {
       if (RUNTIME_SKIP_IDS.has(channel.id)) return false
       if (channel.source === 'nanoka') return true
       if (channel.source === 'alioth' && endgameIds.includes(channel.id)) return true
-      return PREVIEW_CHANNEL_IDS.includes(channel.id)
+      return PREVIEW_CHANNEL_IDS.includes(channel.id) || UTILITY_CHANNEL_IDS.includes(channel.id)
     })
   }
   const manifest = readManifest()

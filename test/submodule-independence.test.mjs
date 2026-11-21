@@ -59,7 +59,7 @@ if (fs.existsSync(path.join(pluginRoot, 'tool/Hesperides/Hesperides/src/sources/
   const ALIOTH_ENDGAME = ['alioth:gi:abyss', 'alioth:gi:theater', 'alioth:gi:stygian',
     'alioth:hsr:chaos', 'alioth:hsr:fiction', 'alioth:hsr:as', 'alioth:hsr:arbitration']
   check('只含 nanoka、玉璃终局与前瞻源（不含玉璃非终局页）',
-    ids.every((id) => id.startsWith('nanoka:') || ALIOTH_ENDGAME.includes(id) || updater.PREVIEW_CHANNEL_IDS.includes(id)))
+    ids.every((id) => id.startsWith('nanoka:') || ALIOTH_ENDGAME.includes(id) || updater.PREVIEW_CHANNEL_IDS.includes(id) || updater.UTILITY_CHANNEL_IDS.includes(id)))
   check('停抓 nanoka 的 gi 深渊/危战（挑战页固定读玉璃，无消费路径）',
     !ids.includes('nanoka:gi:tower') && !ids.includes('nanoka:gi:leyline'))
   check('保留 nanoka gi 剧诗（miao-plugin 消费）', ids.includes('nanoka:gi:rolecombat'))

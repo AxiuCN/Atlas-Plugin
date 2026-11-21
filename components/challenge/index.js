@@ -12,6 +12,8 @@ import { hsrChaosView, hsrFictionView, hsrAsView, hsrArbitrationView } from './h
 import { zzzShiyuView, zzzBossView } from './zzz.js'
 import { buildHesperidesChallengeSections } from '../hesperidesChallenge.js'
 import { buildPreviewSections } from '../../model/HesperidesPreview.js'
+import { getHesperidesPeriodPage } from '../../model/Hesperides.js'
+import { readRawByPath, syntheticPath } from '../../model/HesperidesRepository.js'
 
 /** 游戏 → 玩法 → 适配器 */
 const ADAPTERS = {
@@ -42,7 +44,7 @@ const ADAPTERS = {
  * @param {{source?: string, page?: string}|null} [params.preview] - 预览期来源（有则走预览适配器）
  * @returns {{summary: object[], groups: object[]}|null}
  */
-export function buildChallengeView ({ gameId, pageKey, record, raw = null, preview = null }) {
+export function buildChallengeView ({ gameId, pageKey, record, raw = null, period = null, preview = null }) {
   const rawRecord = raw || record?.content?.list || record
   let groups = null
   if (preview?.source && preview?.page) {
@@ -51,7 +53,11 @@ export function buildChallengeView ({ gameId, pageKey, record, raw = null, previ
     const adapter = ADAPTERS[gameId]?.[pageKey]
     if (adapter) {
       try {
-        groups = adapter(record)
+        groups = adapter(record, {
+          period,
+          rawPeriods: getHesperidesPeriodPage,
+          readRecord: (game, source, page, id) => readRawByPath(syntheticPath(game, source, page, String(id)))
+        })
       } catch {
         groups = null
       }

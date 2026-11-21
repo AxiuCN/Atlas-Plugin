@@ -130,6 +130,19 @@ export function getTimeline (gameId) {
 }
 
 /**
+ * 版本轴按「天」比较
+ *
+ * 版本发布时间在一天内浮动（国服 6:00~11:00 停机），而期表 `begin` 只有日期（00:00）。
+ * 若按时刻比较，版本首日 00:00 开的期会被算进上一个版本——`#7.2危战` 落空、`#7.1危战` 串到 7.2 的期
+ * 就是这么来的。这里统一归一到当天 00:00 再比。
+ * @param {Date} date
+ * @returns {Date}
+ */
+function startOfDay (date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/**
  * 日期落在哪个版本里
  * @param {string} gameId
  * @param {Date} date
@@ -139,18 +152,18 @@ export function getVersionAt (gameId, date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null
   const { list } = getTimeline(gameId)
   if (!list.length) return null
-  const time = date.getTime()
-  if (time < list[0].start.getTime()) return null
+  const time = startOfDay(date).getTime()
+  if (time < startOfDay(list[0].start).getTime()) return null
   let found = null
   for (const entry of list) {
-    if (entry.start.getTime() <= time) found = entry
+    if (startOfDay(entry.start).getTime() <= time) found = entry
     else break
   }
   return found ? found.version : null
 }
 
 /**
- * 版本区间（含首尾）
+ * 版本区间（含首日整日；按天口径）
  * @param {string} gameId
  * @param {string} version - 如 `7.1`
  * @returns {{from: Date, to: Date}|null} 未知版本返回 null
@@ -159,9 +172,9 @@ export function getVersionRange (gameId, version) {
   const { list, index } = getTimeline(gameId)
   const position = index.get(String(version))
   if (position === undefined) return null
-  const from = list[position].start
+  const from = startOfDay(list[position].start)
   const next = list[position + 1]
-  const to = next ? new Date(next.start.getTime() - 1000) : null
+  const to = next ? new Date(startOfDay(next.start).getTime() - 1000) : null
   if (!to) return null
   return { from, to }
 }

@@ -66,7 +66,7 @@ const mazeBoss = getHesperidesPeriods('hsr', 'maze_boss')
 // 合并后的期表性质：序号连续、begin 单调（预告接在主表之后）
 for (const [label, hes] of [['gi/tower', tower], ['gi/rolecombat', rolecombat], ['gi/leyline', leyline], ['hsr/maze_boss', mazeBoss]]) {
   const periods = hes?.periods || []
-  check(`${label} 合并后期序号连续`, periods.every((p, i) => p.no === i + 1), `${periods.length} 期`)
+  check(`${label} 合并后期号单调不减`, periods.every((p, i) => i === 0 || Number(periods[i - 1].no) <= Number(p.no)), `${periods.length} 期`)
   check(`${label} 合并后 begin 单调递增`, periods.every((p, i) => i === 0 || periods[i - 1].begin <= p.begin))
   check(`${label} 预告期都带预览源与记录 id`,
     previewOf(hes).every((p) => p.previewSource && p.previewPage && p.previewRecordId && p.begin instanceof Date && p.end instanceof Date))
@@ -143,8 +143,8 @@ console.log('\n=== ⑧ 没有超前源或没有超前期时不硬造 ===')
 console.log('\n=== ⑨ 期标识带「预告」标注 ===')
 {
   const preview = previewOf(tower)[0]
-  if (preview) check('预告期标签含（预告）', formatPeriodLabel('gi', preview).includes('（预告）'), formatPeriodLabel('gi', preview))
-  else check('预告期标签含（预告）', true, '当前无预告期，跳过')
+  if (preview) check('预告期不再标注「（预告）」', !formatPeriodLabel('gi', preview).includes('（预告）'), formatPeriodLabel('gi', preview))
+  else check('预告期不再标注「（预告）」', true, '当前无预告期，跳过')
   const normal = mainOf(tower).at(-1)
   check('正常期标签不含（预告）', !formatPeriodLabel('gi', normal).includes('（预告）'))
 }

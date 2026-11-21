@@ -4,6 +4,7 @@
  * 版面仿玉璃站：怪物不单独成段，只作为「这一间 / 这一关 / 这张牌」里的战斗卡出现，
  * 每只怪带自己的图标（图标放大占位）、数量、血量与抗性。
  */
+import { giCurveValue } from '../../model/monsterIndex/curve.js'
 import {
   plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon,
   listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, collapseGroup, pushGroup
@@ -81,7 +82,7 @@ export function giAbyssView (record) {
         }
       }
       cards.push({
-        title: `${floorNo}-${chamber?.Index ?? '?'} P${chamber?.Half ?? 1}`,
+        title: `${floorNo}-${chamber?.Index ?? '?'} ${Number(chamber?.Half) === 2 ? '下半' : '上半'}`,
         sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
         monsters: rows
       })
@@ -91,18 +92,20 @@ export function giAbyssView (record) {
   return groups
 }
 
-/** 幻想真境剧诗：元素限制 → 开幕/特邀角色 → 首领 → 圣牌 */
-export function giTheaterView (record) {
+/** 幻想真境剧诗：元素限制 → 开幕/特邀角色 → 首领 → 圣牌 → 各幕（含幕内血量） */
+export function giTheaterView (record, ctx = {}) {
   const list = record?.content?.list || {}
   const groups = []
   const monsters = list.Monsters || {}
+  const monsterData = list.MonsterData || {}
   const resolve = makeMonsterResolver('gi', record, monsters)
+  const period = ctx.period || {}
+  // 玉璃自己的成长曲线表（剧诗幕内血量按它算，才能与站点逐值一致）
+  const growCurves = typeof ctx.readRecord === 'function' ? ctx.readRecord('gi', 'alioth', 'grow-curves', '__index')?.Curves : null
 
   const elems = Array.isArray(list.Elem) ? list.Elem : []
   pushGroup(groups, listGroup('本期限制', [
-    elems.length ? { label: '可用元素', value: elems.map(elemLabel).join(' / ') } : null,
-    list.Initial?.length ? { label: '开幕角色', value: `${list.Initial.length} 名` } : null,
-    list.Invitation?.length ? { label: '特邀角色', value: `${list.Invitation.length} 名` } : null
+    elems.length ? { label: '可用元素', value: elems.map(elemLabel).join(' / ') } : null
   ]))
 
   pushGroup(groups, iconGroup('开幕角色', (list.Initial || []).map((item, index) => ({
@@ -151,11 +154,80 @@ export function giTheaterView (record) {
     }
   })
   pushGroup(groups, battleGroup('圣牌', arcanaCards, { cols: 2 }))
+
+  // 各幕：幕 → 配置 → 怪物；血量按「幕倍率 × 怪物倍率 × 成长曲线 × 曲线基准」算绝对值
+  const mp = list.MP || {}
+  const chamberCards = (list.Chambers || []).map((chamber) => {
+    const chamberId = Number(chamber?._id)
+    const multiplier = theaterMultiplier(period, chamberId)
+    const rows = []
+    for (const configId of Array.isArray(chamber?.Configs) ? chamber.Configs : []) {
+      for (const monsterId of mp[configId] || []) {
+        const id = String(monsterId)
+        const info = resolve(id)
+        const data = monsterData[id] || {}
+        rows.push(battleMonster({
+          name: info.name,
+          icon: info.icon,
+          hp: theaterHp(data, chamber?.Level, multiplier, growCurves),
+          chips: [elemLabel(data.Color)]
+        }))
+      }
+    }
+    return {
+      title: `第 ${chamberId ?? '?'} 幕`,
+      sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
+      monsters: rows
+    }
+  })
+  pushGroup(groups, battleGroup('各幕', chamberCards, { cols: 2 }))
   return groups
 }
 
-/** 幽境危战：难度档 → 强敌战斗卡 → 每个强敌的机制卡 → 血量档位 */
-export function giStygianView (record) {
+/** 阵容幕 1,2,4,5,7,9 用 `HPChamber`；Boss 幕 3,6,8,10,11,12 用 `HP` */
+const THEATER_LINEUP_CHAMBERS = [1, 2, 4, 5, 7, 9]
+const THEATER_BOSS_CHAMBERS = [3, 6, 8, 10, 11, 12]
+
+/** 取某一幕的血量倍率（期对象上的 `hpByLineup` / `hpByBoss`，来自引擎带出的 manifest 期字段） */
+function theaterMultiplier (period, chamberId) {
+  const lineup = THEATER_LINEUP_CHAMBERS.indexOf(chamberId)
+  if (lineup >= 0) return period?.hpByLineup?.[lineup]
+  const boss = THEATER_BOSS_CHAMBERS.indexOf(chamberId)
+  if (boss >= 0) return period?.hpByBoss?.[boss]
+  return undefined
+}
+
+/**
+ * 幕内绝对血量（口径抄自玉璃前端 `utils/giTheaterHp.ts`）：
+ * `幕倍率 × 怪物倍率 × 成长曲线(等级) × 曲线基准系数`
+ */
+const THEATER_CURVE = {
+  // 1 → [玉璃曲线号, 基准系数, 内置曲线名（回退用）]
+  1: [10, 13.584, 'GROW_CURVE_HP'],
+  2: [20, 27.168, 'GROW_CURVE_HP_2'],
+  3: [30, 12.56, 'GROW_CURVE_ATTACK'],
+  4: [40, 12.56, 'GROW_CURVE_ATTACK_2'],
+  7: [70, 32.4689, 'GROW_CURVE_ACTIVITY_HP_1'],
+  10: [10, 1, 'GROW_CURVE_HP'],
+  20: [20, 1, 'GROW_CURVE_HP_2'],
+  30: [30, 1, 'GROW_CURVE_ATTACK'],
+  40: [40, 1, 'GROW_CURVE_ATTACK_2']
+}
+
+function theaterHp (monsterData, level, multiplier, curves) {
+  if (!monsterData || multiplier === undefined || multiplier === null) return ''
+  const curve = THEATER_CURVE[monsterData.HPCurve]
+  if (!curve) return ''
+  // 优先用玉璃自己的曲线表（`Curves[等级][曲线号]`，索引 0 不用；与站点逐值一致），
+  // 没有这一页时回落到本插件内置的官方曲线（末尾可能差 1，因为上游表只保留 4 位小数）
+  const growth = curves?.[Number(level)]?.[curve[0]] ?? giCurveValue(curve[2], Number(level))
+  if (growth === null || growth === undefined) return ''
+  const hp = Number(multiplier) * Number(monsterData.HP || 0) * growth * curve[1]
+  return Number.isFinite(hp) ? num(Math.round(hp), 0) : ''
+}
+
+/** 幽境危战：三间各一个文本框（N5/6 主档 + N4/N1-3 尾注 + 玉璃研究），另附强度研究院解析 */
+export function giStygianView (record, ctx = {}) {
   const list = record?.content?.list || {}
   const groups = []
   const monsters = list.Monsters || {}
@@ -167,43 +239,53 @@ export function giStygianView (record) {
     value: (level?.Monsters || []).map((id) => resolve(id).name).join('、') || '—'
   }))))
 
-  // 强敌取最高难度档的那批（玉璃站首页只摆这几个）
-  const strongIds = (levels.at(-1)?.Monsters || Object.keys(monsters)).map(String)
-  // 血量双档：基础 HP / 最高档 HP（对应站点的「普通 / 困难」两行）
+  // 每个怪物 id → 该 Boss 的四档血量（N3/N4/N5/N6）
   const hpTiers = new Map()
   for (const item of Array.isArray(list.HPShow) ? list.HPShow : []) {
     const tiers = (item?.HP || []).map(Number).filter((n) => Number.isFinite(n))
     if (item?.ID && tiers.length) hpTiers.set(String(item.ID), tiers)
   }
+
+  // 以最高难度档（N5）的三只为准，一团一张卡
+  const strongIds = (levels.at(-1)?.Monsters || Object.keys(monsters)).map(String)
   const strongCards = []
-  const mechanisms = []
+  const bossCards = []
   for (const id of strongIds) {
     const raw = monsters[id] || {}
     const info = resolve(id)
-    const res = resChips(raw.RES)
-    const baseHp = Number(raw?.Stats?.HP || 0)
     const tiers = hpTiers.get(String(raw?.ID || id)) || []
-    const topHp = tiers.length ? Math.max(...tiers) : 0
-    const hpText = baseHp
-      ? (topHp > baseHp ? `${num(baseHp, 0)} / ${num(topHp, 0)}` : num(baseHp, 0))
-      : ''
-    strongCards.push({
+    const n5 = tiers[2]
+    const n6 = tiers[3]
+    const hpText = n5 && n6 ? `${num(n5, 0)} / ${num(n6, 0)}` : (n5 ? num(n5, 0) : '')
+    const fields = []
+    if (raw?.Title) fields.push({ label: '称号', value: plain(raw.Title) })
+    // 尾注：N4 的名字与血量、N1-3 的「常形」与（有则给）血量
+    const n4 = findMonsterByName(monsters, levels, 4, id, levels.length - 1)
+    if (n4 && (n4.name || n4.hp)) fields.push({ label: '难度 4', value: [n4.name, n4.hp].filter(Boolean).join(' · ') })
+    const common = findMonsterByName(monsters, levels, 3, id, levels.length - 1)
+    if (common && common.hp) fields.push({ label: '难度 1-3', value: `${common.name || '常形'} · ${common.hp}` })
+    // 「玉璃的研究」：怪物的说明与逐条机制
+    if (raw?.Desc) fields.push({ label: '说明', value: plain(raw.Desc, 140) })
+    for (const buff of raw?.Buff || []) fields.push({ label: plain(buff?.Name) || '机制', value: plain(buff?.Desc, 140) })
+    const card = {
       title: '',
       sub: plain(raw.Title),
       monsters: [battleMonster({
         name: info.name,
         icon: info.icon,
         hp: hpText,
-        chips: [raw?.Level ? `Lv.${raw.Level}` : '', ...res]
-      })]
-    })
-    const fields = []
-    if (raw?.Desc) fields.push({ label: '说明', value: plain(raw.Desc, 220) })
-    for (const buff of raw?.Buff || []) fields.push({ label: plain(buff?.Name) || '机制', value: plain(buff?.Desc, 220) })
-    if (fields.length) mechanisms.push({ title: info.name, sub: plain(raw.Title), fields, icons: [] })
+        chips: [raw?.Level ? `Lv.${raw.Level}` : '', ...resChips(raw.RES)]
+      })],
+      fields
+    }
+    strongCards.push(card)
+    bossCards.push({ title: info.name, fields: [] })
   }
-  pushGroup(groups, battleGroup('强敌', strongCards))
-  pushGroup(groups, cardsGroup('机制', mechanisms))
+  pushGroup(groups, battleGroup('强敌', strongCards, { cols: 1 }))
+
+  // 「强度研究院」：官方文案解析（按版本 join，敌人用自己的名字与 N5/6 血量）
+  const research = buildGensriResearch(ctx)
+  pushGroup(groups, cardsGroup('强度研究院', research))
 
   const hpRows = (Array.isArray(list.HPShow) ? list.HPShow : []).map((item, index) => ({
     label: `第 ${index + 1} 组`,
@@ -211,4 +293,39 @@ export function giStygianView (record) {
   }))
   pushGroup(groups, collapseGroup('血量档位', hpRows))
   return groups
+}
+
+/** 同一 Boss 在指定难度档里的名字与血量（玉璃 Levels 按档给 id） */
+function findMonsterByName (monsters, levels, difficulty, baseId, fallbackIndex) {
+  const tier = levels.find((level) => Number(level?.Level) === difficulty) || levels[fallbackIndex]
+  if (!Array.isArray(tier?.Monsters)) return null
+  // 各档的 id 不同，但同一位置的怪物是同一只；用最高档里的位置找同位置的档内 id
+  const top = levels[levels.length - 1]?.Monsters || []
+  const index = top.indexOf(Number(baseId))
+  if (index < 0) return null
+  const id = tier.Monsters[index]
+  const raw = monsters[String(id)]
+  if (!raw) return null
+  return { name: plain(raw.Name) || '', hp: raw?.Stats?.HP ? num(raw.Stats.HP, 0) : '' }
+}
+
+/** 强度研究院的危战解析（同版本的 gensri 记录；没有就返回空） */
+function buildGensriResearch (ctx) {
+  const period = ctx.period || {}
+  const version = String(period.version || '')
+  if (!version || typeof ctx.readRecord !== 'function' || typeof ctx.rawPeriods !== 'function') return []
+  const entry = (ctx.rawPeriods('gi', 'gensri', 'stygian') || []).find((item) => String(item.version) === version)
+  if (!entry) return []
+  const gensri = ctx.readRecord('gi', 'gensri', 'stygian', String(entry.id))
+  const enemies = Array.isArray(gensri?.detail?.enemies) ? gensri.detail.enemies : []
+  return enemies.map((enemy) => {
+    const fields = []
+    const five = enemy?.hp?.five
+    const six = enemy?.hp?.six
+    if (five || six) fields.push({ label: '血量（N5 / N6）', value: [five, six].filter(Boolean).map((hp) => num(hp, 0)).join(' / ') })
+    for (const [index, text] of (enemy?.mechanism || []).entries()) {
+      fields.push({ label: `解析 ${index + 1}`, value: plain(text, 220) })
+    }
+    return { title: plain(enemy?.name) || '敌人', fields, icons: [] }
+  })
 }

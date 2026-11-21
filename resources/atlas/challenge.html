@@ -81,7 +81,7 @@
       {{else if group.kind === 'battle'}}
       <div class="detail-section">
         <h3>{{group.title}}</h3>
-        <div class="battle-grid{{if group.cols === 2}} cols-2{{/if}}">
+        <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}">
           {{each group.cards card}}
           <div class="battle-card">
             {{if card.title || card.sub}}
@@ -102,6 +102,16 @@
               </div>
               {{/each}}
             </div>
+            {{if card.fields && card.fields.length > 0}}
+            <table class="detail-table">
+              {{each card.fields field}}
+              <tr>
+                <td class="label">{{field.label}}</td>
+                <td class="value">{{field.value}}</td>
+              </tr>
+              {{/each}}
+            </table>
+            {{/if}}
           </div>
           {{/each}}
         </div>

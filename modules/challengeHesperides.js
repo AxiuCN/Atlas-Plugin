@@ -46,7 +46,7 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
       const tail = latest?.end ? `（数据截至 ${formatPeriodDate(latest.end)}）` : ''
       const next = resolved.next
       const hint = next
-        ? `；下一期${next.preview ? '（预告）' : ''}：${next.name || `第 ${next.no} 期`} ${formatPeriodDate(next.begin)} 起`
+        ? `；下一期：${next.name || `第 ${next.no} 期`} ${formatPeriodDate(next.begin)} 起`
         : ''
       await e.reply(`[Atlas] ${result.pageTitle} 本期未开放${tail}${hint}`)
       return true
@@ -73,6 +73,7 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
     pageKey: result.pageKey,
     record,
     raw,
+    period,
     preview: isPreview ? { source: period.previewSource, page: period.previewPage } : null
   })
 
@@ -81,11 +82,9 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
     pageTitle: result.pageTitle,
     // 期名优先：玉璃的终局记录里常混着攻略/关卡名（如「隐藏关卡」），拿它当标题会误导；
     // 绝区零没有期名，记录标题（「剧变节点」）才是用户认得的叫法
-    recordName: period.name || (gameId === 'zzz' ? pickHesperidesTitle(raw) : '') ||
-      (isPreview ? `第 ${period.no} 期预告` : `第 ${period.no} 期`),
+    recordName: period.name || (gameId === 'zzz' ? pickHesperidesTitle(raw) : '') || `第 ${period.no} 期`,
     periodLine: [
       formatPeriodLabel(gameId, period),
-      isPreview ? '测试服预告，正式上线可能变动' : '',
       period.suspect === 'long-span' ? '期跨度异常，待确认' : ''
     ].filter(Boolean).join(' · '),
     summary: view?.summary || [],

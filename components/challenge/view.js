@@ -138,12 +138,14 @@ export function makeMonsterResolver (gameId, record, local = {}, container = 'Mo
     const key = String(id)
     const raw = local?.[key]
     const fromIndex = getMonsterEntry(gameId, key)
+    // 剧诗的 `Monsters[id]` 直接就是 Icon 字符串（不是对象），两种形态都要认
+    const rawIcon = typeof raw === 'string' ? raw : (raw?.Icon || raw?.icon || '')
     const icon = fieldImage(record, `${container}.${key}.Icon`) ||
       fieldImage(record, `${container}.${key}`) ||
       fieldImage(record, `Monsters.${key}.Icon`) ||
       fieldImage(record, `Monsters.${key}`)
-    const name = plain(raw?.Name || raw?.name || fromIndex?.name || '') ||
-      nameByIcon(gameId, raw?.Icon || raw?.icon) ||
+    const name = plain(typeof raw === 'string' ? '' : (raw?.Name || raw?.name || fromIndex?.name || '')) ||
+      nameByIcon(gameId, rawIcon) ||
       key
     return { name, icon }
   }

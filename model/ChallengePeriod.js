@@ -117,7 +117,6 @@ export function formatPeriodLabel (gameId, period) {
     parts.push(`${from} → ${from.slice(0, 4) === to.slice(0, 4) ? to.slice(5) : to}`)
   }
   if (period.estimated) parts.push('（推定）')
-  if (period.preview) parts.push('（预告）')
   return parts.join(' · ')
 }
 

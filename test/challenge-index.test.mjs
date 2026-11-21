@@ -121,7 +121,14 @@ for (const [gameId, pageKey] of MODES) {
   if (!hes) continue
 
   const periods = hes.periods
-  check(`${label} 期序号从 1 连续`, periods.every((p, i) => p.no === i + 1))
+  // 深渊期号来自月亮网的连续序号（当前期 125/126…），早期玉璃期仍用玉璃 no，
+// 因此不连续；其余玩法保持从 1 连续
+  if (gameId === 'gi' && pageKey === 'tower') {
+    check(`${label} 期号单调不减`, periods.every((p, i) => i === 0 || Number(periods[i - 1].no) <= Number(p.no)))
+    check(`${label} 末段用真实期号（>100）`, Number(periods.at(-1).no) > 100, String(periods.at(-1).no))
+  } else {
+    check(`${label} 期序号从 1 连续`, periods.every((p, i) => p.no === i + 1))
+  }
   check(`${label} 期对象带 Date 型 begin/end`,
     periods.every(p => p.begin instanceof Date && p.end instanceof Date))
   check(`${label} 没有结束早于开始的期`, !periods.some(p => p.end <= p.begin))

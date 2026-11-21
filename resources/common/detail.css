@@ -338,3 +338,14 @@
   border-radius: 4px;
   padding: 0 5px;
 }
+
+/* 单列战斗卡（长文案的玩法：危战强敌） */
+.battle-grid.cols-1 {
+  grid-template-columns: 1fr;
+}
+
+/* 战斗卡内的表格文字比页面正文小一号：终局页字段多，保持可读的同时压高度 */
+.battle-card .detail-table td {
+  font-size: 20px;
+  line-height: 1.45;
+}

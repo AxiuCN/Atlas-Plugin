@@ -41,15 +41,15 @@ check('非法日期返回 null', getVersionAt('gi', null) === null)
 
 console.log('\n=== 版本 → 日期区间 ===')
 const gi70 = getVersionRange('gi', '7.0')
-check('原神 7.0 开启日 = 锚点 + 10 个周期', !!gi70 &&
-  gi70.from.getTime() === at('2026-08-19 10:00:00')?.getTime(),
+check('原神 7.0 开启日 = 锚点 + 10 个周期（按天口径，归一到 00:00）', !!gi70 &&
+  gi70.from.getTime() === at('2026-08-19 00:00:00')?.getTime(),
   gi70 ? gi70.from.toString().slice(0, 24) : 'null')
-check('版本区间到下一版本开启前 1 秒',
-  !!gi70 && gi70.to.getTime() === at('2026-09-30 09:59:59')?.getTime(),
+check('版本区间到下一版本开启日前 1 秒',
+  !!gi70 && gi70.to.getTime() === at('2026-09-29 23:59:59')?.getTime(),
   gi70 ? gi70.to.toString().slice(0, 24) : 'null')
 const hsr44 = getVersionRange('hsr', '4.4')
-check('星铁 4.4 开启日 = 锚点 + 4 个周期', !!hsr44 &&
-  hsr44.from.getTime() === at('2026-07-31 06:00:00')?.getTime(),
+check('星铁 4.4 开启日 = 锚点 + 4 个周期（按天口径）', !!hsr44 &&
+  hsr44.from.getTime() === at('2026-07-31 00:00:00')?.getTime(),
   hsr44 ? hsr44.from.toString().slice(0, 24) : 'null')
 check('未知版本返回 null', getVersionRange('hsr', '9.9') === null)
 

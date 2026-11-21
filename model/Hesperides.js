@@ -14,7 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseDataTime } from './ChallengeVersion.js'
-import { buildPreviewPeriods } from './HesperidesPreview.js'
+import { buildPreviewPeriods, buildAbyssNumbering, buildLeylineNames } from './HesperidesPreview.js'
 
 /** 插件支持的 Hesperides schemaVersion（不兼容就整体视为无数据） */
 const SCHEMA_SUPPORTED = [2]
@@ -159,6 +159,14 @@ export function getHesperidesPeriods (gameId, pageKey) {
   }).filter((period) => period.begin && period.end)
   if (!periods.length) return null
 
+  // 原神专属的两项「口径修正」：
+  //   ① 深渊期号：玉璃的 `no` 是它自己的版本段计数（当前期显示 59），真实期号要看月亮网的连续序号（凌振 = 125）；
+  //   ② 危战期名：玉璃不给名字，按版本从强度研究院（6.7+）与月亮网（5.7~6.4）补齐。
+  //   ③ 剧诗幕血量倍率：在 manifest 的期对象上（引擎 `phaseFields` 带出），渲染时要用。
+  if (gameId === 'gi' && pageKey === 'tower') applyAbyssNumbers(periods, data.key)
+  if (gameId === 'gi' && pageKey === 'leyline') applyLeylineNames(periods, data.key)
+  if (gameId === 'gi' && pageKey === 'rolecombat') applyTheaterHp(periods)
+
   // 超前层：主表之后还能再接上的下一期（预览源内容，日期由主表节奏外推）
   const preview = buildPreviewPeriods({
     gameId,
@@ -174,6 +182,80 @@ export function getHesperidesPeriods (gameId, pageKey) {
   }
   const merged = preview.length ? [...periods, ...preview].sort((a, b) => a.begin - b.begin) : periods
   return { source, page, periods: merged }
+}
+
+/**
+ * 深渊期号：玉璃的 `no` 换成月亮网的连续序号
+ *
+ * 只改「能与月亮网月名唯一对齐的末段」：从最后一个唯一匹配的期当锚点往前推，
+ * 遇到名字多义/对不上就停（早期玉璃期是版本段，对不到单次轮换，保留玉璃 no）。
+ * 锚点之后的期按 +1 顺延（预告期由后面的编号逻辑接上）。
+ * @param {object[]} periods - 原地修改
+ * @param {string} key - 产物缓存键
+ */
+function applyAbyssNumbers (periods, key) {
+  const numbering = buildAbyssNumbering({
+    periods,
+    pageIds: (game, source, page) => getHesperidesPage(game, source, page)?.ids || []
+  }, key)
+  if (!numbering.size) return
+  let anchor = -1
+  for (let i = periods.length - 1; i >= 0; i -= 1) {
+    const no = numbering.get(String(periods[i].id))
+    if (no !== undefined) { anchor = i; break }
+  }
+  if (anchor < 0) return
+  for (let i = anchor; i >= 0; i -= 1) {
+    const no = numbering.get(String(periods[i].id))
+    const expected = numbering.get(String(periods[anchor].id)) - (anchor - i)
+    if (no === undefined || no !== expected) break
+    periods[i].no = no
+  }
+  const baseNo = numbering.get(String(periods[anchor].id))
+  for (let i = anchor + 1; i < periods.length; i += 1) periods[i].no = baseNo + (i - anchor)
+}
+
+/**
+ * 危战期名：按版本从强度研究院 / 月亮网补（玉璃的 stygian 期没有名字）
+ * @param {object[]} periods - 原地修改
+ * @param {string} key
+ */
+function applyLeylineNames (periods, key) {
+  const names = buildLeylineNames({ rawPeriods: getHesperidesPeriodPage }, key)
+  if (!names.size) return
+  for (const period of periods) {
+    if (period.name) continue
+    const name = names.get(String(period.version || ''))
+    if (name) period.name = name
+  }
+}
+
+/** 剧诗幕血量倍率：从 manifest 的期对象上取（引擎 `phaseFields` 带出） */
+function applyTheaterHp (periods) {
+  const channel = getChannelManifest('alioth:gi:theater')
+  const phases = channel?.phases
+  if (!Array.isArray(phases) || !phases.length) return
+  const byId = new Map(phases.map((phase) => [String(phase.id), phase]))
+  for (const period of periods) {
+    const phase = byId.get(String(period.id))
+    if (!phase) continue
+    if (Array.isArray(phase.HP)) period.hpByBoss = phase.HP
+    if (Array.isArray(phase.HPChamber)) period.hpByLineup = phase.HPChamber
+  }
+}
+
+/** manifest 的频道条目（按产物缓存键失效） */
+let channelManifest = { key: '', manifest: null }
+function getChannelManifest (channelId) {
+  const key = cacheKey()
+  if (channelManifest.key !== key) {
+    try {
+      channelManifest = { key, manifest: JSON.parse(fs.readFileSync(path.join(HESPERIDES_DIR, 'manifest.json'), 'utf8')) }
+    } catch {
+      channelManifest = { key, manifest: null }
+    }
+  }
+  return channelManifest.manifest?.channels?.[channelId] || null
 }
 
 /* ============================================================

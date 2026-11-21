@@ -226,6 +226,65 @@ function mazeBossPreview ({ main, rawPeriods }) {
   return out
 }
 
+/** 玉璃期 id → 月亮网连续期号（只给能唯一对齐的期） */
+const abyssNumberingCache = new Map()
+
+/**
+ * 深渊期号：月亮网「相邻同名合并」后的连续序号
+ *
+ * 月亮网 128 条记录里 20099 与 126 同名（霰烁），合并后才是真实期号序列
+ * （骇星 124 / 凌振 125 / 霰烁 126 / 甲霰 127）。玉璃的 `no` 是它自己的版本段计数，不能用。
+ * @param {{periods: object[], pageIds: Function}} params
+ * @param {string} key - 产物缓存键
+ * @returns {Map<string, number>} 玉璃期 id → 期号（多义/未命中不出现在结果里）
+ */
+export function buildAbyssNumbering ({ periods, pageIds }, key = '') {
+  const cacheKey = `abyss|${key}`
+  if (abyssNumberingCache.has(cacheKey)) return abyssNumberingCache.get(cacheKey)
+  const ids = (pageIds('gi', 'lunaris', 'tower') || [])
+    .map(Number)
+    .filter((id) => Number.isFinite(id))
+    .sort((a, b) => a - b)
+  const nameToNumbers = new Map()
+  // 期号 = 月亮网按时间（= id 升序）排序后的第几条：128 条记录里凌振正好是第 125 条，
+  // 与游戏内的深渊期号一致。同名不合并（7/8 的钢铁之月、126/20099 的霰烁之月都是独立的期）。
+  ids.forEach((id, index) => {
+    const name = String(readPreviewRecord('lunaris', 'tower', id)?.chsBuffName || '')
+    if (!name) return
+    const list = nameToNumbers.get(name) || []
+    list.push(index + 1)
+    nameToNumbers.set(name, list)
+  })
+  const result = new Map()
+  for (const period of periods || []) {
+    const record = readRawByPath(syntheticPath('gi', 'alioth', 'abyss', String(period.id)))
+    const name = String(record?.Blessings?.[0]?.Name || '')
+    if (!name) continue
+    const numbers = nameToNumbers.get(name) || []
+    const unique = [...new Set(numbers)]
+    if (unique.length === 1) result.set(String(period.id), unique[0])
+  }
+  abyssNumberingCache.set(cacheKey, result)
+  return result
+}
+
+/** 危战期名：版本号 → 期名（强度研究院 6.7+ / 月亮网 5.7~6.4，先到先得） */
+const leylineNameCache = new Map()
+export function buildLeylineNames ({ rawPeriods }, key = '') {
+  const cacheKey = `leyline|${key}`
+  if (leylineNameCache.has(cacheKey)) return leylineNameCache.get(cacheKey)
+  const map = new Map()
+  for (const [source, page] of [['gensri', 'stygian'], ['lunaris', 'leyline']]) {
+    for (const entry of rawPeriods('gi', source, page) || []) {
+      const version = String(entry?.version || '').trim()
+      const name = String(entry?.name || '').trim()
+      if (version && name && !map.has(version)) map.set(version, name)
+    }
+  }
+  leylineNameCache.set(cacheKey, map)
+  return map
+}
+
 /**
  * 生成某挑战玩法的超前期（主表之后能再接上的那些）
  * @param {object} context
