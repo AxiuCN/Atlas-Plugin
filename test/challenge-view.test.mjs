@@ -77,9 +77,8 @@ console.log('\n=== ③ 怪物信息（战斗卡：图标 / 元素 / 抗性 / 血
 {
   const tower = views.get('gi/tower')
   // 仿玉璃：怪物不再单独成段，只作为楼层「间」的战斗卡出现
-  // 一层一卡，卡内按「第 n 间 · 上半/下半」分行
-  const battle = tower?.view?.groups.find((group) => group.kind === 'battle' && group.title === '各层')
-  const monsters = (battle?.cards || []).flatMap((card) => [ ...(card.monsters || []), ...((card.lineups || []).flatMap((lineup) => lineup.monsters || [])) ])
+  const battle = tower?.view?.groups.find((group) => group.kind === 'battle' && /第 .+ 层/.test(group.title || ''))
+  const monsters = (battle?.cards || []).flatMap((card) => card.monsters || [])
   check('深渊怪物只在楼层的间卡里出现', Boolean(battle) && monsters.length > 0, `${monsters.length} 只`)
   check('深渊没有独立的「怪物」段', !tower?.view?.groups.some((group) => group.title === '怪物'))
   check('深渊战斗卡带数量/血量/抗性标签',
