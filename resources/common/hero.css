@@ -193,7 +193,7 @@
 /* ===== Hero 描述行 .hero-desc（武器类页面：类型/命途方框下方的武器描述/故事首段） ===== */
 .hero-desc {
   margin-top: 8px;
-  font-size: 18px;
+  font-size: 24px;
   line-height: 1.6;
   color: #555555;
   text-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
