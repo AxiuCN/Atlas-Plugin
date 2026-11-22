@@ -462,7 +462,8 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
       return {
         title: `第 ${no} 幕 · ${plain(room.bossName)}`,
         sub: room?.monsterLevel ? `Lv.${room.monsterLevel}` : '',
-        monsters: [battleMonster({ icon: monsterIconImage('gi', boss?.icon), hp: '' })]
+        monsters: [battleMonster({ icon: monsterIconImage('gi', boss?.icon), hp: '' })],
+        lead: plain(room?.bossDescription, 220)
       }
     })
   pushGroup(groups, battleGroup('强敌', bossCards, { cols: 2 }))
