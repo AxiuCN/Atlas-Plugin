@@ -479,3 +479,26 @@
   font-size: 20px;
   padding: 1px 8px;
 }
+
+/* ===== 角色图标一行 6 个（剧诗开幕/特邀） ===== */
+.material-grid.cols-6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+/* ===== 密排战斗卡（幕内小怪：图标与卡片缩一号，一屏放更多） ===== */
+.battle-grid--dense .battle-monster {
+  width: 108px;
+}
+
+.battle-grid--dense .battle-icon-wrap {
+  width: 92px;
+  height: 92px;
+}
+
+.battle-grid--dense .battle-name {
+  font-size: 19px;
+}
+
+.battle-grid--dense .battle-hp {
+  font-size: 18px;
+}

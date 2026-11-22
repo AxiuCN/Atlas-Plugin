@@ -40,7 +40,7 @@
       {{if group.kind === 'battle'}}
       <div class="detail-section">
         <h3>{{group.title}}</h3>
-        <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}">
+        <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}{{if group.dense}} battle-grid--dense{{/if}}">
           {{each group.cards card}}
           <div class="battle-card{{if card.big}} battle-card--big{{/if}}">
             {{if card.big}}
@@ -108,7 +108,7 @@
       {{else if group.kind === 'icons'}}
       <div class="detail-section">
         <h3>{{group.title}}</h3>
-        <div class="material-grid">
+        <div class="material-grid{{if group.cols === 6}} cols-6{{/if}}">
           {{each group.items item}}
           <div class="material-card">
             {{if item.icon}}<img class="material-card-icon" src="{{item.icon}}"/>{{/if}}

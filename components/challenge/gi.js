@@ -7,7 +7,7 @@
 import { giCurveValue } from '../../model/monsterIndex/curve.js'
 import { listMonsterEntries } from '../../model/monsterIndex/index.js'
 import {
-  plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon,
+  plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon, monsterIconImage,
   listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, block, pushGroup
 } from './view.js'
 
@@ -167,31 +167,35 @@ export function giTheaterView (record, ctx = {}) {
     icon: fieldImage(record, `Initial.${index}.Icon`),
     name: plain(item?.Name) || nameByIcon('gi', item?.Icon),
     sub: ''
-  }))))
+  })), { cols: 6 }))
   pushGroup(groups, iconGroup('特邀角色', (list.Invitation || []).map((item, index) => ({
     icon: fieldImage(record, `Invitation.${index}.Icon`),
     name: plain(item?.Name) || nameByIcon('gi', item?.Icon),
     sub: ''
-  }))))
+  })), { cols: 6 }))
 
-  const bossCards = (Array.isArray(list.Boss) ? list.Boss : []).map((item, index) => ({
-    title: '',
-    sub: plain(item?.Time) || `首领 ${index + 1}`,
-    monsters: (item?.Monsters || []).map((monster, i) => {
+  const bossCards = (Array.isArray(list.Boss) ? list.Boss : []).map((item, index) => {
+    const monsters = (item?.Monsters || []).map((monster, i) => {
       const id = String(monster?.ID ?? '')
       const info = resolve(id)
       return battleMonster({
         name: plain(monster?.Name) || nameByIcon('gi', monster?.Icon) || info.name,
-        icon: info.icon || fieldImage(record, `Boss.${index}.Monsters.${i}.Icon`),
+        icon: info.icon || monsterIconImage('gi', monster?.Icon) || fieldImage(record, `Boss.${index}.Monsters.${i}.Icon`),
         hp: monster?.HP ? num(monster.HP, 0) : '',
         chips: [elemLabel(monster?.Color)]
       })
     })
-  }))
+    // 标题用怪物名（多只时「XX 等 N」），时间放副标题
+    const first = monsters.find((monster) => monster.name)?.name || `首领 ${index + 1}`
+    return {
+      title: monsters.length > 1 ? `${first} 等 ${monsters.length}` : first,
+      sub: plain(item?.Time) ? `限时 ${plain(item.Time)}` : '',
+      monsters
+    }
+  })
   pushGroup(groups, battleGroup('首领', bossCards))
 
   const arcanaCards = (Array.isArray(list.Arcana) ? list.Arcana : []).map((item, index) => {
-    const count = /^x?(\d+)$/i.exec(String(item?.Time || '').trim())
     return {
       title: '',
       sub: item?.Time ? String(item.Time) : '',
@@ -200,8 +204,7 @@ export function giTheaterView (record, ctx = {}) {
         const info = resolve(id)
         return battleMonster({
           name: plain(monster?.Name) || nameByIcon('gi', monster?.Icon) || info.name,
-          icon: info.icon || fieldImage(record, `Arcana.${index}.Monsters.${i}.Icon`),
-          count: count ? count[1] : '',
+          icon: info.icon || monsterIconImage('gi', monster?.Icon) || fieldImage(record, `Arcana.${index}.Monsters.${i}.Icon`),
           hp: monster?.HP ? num(monster.HP, 0) : '',
           chips: [elemLabel(monster?.Color)]
         })
@@ -210,32 +213,34 @@ export function giTheaterView (record, ctx = {}) {
   })
   pushGroup(groups, battleGroup('圣牌', arcanaCards, { cols: 2 }))
 
-  // 各幕：幕 → 配置 → 怪物；血量按「幕倍率 × 怪物倍率 × 成长曲线 × 曲线基准」算绝对值
+  // 各幕：一幕可能有多个小怪「选择」（Chambers[].Configs），逐个选择出一张卡
   const mp = list.MP || {}
-  const chamberCards = (list.Chambers || []).map((chamber) => {
+  const chamberCards = []
+  for (const chamber of list.Chambers || []) {
     const chamberId = Number(chamber?._id)
     const multiplier = theaterMultiplier(period, chamberId)
-    const rows = []
-    for (const configId of Array.isArray(chamber?.Configs) ? chamber.Configs : []) {
-      for (const monsterId of mp[configId] || []) {
+    const configs = Array.isArray(chamber?.Configs) ? chamber.Configs : []
+    configs.forEach((configId, choiceIndex) => {
+      const rows = (mp[configId] || []).map((monsterId) => {
         const id = String(monsterId)
         const info = resolve(id)
         const data = monsterData[id] || {}
-        rows.push(battleMonster({
+        return battleMonster({
           name: info.name,
-          icon: info.icon,
+          icon: info.icon || monsterIconImage('gi', monsters[id]),
           hp: theaterHp(data, chamber?.Level, multiplier, growCurves),
           chips: [elemLabel(data.Color)]
-        }))
-      }
-    }
-    return {
-      title: `第 ${chamberId ?? '?'} 幕`,
-      sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
-      monsters: rows
-    }
-  })
-  pushGroup(groups, battleGroup('各幕', chamberCards, { cols: 2 }))
+        })
+      })
+      if (!rows.length) return
+      chamberCards.push({
+        title: `第 ${chamberId ?? '?'} 幕 · 选择 ${choiceIndex + 1}`,
+        sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
+        monsters: rows
+      })
+    })
+  }
+  pushGroup(groups, battleGroup('各幕', chamberCards, { cols: 2, dense: true }))
   return groups
 }
 

@@ -124,6 +124,38 @@ export function nameByIcon (gameId, icon) {
 }
 
 /**
+ * 按「图标名」取本地图标（`UI_MonsterIcon_*` → nanoka 怪物页里的本地图）
+ *
+ * 终局记录里的怪物常常只有图标名（剧诗的 `Monsters[id]` 是字符串、首领/圣牌只有 `Icon`），
+ * 而该页的 `imagerefs` 未必覆盖这些字段（剧诗只抓了角色头像）。这里用 nanoka 怪物页的
+ * `icon` 字段建一次 `图标名 → file://` 映射兜底。
+ * @param {string} gameId
+ * @param {string} icon
+ * @returns {string}
+ */
+const iconImageCache = new Map()
+
+export function monsterIconImage (gameId, icon) {
+  if (!icon) return ''
+  const key = `icon|${gameId}`
+  let map = iconImageCache.get(key)
+  if (!map) {
+    map = new Map()
+    try {
+      for (const entry of getPageRecords(gameId, 'monster') || []) {
+        const record = loadRecord(entry.filePath)
+        const name = record?.content?.list?.icon
+        if (!name) continue
+        const url = fieldImage(record, 'icon')
+        if (url && !map.has(String(name))) map.set(String(name), url)
+      }
+    } catch { /* 索引没建好：空表，调用方回落无图 */ }
+    iconImageCache.set(key, map)
+  }
+  return map.get(String(icon)) || ''
+}
+
+/**
  * 怪物名/图标解析器
  *
  * 优先用记录内自带的 `Name` / `Icon`（玉璃的终局页把名字写在记录里），
@@ -158,9 +190,12 @@ export function listGroup (title, fields) {
 }
 
 /** 图标网格段（复用 .material-grid 样式） */
-export function iconGroup (title, items) {
+export function iconGroup (title, items, { cols = 0 } = {}) {
   const rows = (items || []).filter((item) => item && (item.name || item.icon))
-  return rows.length ? { kind: 'icons', title, items: rows } : null
+  if (!rows.length) return null
+  const group = { kind: 'icons', title, items: rows }
+  if (cols) group.cols = cols
+  return group
 }
 
 /** 分块卡片段（楼层 / 关卡 / 强敌）；`cols: 2` 只给字段短的段用，长文本走单列 */
@@ -179,10 +214,12 @@ export function cardsGroup (title, cards, { cols = 1 } = {}) {
  * @param {Array<{title?: string, sub?: string, monsters?: object[], notes?: {label:string,value:string}[]}>} cards
  * @param {{cols?: number}} [opts]
  */
-export function battleGroup (title, cards, { cols = 3 } = {}) {
+export function battleGroup (title, cards, { cols = 3, dense = false } = {}) {
   const rows = (cards || []).filter((card) => card && (card.title || card.monsters?.length))
   if (!rows.length) return null
-  return { kind: 'battle', title, cards: rows, cols }
+  const group = { kind: 'battle', title, cards: rows, cols }
+  if (dense) group.dense = true
+  return group
 }
 
 /** 一只怪物 → 战斗卡里的条目（图标放大占位、数量、血量、抗性） */
