@@ -22,14 +22,17 @@ function mapValues (object) {
   return Object.values(object).map((value) => plain(value)).filter(Boolean).join(' / ')
 }
 
-/** 等级条件：S / A / B 三条评级线 */
-function goalRows (zone) {
+/** 等级条件（S / A / B）+ 怪物等级 */
+function goalRows (zone, level = zone?.monster_level) {
+  const rows = []
   const parts = [
     zone?.s_rank_goal ? `S ${thousands(zone.s_rank_goal)}` : '',
     zone?.a_rank_goal ? `A ${thousands(zone.a_rank_goal)}` : '',
     zone?.b_rank_goal ? `B ${thousands(zone.b_rank_goal)}` : ''
   ].filter(Boolean)
-  return parts.length ? [{ label: '等级条件', value: parts.join(' · ') }] : []
+  if (parts.length) rows.push({ label: '等级条件', value: parts.join(' · ') })
+  if (level) rows.push({ label: '怪物等级', value: `Lv.${level}` })
+  return rows
 }
 
 /** `layer_buff` / `selectable_buff`：`{id:{title,desc}}` → 列表行 */
@@ -78,11 +81,16 @@ function cnNum (value) {
   return CN_NUM[n - 1] || String(value ?? '')
 }
 
-/** 把「父 zone + child 房间」摊平成房间列表：`[{ room, path, title }]` */
-function collectRooms (zoneMap, zone, pathBase, roomNames) {
+/**
+ * 把「父 zone + child 房间」摊平成房间列表：`[{ room, path, title }]`
+ *
+ * `zone.child` 存的是**其他 zone 的 id**（不是嵌套对象），所以子房间的图片路径是
+ * `<zonePrefix>.<childId>.layer_room.<roomId>`，与父 zone 同一层级。
+ */
+function collectRooms (zoneMap, zone, zoneId, zonePrefix, roomNames) {
   const rooms = []
   for (const [roomId, room] of Object.entries(zone?.layer_room || {})) {
-    rooms.push({ room, path: `${pathBase}.layer_room.${roomId}` })
+    rooms.push({ room, path: `${zonePrefix}.${zoneId}.layer_room.${roomId}` })
   }
   for (const childId of zone?.child || []) {
     const child = (zoneMap || {})[childId]
@@ -90,7 +98,7 @@ function collectRooms (zoneMap, zone, pathBase, roomNames) {
     for (const [roomId, room] of Object.entries(child.layer_room || {})) {
       rooms.push({
         room,
-        path: `${pathBase}.child.${childId}.layer_room.${roomId}`,
+        path: `${zonePrefix}.${childId}.layer_room.${roomId}`,
         title: plain(child.name)
       })
     }
@@ -99,9 +107,9 @@ function collectRooms (zoneMap, zone, pathBase, roomNames) {
 }
 
 /** 一道防线 / 一个 Boss 区 → 段（等级条件 + 增益列表 + 房间卡） */
-function zoneGroups (record, zone, zoneName, pathBase, { roomNames = ROOM_NAMES, zoneMap = null } = {}) {
+function zoneGroups (record, zone, zoneName, { zoneId, zonePrefix, roomNames = ROOM_NAMES, zoneMap = null, level = null }) {
   const groups = []
-  const levels = goalRows(zone)
+  const levels = goalRows(zone, level || zone?.monster_level)
   if (levels.length) pushGroup(groups, listGroup(`${zoneName} · 等级条件`, levels))
 
   const selectable = buffRows(zone?.selectable_buff, '可选增益')
@@ -109,7 +117,7 @@ function zoneGroups (record, zone, zoneName, pathBase, { roomNames = ROOM_NAMES,
   const area = buffRows(zone?.layer_buff, '区域增益')
   if (area.length) pushGroup(groups, listGroup(`${zoneName} · 区域增益`, area))
 
-  const cards = collectRooms(zoneMap, zone, pathBase, roomNames)
+  const cards = collectRooms(zoneMap, zone, zoneId, zonePrefix, roomNames)
     .map(({ room, path, title }) => roomCard(record, path, room, title))
     .filter((card) => card.monsters.length)
   pushGroup(groups, battleGroup(zoneName, cards))
@@ -130,8 +138,18 @@ export function zzzShiyuView (record) {
 
   for (const [zoneId, zone] of Object.entries(zoneMap)) {
     if (childIds.has(String(zoneId))) continue
-    const zoneName = plain(zone?.name) || (zone?.stage_num ? `剧变节点第 ${zone.stage_num} 防线` : `防线 ${zoneId}`)
-    for (const group of zoneGroups(record, zone, zoneName, `detail.zone.${zoneId}`, { zoneMap })) pushGroup(groups, group)
+    const zoneName = plain(zone?.name) || (zone?.stage_num ? `剧变节点第${cnNum(zone.stage_num)}防线` : `防线 ${zoneId}`)
+    // 父防线（child 房间）本身没有 monster_level，取子防线的等级补上
+    const childLevel = (zone?.child || [])
+      .map((childId) => zoneMap[String(childId)]?.monster_level)
+      .filter((value) => Number(value) > 0)
+      .sort((a, b) => Number(b) - Number(a))[0]
+    for (const group of zoneGroups(record, zone, zoneName, {
+      zoneId,
+      zonePrefix: 'detail.zone',
+      zoneMap,
+      level: childLevel
+    })) pushGroup(groups, group)
   }
   return groups
 }
@@ -144,15 +162,20 @@ export function zzzBossView (record) {
   const entries = []
   for (const [modeIndex, mode] of modes.entries()) {
     for (const [zoneId, zone] of Object.entries(mode?.zone || {})) {
-      entries.push([zone, `detail.modes.${modeIndex}.zone.${zoneId}`, zoneId])
+      entries.push([zone, zoneId, `detail.modes.${modeIndex}.zone`, mode?.zone || {}])
     }
   }
   if (!entries.length) {
-    for (const [zoneId, zone] of Object.entries(detail.zone || {})) entries.push([zone, `detail.zone.${zoneId}`, zoneId])
+    for (const [zoneId, zone] of Object.entries(detail.zone || {})) entries.push([zone, zoneId, 'detail.zone', detail.zone || {}])
   }
-  for (const [zone, pathBase, zoneId] of entries) {
+  for (const [zone, zoneId, zonePrefix, zoneMap] of entries) {
     const zoneName = plain(zone?.name) || `Boss ${zoneId}`
-    for (const group of zoneGroups(record, zone, zoneName, pathBase, { roomNames: ['战斗房间 1', '战斗房间 2', '战斗房间 3'] })) {
+    for (const group of zoneGroups(record, zone, zoneName, {
+      zoneId,
+      zonePrefix,
+      zoneMap,
+      roomNames: ['战斗房间 1', '战斗房间 2', '战斗房间 3']
+    })) {
       pushGroup(groups, group)
     }
   }

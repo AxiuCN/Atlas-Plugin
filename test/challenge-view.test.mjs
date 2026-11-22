@@ -102,6 +102,30 @@ console.log('\n=== ③ 怪物信息（战斗卡：图标 / 元素 / 抗性 / 血
   const arb = views.get('hsr/maze_peak')
   check('仲裁血量以「骑士/王棋」两条列表呈现',
     ['骑士 · 血量', '王棋 · 血量'].every((title) => arb?.view?.groups.some((group) => group.title === title)))
+
+  // 绝区零：防线 / Boss 区成段，房间成卡；怪物带 HP 与 ATK/DEF 等数值标签
+  const shiyu = views.get('zzz/shiyu')
+  const shiyuGroups = shiyu?.view?.groups || []
+  const shiyuBattles = shiyuGroups.filter((group) => group.kind === 'battle')
+  const shiyuMonsters = shiyuBattles.flatMap((group) => group.cards.flatMap((card) => card.monsters))
+  check('式舆按防线成段、房间成卡', shiyuBattles.length >= 5 && shiyuBattles.every((group) => group.cards.length > 0))
+  check('式舆怪物带 HP 与数值标签', shiyuMonsters.some((monster) => monster.hp && monster.chips.length >= 2))
+  check('式舆段前有等级条件与怪物等级',
+    shiyuBattles.every((group) => shiyuGroups.some((item) =>
+      item.kind === 'list' &&
+      item.title === `${group.title} · 等级条件` &&
+      (item.fields || []).some((field) => field.label === '怪物等级'))))
+  // child 房间在 `detail.zone.<childId>.layer_room`，图片引用必须按这个路径命中
+  const childZone = shiyuBattles.find((group) => /防线/.test(group.title || '') && group.cards.length >= 3)
+  check('式舆 child 房间的怪物图标能解析',
+    Boolean(childZone) && childZone.cards.flatMap((card) => card.monsters).some((monster) => String(monster.icon || '').startsWith('file://')))
+
+  const boss = views.get('zzz/boss')
+  const bossGroups = boss?.view?.groups || []
+  const bossBattles = bossGroups.filter((group) => group.kind === 'battle')
+  check('危局按 Boss 段、战斗房间成卡', bossBattles.length >= 2 && bossBattles.every((group) => group.cards.length > 0))
+  check('危局段前有可选增益',
+    bossGroups.some((group) => group.kind === 'list' && /可选增益/.test(group.title || '') && (group.fields || []).length > 0))
 }
 
 console.log('\n=== ④ 模板渲染（真实视图）===')
