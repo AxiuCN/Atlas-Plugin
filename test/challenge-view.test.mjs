@@ -88,7 +88,11 @@ console.log('\n=== ③ 怪物信息（战斗卡：图标 / 元素 / 抗性 / 血
 
   const theater = views.get('gi/rolecombat')
   const bossCards = (theater?.view?.groups.find((group) => group.kind === 'battle' && group.title === '首领')?.cards || [])
-  check('剧诗首领是战斗卡且带名字', bossCards.length > 0 && bossCards.every((card) => card.monsters.every((monster) => monster.name && !/^\d+$/.test(monster.name))))
+  // 首领卡的名字在卡头（第 n 幕 · 怪物），图标下只留血量
+  check('剧诗首领卡带「第 n 幕 · 怪物名」且不重复名字',
+    bossCards.length > 0 &&
+    bossCards.every((card) => /第 \d+ 幕/.test(card.title) && card.title.replace(/^第 \d+ 幕 · /, '').length > 0) &&
+    bossCards.every((card) => card.monsters.every((monster) => !monster.name)))
 
   const stygian = views.get('gi/leyline')
   const strong = stygian?.view?.groups.find((group) => group.kind === 'battle' && group.title === '强敌')

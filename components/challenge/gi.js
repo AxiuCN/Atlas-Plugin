@@ -180,20 +180,26 @@ export function giTheaterView (record, ctx = {}) {
 
   const bossCards = (Array.isArray(list.Boss) ? list.Boss : []).map((item, index) => {
     const chamberId = THEATER_BOSS_CHAMBERS[index]
+    const names = []
     const monsters = (item?.Monsters || []).map((monster, i) => {
       const id = String(monster?.ID ?? '')
       const info = resolve(id)
+      const label = plain(monster?.Name) || nameByIcon('gi', monster?.Icon) || info.name
+      if (label) names.push(label)
       return battleMonster({
-        name: plain(monster?.Name) || nameByIcon('gi', monster?.Icon) || info.name,
+        // 名字已经写在卡头（第 n 幕 · 怪物），图标下不再重复
+        name: '',
         icon: info.icon || monsterIconImage('gi', monster?.Icon) || fieldImage(record, `Boss.${index}.Monsters.${i}.Icon`),
         hp: monster?.HP ? num(monster.HP, 0) : '',
         chips: [elemLabel(monster?.Color)]
       })
     })
-    const first = monsters.find((monster) => monster.name)?.name || `首领 ${index + 1}`
+    const first = names[0] || `首领 ${index + 1}`
     return {
-      title: monsters.length > 1 ? `${first} 等 ${monsters.length}` : first,
-      sub: [chamberId ? `第 ${chamberId} 幕` : '', plain(item?.Time) ? `限时 ${plain(item.Time)}` : ''].filter(Boolean).join(' · '),
+      // 标题与各幕保持同一套写法：「第 n 幕 · 怪物名」；限时放副标题并转成中文单位
+      title: [`第 ${chamberId} 幕`, monsters.length > 1 ? `${first} 等 ${monsters.length}` : first].filter(Boolean).join(' · '),
+      sub: plain(item?.Time) ? `限时 ${secondsText(plain(item.Time))}` : '',
+      stackSub: true,
       monsters
     }
   })
@@ -427,6 +433,13 @@ export function gensriStygianView (record, raw) {
 /** 优势/劣势里的角色标签（去掉内联 `<img>` 后按 `|` 拆开） */
 function roleChips (text) {
   return String(text ?? '').replace(/<[^>]*>/g, '').split('|').map((item) => item.trim()).filter(Boolean)
+}
+
+/** `75s` / `75秒` / `75 s` → `75 秒`（限时统一中文单位） */
+function secondsText (text) {
+  const raw = String(text ?? '').trim()
+  const matched = raw.match(/^(\d+(?:\.\d+)?)\s*(?:s|秒)?$/i)
+  return matched ? `${matched[1]} 秒` : raw
 }
 
 /** 官方文案里的 `@高亮#` 标记：只留正文 */

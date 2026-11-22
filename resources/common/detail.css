@@ -525,3 +525,9 @@
   border-top: none;
   padding-top: 0;
 }
+
+/* 副标题独占一行（首领卡的「限时 xx 秒」） */
+.battle-card-sub--line {
+  display: block;
+  margin: 4px 0 0;
+}
