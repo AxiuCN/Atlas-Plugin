@@ -91,4 +91,20 @@ for (const page of pages) {
 }
 check('模板 link 与 CSS url() 的目标都存在', missing.length === 0, missing.join('、'))
 
+console.log('\n=== ④ 溢出缩字号（fit-text）接线 ===')
+const fitPath = path.join(pluginRoot, 'resources/common/fit-text.js')
+check('fit-text.js 存在', fs.existsSync(fitPath))
+const fitSource = fs.existsSync(fitPath) ? fs.readFileSync(fitPath, 'utf8') : ''
+check('fit-text.js 有缩放下限与纯数值跳过', /MIN_SCALE/.test(fitSource) && /PURE_NUMBER/.test(fitSource))
+// 参数段（角色/邦布）必须带 data-fit 且模板引用了脚本，否则溢出时不会缩
+const needFit = ['character', 'bangboo'].filter((page) => {
+  const src = tplSource.get(`${page}.html`) || ''
+  return !/fit-text\.js/.test(src) || !/<span class="param-seg" data-fit>/.test(src)
+})
+check('角色/邦布模板：参数段带 data-fit 且引用脚本', needFit.length === 0, needFit.join('、'))
+// 精炼正文整块缩放
+const weaponSrc = tplSource.get('weapon.html') || ''
+check('武器模板：精炼正文带 data-fit 且引用脚本',
+  /<div class="refine-desc" data-fit>/.test(weaponSrc) && /fit-text\.js/.test(weaponSrc))
+
 finish()
