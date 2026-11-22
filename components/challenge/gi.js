@@ -193,7 +193,7 @@ export function giTheaterView (record, ctx = {}) {
     const first = monsters.find((monster) => monster.name)?.name || `首领 ${index + 1}`
     return {
       title: monsters.length > 1 ? `${first} 等 ${monsters.length}` : first,
-      sub: [chamberId ? `P${chamberId}` : '', plain(item?.Time) ? `限时 ${plain(item.Time)}` : ''].filter(Boolean).join(' · '),
+      sub: [chamberId ? `第 ${chamberId} 幕` : '', plain(item?.Time) ? `限时 ${plain(item.Time)}` : ''].filter(Boolean).join(' · '),
       monsters
     }
   })
@@ -202,8 +202,8 @@ export function giTheaterView (record, ctx = {}) {
   const arcanaCards = (Array.isArray(list.Arcana) ? list.Arcana : []).map((item, index) => {
     const chamberId = THEATER_ARCANA_CHAMBERS[index]
     return {
-      title: `圣牌 ${index + 1}`,
-      sub: [chamberId ? `P${chamberId}` : '', item?.Time ? String(item.Time) : ''].filter(Boolean).join(' · '),
+      title: `第 ${chamberId} 幕 · 圣牌 ${index + 1}`,
+      sub: item?.Time ? String(item.Time) : '',
       monsters: (item?.Monsters || []).map((monster, i) => {
         const id = String(monster?.ID ?? '')
         const info = resolve(id)
@@ -221,11 +221,9 @@ export function giTheaterView (record, ctx = {}) {
   // 各幕：只留阵容幕（P1/2/4/5/7/9），原编号给首领/圣牌；卡内按阵容分行
   const mp = list.MP || {}
   const chamberCards = []
-  let actNo = 0
   for (const chamber of list.Chambers || []) {
     const chamberId = Number(chamber?._id)
     if (!THEATER_LINEUP_CHAMBERS.includes(chamberId)) continue
-    actNo += 1
     const multiplier = theaterMultiplier(period, chamberId)
     const configs = Array.isArray(chamber?.Configs) ? chamber.Configs : []
     const lineups = []
@@ -245,8 +243,8 @@ export function giTheaterView (record, ctx = {}) {
     })
     if (!lineups.length) continue
     chamberCards.push({
-      title: `第 ${actNo} 幕`,
-      sub: [chamber?.Level ? `Lv.${chamber.Level}` : '', `P${chamberId}`].filter(Boolean).join(' · '),
+      title: `第 ${chamberId} 幕`,
+      sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
       lineups,
       lead: plain(list.MonDesc?.[configs[0]], 200)
     })

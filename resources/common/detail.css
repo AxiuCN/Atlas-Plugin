@@ -514,3 +514,14 @@
   color: #6b6b6b;
   margin-bottom: 2px;
 }
+
+/* 阵容之间用浅色虚线分隔（第一组不画） */
+.battle-lineup {
+  border-top: 1px dashed #e0dcd8;
+  padding-top: 6px;
+}
+
+.battle-lineup:first-child {
+  border-top: none;
+  padding-top: 0;
+}
