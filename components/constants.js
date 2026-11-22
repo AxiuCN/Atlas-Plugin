@@ -171,6 +171,7 @@ export const SPECIAL_TRIGGERS = {
     '虚构': { pageKey: 'maze_extra', type: 'page_detail' },
     '虚构叙事': { pageKey: 'maze_extra', type: 'page_detail' },
     '仲裁': { pageKey: 'maze_peak', type: 'page_detail' },
+    '异相': { pageKey: 'maze_peak', type: 'page_detail' },
     '异相仲裁': { pageKey: 'maze_peak', type: 'page_detail' }
   },
   zzz: {

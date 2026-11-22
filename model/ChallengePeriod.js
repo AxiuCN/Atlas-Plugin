@@ -184,6 +184,13 @@ export function resolvePeriodSpec (gameId, pageKey, spec, now = new Date(), peri
   }
 
   if (spec.kind === 'version') {
+    // 期表自带版本号时以它为准：玉璃的终局期按自己的节奏开（星铁仲裁 4.6 期 09-28，
+    // 比版本时间轴早三周），用日期区间反查会串到相邻版本
+    const exact = dated.filter(period => String(period.version || '') === spec.version)
+    if (exact.length) {
+      const slotIndex = spec.slot.charCodeAt(0) - 97
+      return { period: exact[slotIndex] || exact[0], state: 'version', spec }
+    }
     const range = getVersionRange(gameId, spec.version)
     if (!range) return { period: null, state: 'unknown-version', spec }
     const group = dated.filter(period => period.begin >= range.from && period.begin <= range.to)

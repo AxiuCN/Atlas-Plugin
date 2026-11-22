@@ -80,9 +80,11 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
   const data = {
     gameName: GAME_NAMES[gameId],
     pageTitle: result.pageTitle,
-    // 期名优先：玉璃的终局记录里常混着攻略/关卡名（如「隐藏关卡」），拿它当标题会误导；
-    // 绝区零没有期名，记录标题（「剧变节点」）才是用户认得的叫法
-    recordName: period.name || (gameId === 'zzz' ? pickHesperidesTitle(raw) : '') || `第 ${period.no} 期`,
+    // 期名优先，但玉璃索引里的「期名」经常是关卡名（异相仲裁就是「隐藏关卡」），不能直接当标题；
+    // 异相仲裁改用「版本 + 页名」；绝区零没有期名，记录标题（「剧变节点」）才是用户认得的叫法
+    recordName: (gameId === 'hsr' && result.pageKey === 'maze_peak' && period.version
+      ? `${period.version} ${result.pageTitle}`
+      : period.name) || (gameId === 'zzz' ? pickHesperidesTitle(raw) : '') || `第 ${period.no} 期`,
     periodLine: [
       formatPeriodLabel(gameId, period),
       period.suspect === 'long-span' ? '期跨度异常，待确认' : ''

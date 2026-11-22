@@ -14,6 +14,15 @@ import {
 import { getSectionBuilder } from './sections/index.js'
 
 /**
+ * 显示名清洗：索引里的名字可能带 `<unbreak>` / `<color>` 这类标记（如星铁「<unbreak>4.4</unbreak>异相仲裁」）
+ * @param {string} value
+ * @returns {string}
+ */
+function cleanDisplayName (value) {
+  return String(value ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+}
+
+/**
  * 字段名转中文标签
  * @param {string} key
  * @returns {string}
@@ -172,7 +181,7 @@ export function buildDetailData (gameId, result) {
       return {
         gameName: GAME_NAMES[gameId],
         pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
-        name: typeData.recordName || meta.name || result.name,
+        name: cleanDisplayName(typeData.recordName || meta.name || result.name),
         rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
         image: resolveRecordImage(record),
         hero: typeData.hero || null,
@@ -223,7 +232,7 @@ export function buildDetailData (gameId, result) {
   return {
     gameName: GAME_NAMES[gameId],
     pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
-    recordName: meta.name || result.name,
+    recordName: cleanDisplayName(meta.name || result.name),
     rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
     desc: desc.length > 200 ? '' : desc,
     // 挑战页的期标识（第 N 期 · 版本 · 起止时间），只在按期查询/本期查询时才有
