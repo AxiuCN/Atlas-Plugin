@@ -107,7 +107,7 @@ function stageGroups (record, list, { floorLabel = '层' } = {}) {
       }
       if (!lineups.length) continue
       cards.push({
-        title: Number(stage?.Half) === 3 ? '额外' : (Number(stage?.Half) === 2 ? '下半' : '上半'),
+        title: `第 ${stage?.Half ?? lineups.length + 1} 间`,
         sub: [elemsText(stage?.Elem), stageData?.Level ? `Lv.${stageData.Level}` : ''].filter(Boolean).join(' · '),
         lineups
       })

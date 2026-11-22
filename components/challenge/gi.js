@@ -466,7 +466,8 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
         lead: plain(room?.bossDescription, 220)
       }
     })
-  pushGroup(groups, battleGroup('强敌', bossCards, { cols: 2 }))
+  // 段名与正式服一致（正式页剧诗叫「首领」），缺失的数据（如圣牌以外的幕）按原则省略
+  pushGroup(groups, battleGroup('首领', bossCards, { cols: 2 }))
 
   // 圣牌 = 额外幕 1/2：月亮网放在难度层的 `hardRooms` 里（房间号→对象，含怪物与说明）
   const hardRooms = difficulties[String(topLevel)]?.hardRooms || {}
