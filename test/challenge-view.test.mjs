@@ -68,7 +68,7 @@ for (const [gameId, pageKey] of MODES) {
     if (group.kind === 'list') return group.fields.length > 0
     if (group.kind === 'icons') return group.items.length > 0 && group.items.every((item) => item.name || item.icon)
     if (group.kind === 'cards') return group.cards.length > 0 && group.cards.every((card) => card.title || card.fields?.length)
-    if (group.kind === 'battle') return group.cards.length > 0 && group.cards.every((card) => card.monsters?.length > 0)
+    if (group.kind === 'battle') return group.cards.length > 0 && group.cards.every((card) => card.monsters?.length > 0 || card.lineups?.length > 0)
     return group.fields.length > 0
   }))
 }

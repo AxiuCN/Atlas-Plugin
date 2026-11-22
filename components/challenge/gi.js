@@ -105,13 +105,17 @@ export function giAbyssView (record) {
 
 /** 阵容幕 1,2,4,5,7,9 用 `HPChamber`；Boss 幕 3,6,8,10,11,12 用 `HP` */
 const THEATER_LINEUP_CHAMBERS = [1, 2, 4, 5, 7, 9]
-const THEATER_BOSS_CHAMBERS = [3, 6, 8, 10, 11, 12]
+const THEATER_BOSS_CHAMBERS = [3, 6, 8, 10]
+/** 圣牌幕（P11 / P12）：与 Arcana 两组一一对应 */
+const THEATER_ARCANA_CHAMBERS = [11, 12]
+/** 幕倍率表里的 Boss 序列（引擎 HP 数组含 4 个首领 + 2 个圣牌共 6 项） */
+const THEATER_HP_BOSS_ORDER = [3, 6, 8, 10, 11, 12]
 
 /** 取某一幕的血量倍率（期对象上的 `hpByLineup` / `hpByBoss`，来自引擎带出的 manifest 期字段） */
 function theaterMultiplier (period, chamberId) {
   const lineup = THEATER_LINEUP_CHAMBERS.indexOf(chamberId)
   if (lineup >= 0) return period?.hpByLineup?.[lineup]
-  const boss = THEATER_BOSS_CHAMBERS.indexOf(chamberId)
+  const boss = THEATER_HP_BOSS_ORDER.indexOf(chamberId)
   if (boss >= 0) return period?.hpByBoss?.[boss]
   return undefined
 }
@@ -175,6 +179,7 @@ export function giTheaterView (record, ctx = {}) {
   })), { cols: 6 }))
 
   const bossCards = (Array.isArray(list.Boss) ? list.Boss : []).map((item, index) => {
+    const chamberId = THEATER_BOSS_CHAMBERS[index]
     const monsters = (item?.Monsters || []).map((monster, i) => {
       const id = String(monster?.ID ?? '')
       const info = resolve(id)
@@ -185,20 +190,20 @@ export function giTheaterView (record, ctx = {}) {
         chips: [elemLabel(monster?.Color)]
       })
     })
-    // 标题用怪物名（多只时「XX 等 N」），时间放副标题
     const first = monsters.find((monster) => monster.name)?.name || `首领 ${index + 1}`
     return {
       title: monsters.length > 1 ? `${first} 等 ${monsters.length}` : first,
-      sub: plain(item?.Time) ? `限时 ${plain(item.Time)}` : '',
+      sub: [chamberId ? `P${chamberId}` : '', plain(item?.Time) ? `限时 ${plain(item.Time)}` : ''].filter(Boolean).join(' · '),
       monsters
     }
   })
-  pushGroup(groups, battleGroup('首领', bossCards))
+  pushGroup(groups, battleGroup('首领', bossCards, { cols: 2 }))
 
   const arcanaCards = (Array.isArray(list.Arcana) ? list.Arcana : []).map((item, index) => {
+    const chamberId = THEATER_ARCANA_CHAMBERS[index]
     return {
-      title: '',
-      sub: item?.Time ? String(item.Time) : '',
+      title: `圣牌 ${index + 1}`,
+      sub: [chamberId ? `P${chamberId}` : '', item?.Time ? String(item.Time) : ''].filter(Boolean).join(' · '),
       monsters: (item?.Monsters || []).map((monster, i) => {
         const id = String(monster?.ID ?? '')
         const info = resolve(id)
@@ -213,13 +218,17 @@ export function giTheaterView (record, ctx = {}) {
   })
   pushGroup(groups, battleGroup('圣牌', arcanaCards, { cols: 2 }))
 
-  // 各幕：一幕可能有多个小怪「选择」（Chambers[].Configs），逐个选择出一张卡
+  // 各幕：只留阵容幕（P1/2/4/5/7/9），原编号给首领/圣牌；卡内按阵容分行
   const mp = list.MP || {}
   const chamberCards = []
+  let actNo = 0
   for (const chamber of list.Chambers || []) {
     const chamberId = Number(chamber?._id)
+    if (!THEATER_LINEUP_CHAMBERS.includes(chamberId)) continue
+    actNo += 1
     const multiplier = theaterMultiplier(period, chamberId)
     const configs = Array.isArray(chamber?.Configs) ? chamber.Configs : []
+    const lineups = []
     configs.forEach((configId, choiceIndex) => {
       const rows = (mp[configId] || []).map((monsterId) => {
         const id = String(monsterId)
@@ -232,12 +241,14 @@ export function giTheaterView (record, ctx = {}) {
           chips: [elemLabel(data.Color)]
         })
       })
-      if (!rows.length) return
-      chamberCards.push({
-        title: `第 ${chamberId ?? '?'} 幕 · 选择 ${choiceIndex + 1}`,
-        sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
-        monsters: rows
-      })
+      if (rows.length) lineups.push({ title: `阵容 ${choiceIndex + 1}`, monsters: rows })
+    })
+    if (!lineups.length) continue
+    chamberCards.push({
+      title: `第 ${actNo} 幕`,
+      sub: [chamber?.Level ? `Lv.${chamber.Level}` : '', `P${chamberId}`].filter(Boolean).join(' · '),
+      lineups,
+      lead: plain(list.MonDesc?.[configs[0]], 200)
     })
   }
   pushGroup(groups, battleGroup('各幕', chamberCards, { cols: 2, dense: true }))

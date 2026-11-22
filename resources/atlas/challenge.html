@@ -61,6 +61,28 @@
             {{if card.title || card.sub}}
             <div class="battle-card-head">{{card.title}}{{if card.sub}}<span class="battle-card-sub">{{card.sub}}</span>{{/if}}</div>
             {{/if}}
+            {{if card.lineups && card.lineups.length > 0}}
+            {{each card.lineups lineup}}
+            <div class="battle-lineup">
+              {{if lineup.title}}<div class="battle-lineup-title">{{lineup.title}}</div>{{/if}}
+              <div class="battle-monsters">
+                {{each lineup.monsters monster}}
+                <div class="battle-monster">
+                  <div class="battle-icon-wrap">
+                    {{if monster.icon}}<img class="battle-icon" src="{{monster.icon}}"/>{{/if}}
+                    {{if monster.count}}<span class="battle-count">×{{monster.count}}</span>{{/if}}
+                  </div>
+                  {{if monster.name}}<div class="battle-name">{{monster.name}}</div>{{/if}}
+                  {{if monster.hp}}<div class="battle-hp">{{monster.hp}}</div>{{/if}}
+                  {{if monster.chips && monster.chips.length > 0}}
+                  <div class="battle-chips">{{each monster.chips chip}}<span class="battle-chip">{{chip}}</span>{{/each}}</div>
+                  {{/if}}
+                </div>
+                {{/each}}
+              </div>
+            </div>
+            {{/each}}
+            {{/if}}
             {{if card.monsters && card.monsters.length > 0}}
             <div class="battle-monsters">
               {{each card.monsters monster}}

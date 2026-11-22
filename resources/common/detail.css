@@ -502,3 +502,15 @@
 .battle-grid--dense .battle-hp {
   font-size: 18px;
 }
+
+/* ===== 幕内阵容（同一幕的多组可选小怪） ===== */
+.battle-lineup {
+  margin-top: 6px;
+}
+
+.battle-lineup-title {
+  font-size: 19px;
+  font-weight: 600;
+  color: #6b6b6b;
+  margin-bottom: 2px;
+}
