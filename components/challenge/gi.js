@@ -467,8 +467,23 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
     })
   pushGroup(groups, battleGroup('强敌', bossCards, { cols: 2 }))
 
-  // 圣牌（额外幕 1/2）月亮网不收录，只有玉璃记录里有；预览期没有就整段不出，
-  // 不能用 shopItems（那是剧诗的角色姿势/表情奖励）
+  // 圣牌 = 额外幕 1/2：月亮网放在难度层的 `hardRooms` 里（房间号→对象，含怪物与说明）
+  const hardRooms = difficulties[String(topLevel)]?.hardRooms || {}
+  const extraCards = Object.keys(hardRooms)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((no, index) => {
+      const room = hardRooms[no] || {}
+      return {
+        title: `额外幕 ${index + 1}`,
+        sub: room?.monsterLevel ? `Lv.${room.monsterLevel}` : '',
+        monsters: (room?.monsters || []).map((monster) => battleMonster({
+          name: plain(monster?.name),
+          icon: monsterIconImage('gi', monster?.icon)
+        })).filter((monster) => monster.name || monster.icon),
+        lead: plain(room?.bossDescription, 220)
+      }
+    })
+  pushGroup(groups, battleGroup('圣牌', extraCards, { cols: 2 }))
   return groups
 }
 
