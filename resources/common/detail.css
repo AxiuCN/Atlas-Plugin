@@ -531,3 +531,10 @@
   display: block;
   margin: 4px 0 0;
 }
+
+/* 角色名一行 6 个时缩一号，保证 6 字名字放得下 */
+.material-grid.cols-6 .material-card-name {
+  font-size: 19px;
+  line-height: 1.3;
+  word-break: keep-all;
+}

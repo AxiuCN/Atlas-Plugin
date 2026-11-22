@@ -71,9 +71,11 @@ export function giAbyssView (record) {
         { label: '效果', value: floor?.Disorder ? plain(floor.Disorder, 240) : '' }
       ]))
     }
-    // 一层一个段，段内一间一张卡（卡名「第 n 间 · 上半/下半」）
-    const cards = []
+    // 一层一个段，段内一间一张卡；同一间的上半/下半并到一张卡里（六张 → 三张）
+    const chambers = new Map()
     for (const chamber of floor?.Chambers || []) {
+      const index = chamber?.Index ?? '?'
+      if (!chambers.has(index)) chambers.set(index, { level: chamber?.Level, halves: {} })
       const rows = []
       for (const wave of chamber?.Waves || []) {
         for (const monster of wave?.Monsters || []) {
@@ -89,12 +91,16 @@ export function giAbyssView (record) {
           }))
         }
       }
-      cards.push({
-        title: `第 ${chamber?.Index ?? '?'} 间 · ${Number(chamber?.Half) === 2 ? '下半' : '上半'}`,
-        sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
-        monsters: rows
-      })
+      chambers.get(index).halves[Number(chamber?.Half) === 2 ? '下半' : '上半'] = rows
     }
+    const cards = [...chambers.entries()].map(([index, group]) => ({
+      title: `第 ${index} 间`,
+      sub: group.level ? `Lv.${group.level}` : '',
+      lineups: [
+        { title: '上半', monsters: group.halves['上半'] || [] },
+        { title: '下半', monsters: group.halves['下半'] || [] }
+      ].filter((lineup) => lineup.monsters.length)
+    }))
     pushGroup(groups, battleGroup(`第 ${floorNo} 层`, cards))
   }
   return groups
@@ -397,26 +403,27 @@ export function lunarisAbyssView (record, raw, ctx = {}) {
         { label: '下半', value: plain(floor.secondHalfBuff?.description || floor.secondHalfBuff, 200) }
       ]))
     }
-    // 一层一个段，段内一间一张卡（卡名「第 n 间 · 上半/下半」）
+    // 一层一个段，段内一间一张卡；同一间的上半/下半并到一张卡里（六张 → 三张）
     const cards = []
     for (const [index, chamber] of (floor?.chambers || []).entries()) {
       const level = chamber?.monsterLevel ? `Lv.${chamber.monsterLevel}` : ''
-      const first = toRows(chamber?.firstHalfMonsters)
-      const second = toRows(chamber?.secondHalfMonsters)
-      if (first.length) cards.push({ title: `第 ${index + 1} 间 · 上半`, sub: level, monsters: first })
-      if (second.length) cards.push({ title: `第 ${index + 1} 间 · 下半`, sub: level, monsters: second })
+      const lineups = [
+        { title: '上半', monsters: toRows(chamber?.firstHalfMonsters) },
+        { title: '下半', monsters: toRows(chamber?.secondHalfMonsters) }
+      ].filter((lineup) => lineup.monsters.length)
+      if (lineups.length) cards.push({ title: `第 ${index + 1} 间`, sub: level, lineups })
     }
     pushGroup(groups, battleGroup(`第 ${floorNo} 层`, cards))
   }
   return groups
 }
 /**
- * 月亮网（预览期）剧诗：本期限制 → 开幕角色/加成 → 各幕（房间）→ 奖励
+ * 月亮网（预览期）剧诗：本期限制 → 开幕/特邀角色 → 强敌 → 圣牌
  *
  * 预览期数据只有 `rolecombat/<id>.json`：
  *   `elementRestrictions` / `featuredAvatars` / `detail.avatarConfig[0].bonusAvatars`
  *   / `detail.difficultyConfig[<难度>].rooms[<n>]`（`monsterLevel` / `monsters[{name,icon}]` / `bossName`）
- *   / `detail.shopItems`。**没有幕内血量**（月亮网不给 HP），所以只出等级与怪物。
+ *   / `detail.shopItems`（圣牌）。**没有幕内血量**（月亮网不给 HP），所以只出等级与怪物。
  */
 export function lunarisTheaterView (record, raw, ctx = {}) {
   const detail = raw?.detail || {}
@@ -429,16 +436,17 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
     { label: '可用元素', value: elements.map((id) => elemLabelById(id)).filter(Boolean).join(' / ') }
   ]))
 
-  const featured = raw?.featuredAvatars || avatarConfig?.featuredAvatars || []
-  pushGroup(groups, iconGroup('开幕角色', (featured || []).map((id) => ({
-    name: entryNameById('gi', 'character', id),
-    icon: characterIcon('gi', id),
-    sub: ''
-  })), { cols: 6 }))
-  const bonus = avatarConfig?.bonusAvatars || []
-  pushGroup(groups, iconGroup('开幕加成', (bonus || []).map((item) => ({
+  // 开幕 = avatarConfig.bonusAvatars（6 名），特邀 = featuredAvatars（4 名）；月亮网这两个字段名与游戏内叫法不对应
+  const opening = avatarConfig?.bonusAvatars || []
+  pushGroup(groups, iconGroup('开幕角色', opening.map((item) => ({
     name: entryNameById('gi', 'character', item?.avatarId),
     icon: characterIcon('gi', item?.avatarId),
+    sub: ''
+  })), { cols: 6 }))
+  const invited = raw?.featuredAvatars || avatarConfig?.featuredAvatars || []
+  pushGroup(groups, iconGroup('特邀角色', invited.map((id) => ({
+    name: entryNameById('gi', 'character', id),
+    icon: characterIcon('gi', id),
     sub: ''
   })), { cols: 6 }))
 
@@ -454,14 +462,17 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
       return {
         title: `第 ${no} 幕 · ${plain(room.bossName)}`,
         sub: room?.monsterLevel ? `Lv.${room.monsterLevel}` : '',
-        monsters: [battleMonster({
-          icon: monsterIconImage('gi', boss?.icon),
-          hp: ''
-        })],
-        lead: plain(room?.bossDescription, 220)
+        monsters: [battleMonster({ icon: monsterIconImage('gi', boss?.icon), hp: '' })]
       }
     })
   pushGroup(groups, battleGroup('强敌', bossCards, { cols: 2 }))
+
+  // 圣牌：月亮网的 shopItems 就是本期圣牌（名称 + 专属角色）
+  const shopItems = Array.isArray(detail.shopItems) ? detail.shopItems : []
+  pushGroup(groups, cardsGroup('圣牌', shopItems.filter((item) => item?.name).map((item) => ({
+    title: plain(item.name),
+    fields: [{ label: '专属角色', value: entryNameById('gi', 'character', item.characterId) }]
+  }))))
   return groups
 }
 
