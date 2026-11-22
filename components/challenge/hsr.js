@@ -32,17 +32,21 @@ function buffCards (list) {
   }))
 }
 
-/** `{1:[{Name,Desc}],2:[...]}` → 按层号成卡 */
+/** 特性归一：`{1:[{Name,Desc}]}`（混沌/末日）或 `[{Index:1,Tags:[{Name,Desc}]}]`（异相） */
 function tagCards (tags, unit = '层') {
-  if (!tags || typeof tags !== 'object' || Array.isArray(tags)) return []
   const cards = []
-  for (const [key, list] of Object.entries(tags)) {
+  const append = (key, list) => {
     for (const item of Array.isArray(list) ? list : []) {
       cards.push({
-        title: `${/^\d+$/.test(key) ? `第 ${key} 层 · ` : ''}${plain(item?.Name) || '特性'}`,
+        title: `${key !== null && key !== undefined ? `第 ${key} ${unit} · ` : ''}${plain(item?.Name) || '特性'}`,
         fields: item?.Desc ? [{ label: '效果', value: plain(item.Desc, 220) }] : []
       })
     }
+  }
+  if (Array.isArray(tags)) {
+    for (const entry of tags) append(entry?.Index, entry?.Tags)
+  } else if (tags && typeof tags === 'object') {
+    for (const [key, list] of Object.entries(tags)) append(/^\d+$/.test(key) ? key : null, list)
   }
   return cards
 }
@@ -59,6 +63,41 @@ function waveList (waves) {
 }
 
 /**
+ * 单个关卡（StageID）→ 波次行
+ * @param {object} record
+ * @param {object} list
+ * @param {number|string} stageId
+ * @returns {object[]}
+ */
+function stageLineups (record, list, stageId) {
+  const monsters = list.Monsters || {}
+  const stageData = (list.Stages || {})[String(stageId)] || {}
+  const lineups = []
+  for (const wave of waveList(stageData?.Waves)) {
+    const rows = (wave?.Monsters || []).map((monster) => {
+      const id = String(monster?.ID ?? '')
+      const meta = monsters[id] || {}
+      const chips = []
+      if (Array.isArray(meta.Weak) && meta.Weak.length) chips.push(`弱点 ${meta.Weak.map(elemLabel).join(' / ')}`)
+      if (monster?.Stance) chips.push(`韧性 ${num(monster.Stance, 0)}`)
+      for (const [key, value] of Object.entries(meta.RES || {})) chips.push(`${elemLabel(key)} ${num(Number(value) * 100)}%`)
+      return battleMonster({
+        name: plain(meta.Name) || id,
+        icon: fieldImage(record, `Monsters.${id}.Icon`),
+        hp: monster?.HP ? num(monster.HP, 0) : '',
+        chips
+      })
+    })
+    if (!rows.length) continue
+    lineups.push({
+      title: plain(wave?.WaveName) ? `第 ${wave.Wave} 波 · ${plain(wave.WaveName)}` : `第 ${wave.Wave ?? lineups.length + 1} 波`,
+      monsters: rows
+    })
+  }
+  return { lineups, stageData }
+}
+
+/**
  * 关卡（层）→ 段；段内上半/下半各一张卡，卡内按波次分行
  * @param {object} record - 插件记录（取图片引用）
  * @param {object} list - 记录的 content.list
@@ -68,7 +107,6 @@ function waveList (waves) {
 function stageGroups (record, list, { floorLabel = '层' } = {}) {
   const groups = []
   const monsters = list.Monsters || {}
-  const stages = list.Stages || {}
 
   for (const floor of Array.isArray(list.Floors) ? list.Floors : []) {
     const no = floor?.Floor ?? '?'
@@ -82,29 +120,7 @@ function stageGroups (record, list, { floorLabel = '层' } = {}) {
 
     const cards = []
     for (const stage of floor?.Stages || []) {
-      const stageData = stages[String(stage?.StageID)] || {}
-      const lineups = []
-      for (const wave of waveList(stageData?.Waves)) {
-        const rows = (wave?.Monsters || []).map((monster) => {
-          const id = String(monster?.ID ?? '')
-          const meta = monsters[id] || {}
-          const chips = []
-          if (Array.isArray(meta.Weak) && meta.Weak.length) chips.push(`弱点 ${meta.Weak.map(elemLabel).join(' / ')}`)
-          if (monster?.Stance) chips.push(`韧性 ${num(monster.Stance, 0)}`)
-          for (const [key, value] of Object.entries(meta.RES || {})) chips.push(`${elemLabel(key)} ${num(Number(value) * 100)}%`)
-          return battleMonster({
-            name: plain(meta.Name) || id,
-            icon: fieldImage(record, `Monsters.${id}.Icon`),
-            hp: monster?.HP ? num(monster.HP, 0) : '',
-            chips
-          })
-        })
-        if (!rows.length) continue
-        lineups.push({
-          title: plain(wave?.WaveName) ? `第 ${wave.Wave} 波 · ${plain(wave.WaveName)}` : `第 ${wave.Wave ?? lineups.length + 1} 波`,
-          monsters: rows
-        })
-      }
+      const { lineups, stageData } = stageLineups(record, list, stage?.StageID)
       if (!lineups.length) continue
       cards.push({
         title: `第 ${stage?.Half ?? lineups.length + 1} 间`,
@@ -152,29 +168,40 @@ export function hsrAsView (record) {
   return groups
 }
 
-/** 异相仲裁：骑士 / 国王 / 增益 / 血量档位 */
+/**
+ * 异相仲裁：本期增益 → 骑士（N 关）/ 王棋（M 关），每关一张卡（卡内按波次分行），
+ * 段后跟本段特性；血量是整段的总生命，单列一条。
+ */
 export function hsrArbitrationView (record) {
   const list = record?.content?.list || {}
   const groups = []
+  pushGroup(groups, cardsGroup('本期增益', buffCards(list.Buffs), { cols: 2 }))
 
   const sides = [
-    { title: '骑士', list: list.Knight, tags: list.KnightTags },
-    { title: '国王', list: list.King, tags: list.KingTags }
+    { title: '骑士', entries: list.Knight, tags: list.KnightTags, hp: [['总生命', list.HP_Knight]] },
+    {
+      title: '王棋',
+      entries: list.King,
+      tags: list.KingTags,
+      hp: [['总生命', list.HP_King], ['高难总生命', list.HP_King_Hard]]
+    }
   ]
+
   for (const side of sides) {
-    pushGroup(groups, listGroup(`${side.title}关卡`, (side.list || []).map((item) => ({
-      label: `第 ${item?.Index ?? '?'} 关`,
-      value: elemsText(item?.Elem) || `阶段 ${item?.StageID ?? '-'}`
-    }))))
-    pushGroup(groups, cardsGroup(`${side.title}特性`, tagCards(side.tags, '关')))
+    const hpRows = (side.hp || []).filter(([, value]) => value).map(([label, value]) => ({ label, value: num(value, 0) }))
+    if (hpRows.length) pushGroup(groups, listGroup(`${side.title} · 血量`, hpRows))
+
+    const cards = (side.entries || []).map((entry) => {
+      const { lineups, stageData } = stageLineups(record, list, entry?.StageID)
+      return {
+        title: `第 ${entry?.Index ?? '?'} 关`,
+        sub: [elemsText(entry?.Elem), stageData?.Level ? `Lv.${stageData.Level}` : ''].filter(Boolean).join(' · '),
+        lineups
+      }
+    }).filter((card) => card.lineups.length)
+    pushGroup(groups, battleGroup(side.title, cards))
+
+    pushGroup(groups, cardsGroup(`${side.title}特性`, tagCards(side.tags, '关'), { cols: 2 }))
   }
-
-  pushGroup(groups, cardsGroup('增益', buffCards(list.Buffs), { cols: 2 }))
-
-  const hp = []
-  if (list.HP_Knight) hp.push({ label: '骑士生命', value: num(list.HP_Knight, 0) })
-  if (list.HP_King) hp.push({ label: '国王生命', value: num(list.HP_King, 0) })
-  if (list.HP_King_Hard) hp.push({ label: '国王生命（高难）', value: num(list.HP_King_Hard, 0) })
-  pushGroup(groups, collapseGroup('血量档位', hp))
   return groups
 }

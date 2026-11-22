@@ -100,7 +100,8 @@ console.log('\n=== ③ 怪物信息（战斗卡：图标 / 元素 / 抗性 / 血
     Boolean(strong?.cards.some((card) => card.monsters.some((monster) => monster.hp && monster.chips.length > 0))))
   check('危战不再单列血量档位（N5/N6 在强敌卡头部）', !stygian?.view?.groups.some((group) => group.title === '血量档位'))
   const arb = views.get('hsr/maze_peak')
-  check('仲裁血量档位走折叠', Boolean(arb?.view?.groups.some((group) => group.kind === 'collapse')))
+  check('仲裁血量以「骑士/王棋」两条列表呈现',
+    ['骑士 · 血量', '王棋 · 血量'].every((title) => arb?.view?.groups.some((group) => group.title === title)))
 }
 
 console.log('\n=== ④ 模板渲染（真实视图）===')
