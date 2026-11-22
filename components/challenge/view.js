@@ -133,6 +133,55 @@ export function nameByIcon (gameId, icon) {
  * @param {string} icon
  * @returns {string}
  */
+const characterIconCache = new Map()
+
+/**
+ * 角色 id → 本地头像（预览期记录只有 `featuredAvatars: [10000050…]`，没有图片引用）
+ * @param {string} gameId
+ * @param {string|number} id
+ * @returns {string}
+ */
+export function characterIcon (gameId, id) {
+  if (id === undefined || id === null) return ''
+  const key = `character|${gameId}`
+  let map = characterIconCache.get(key)
+  if (!map) {
+    map = new Map()
+    try {
+      for (const entry of getPageRecords(gameId, 'character') || []) {
+        const record = loadRecord(entry.filePath)
+        const url = fieldImage(record, 'icon')
+        if (url) map.set(String(entry.recordId ?? entry.id), url)
+      }
+    } catch { /* 索引没建好：空表 */ }
+    characterIconCache.set(key, map)
+  }
+  return map.get(String(id)) || ''
+}
+const nameIndexCache = new Map()
+
+/**
+ * 按条目 id 取名字（预览期只有 id，没有名字字段时用；如月亮网剧诗的 featuredAvatars）
+ * @param {string} gameId
+ * @param {string} pageKey
+ * @param {string|number} id
+ * @returns {string}
+ */
+export function entryNameById (gameId, pageKey, id) {
+  if (id === undefined || id === null) return ''
+  const key = `${gameId}|${pageKey}`
+  let map = nameIndexCache.get(key)
+  if (!map) {
+    map = new Map()
+    try {
+      for (const entry of getPageRecords(gameId, pageKey) || []) {
+        if (entry?.name) map.set(String(entry.recordId ?? entry.id), entry.name)
+      }
+    } catch { /* 索引没建好：空表 */ }
+    nameIndexCache.set(key, map)
+  }
+  return map.get(String(id)) || ''
+}
 const iconImageCache = new Map()
 
 export function monsterIconImage (gameId, icon) {

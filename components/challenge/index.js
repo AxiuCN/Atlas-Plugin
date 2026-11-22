@@ -7,7 +7,7 @@
  * 返回 `{ summary, groups }`；两边都取不到内容时返回 null，调用方按「无数据」处理。
  */
 import { groupsFromSections } from './view.js'
-import { giAbyssView, giTheaterView, giStygianView, gensriStygianView, lunarisAbyssView } from './gi.js'
+import { giAbyssView, giTheaterView, giStygianView, gensriStygianView, lunarisAbyssView, lunarisTheaterView } from './gi.js'
 import { hsrChaosView, hsrFictionView, hsrAsView, hsrArbitrationView } from './hsr.js'
 import { zzzShiyuView, zzzBossView } from './zzz.js'
 import { buildHesperidesChallengeSections } from '../hesperidesChallenge.js'
@@ -51,6 +51,7 @@ export function buildChallengeView ({ gameId, pageKey, record, raw = null, perio
   if (preview?.source && preview?.page) {
     // 危战的预览期只有强度研究院一侧的数据（玉璃还没出），用它的结构出同一套版式
     if (preview.source === 'gensri' && preview.page === 'stygian') groups = gensriStygianView(record, rawRecord)
+    if (preview.source === 'lunaris' && preview.page === 'rolecombat') groups = lunarisTheaterView(record, rawRecord, { loadRecord: (game, source, page, id) => loadRecord(syntheticPath(game, source, page, String(id))) })
     if (preview.source === 'lunaris' && preview.page === 'tower') groups = lunarisAbyssView(record, rawRecord, { loadRecord: (game, source, page, id) => loadRecord(syntheticPath(game, source, page, String(id))) })
     if (!groups?.length) groups = groupsFromSections(buildPreviewSections(preview.source, preview.page, rawRecord))
   } else {
