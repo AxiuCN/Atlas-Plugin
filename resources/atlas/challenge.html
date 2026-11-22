@@ -39,7 +39,7 @@
     {{each groups group}}
       {{if group.kind === 'battle'}}
       <div class="detail-section">
-        <h3>{{group.title}}</h3>
+        <h3 class="challenge-heading">{{group.title}}</h3>
         <div class="battle-grid{{if group.cols === 1}} cols-1{{else if group.cols === 2}} cols-2{{/if}}{{if group.dense}} battle-grid--dense{{/if}}">
           {{each group.cards card}}
           <div class="battle-card{{if card.big}} battle-card--big{{/if}}">
@@ -129,7 +129,7 @@
       </div>
       {{else if group.kind === 'icons'}}
       <div class="detail-section">
-        <h3>{{group.title}}</h3>
+        <h3 class="challenge-heading">{{group.title}}</h3>
         <div class="material-grid{{if group.cols === 6}} cols-6{{/if}}">
           {{each group.items item}}
           <div class="material-card">
@@ -142,7 +142,7 @@
       </div>
       {{else if group.kind === 'cards'}}
       <div class="detail-section">
-        <h3>{{group.title}}</h3>
+        <h3 class="challenge-heading">{{group.title}}</h3>
         <div class="challenge-cards{{if group.cols === 2}} cols-2{{/if}}">
           {{each group.cards card}}
           <div class="challenge-card">
@@ -188,7 +188,7 @@
       </details>
       {{else}}
       <div class="detail-section">
-        {{if group.title}}<h3>{{group.title}}</h3>{{/if}}
+        {{if group.title}}<h3 class="challenge-heading">{{group.title}}</h3>{{/if}}
         <table class="detail-table">
           {{each group.fields field}}
           <tr>

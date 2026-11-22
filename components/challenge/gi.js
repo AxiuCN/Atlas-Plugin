@@ -423,7 +423,7 @@ export function lunarisAbyssView (record, raw, ctx = {}) {
  * 预览期数据只有 `rolecombat/<id>.json`：
  *   `elementRestrictions` / `featuredAvatars` / `detail.avatarConfig[0].bonusAvatars`
  *   / `detail.difficultyConfig[<难度>].rooms[<n>]`（`monsterLevel` / `monsters[{name,icon}]` / `bossName`）
- *   / `detail.shopItems`（圣牌）。**没有幕内血量**（月亮网不给 HP），所以只出等级与怪物。
+ *   / `detail.shopItems`（角色姿势/表情奖励，不是圣牌）。**没有幕内血量**（月亮网不给 HP），圣牌（额外幕 1/2）也不收录。
  */
 export function lunarisTheaterView (record, raw, ctx = {}) {
   const detail = raw?.detail || {}
@@ -467,12 +467,8 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
     })
   pushGroup(groups, battleGroup('强敌', bossCards, { cols: 2 }))
 
-  // 圣牌：月亮网的 shopItems 就是本期圣牌（名称 + 专属角色）
-  const shopItems = Array.isArray(detail.shopItems) ? detail.shopItems : []
-  pushGroup(groups, cardsGroup('圣牌', shopItems.filter((item) => item?.name).map((item) => ({
-    title: plain(item.name),
-    fields: [{ label: '专属角色', value: entryNameById('gi', 'character', item.characterId) }]
-  }))))
+  // 圣牌（额外幕 1/2）月亮网不收录，只有玉璃记录里有；预览期没有就整段不出，
+  // 不能用 shopItems（那是剧诗的角色姿势/表情奖励）
   return groups
 }
 
