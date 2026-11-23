@@ -250,7 +250,7 @@ export function cleanMarkup (str) {
     })
     .replace(/<u>([\s\S]*?)<\/u>/g, '<span class="kw">$1</span>')
     .replace(/<i>([\s\S]*?)<\/i>/g, '<span class="note">$1</span>')
-    .replace(/<(?!\/?span\b)[^>]*>/g, '')
+    .replace(/<(?!\/?span\b|\/?wbr\b)[^>]*>/g, '')
     .trim()
 }
 

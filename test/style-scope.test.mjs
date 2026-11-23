@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { pluginRoot, checker } from './_helper.mjs'
+import { pluginRoot, checker, mod } from './_helper.mjs'
 
 const cssDir = path.join(pluginRoot, 'resources/common')
 const tplDir = path.join(pluginRoot, 'resources/atlas')
@@ -91,20 +91,15 @@ for (const page of pages) {
 }
 check('模板 link 与 CSS url() 的目标都存在', missing.length === 0, missing.join('、'))
 
-console.log('\n=== ④ 溢出缩字号（fit-text）接线 ===')
-const fitPath = path.join(pluginRoot, 'resources/common/fit-text.js')
-check('fit-text.js 存在', fs.existsSync(fitPath))
-const fitSource = fs.existsSync(fitPath) ? fs.readFileSync(fitPath, 'utf8') : ''
-check('fit-text.js 有缩放下限与纯数值跳过', /MIN_SCALE/.test(fitSource) && /PURE_NUMBER/.test(fitSource))
-// 参数段（角色/邦布）必须带 data-fit 且模板引用了脚本，否则溢出时不会缩
-const needFit = ['character', 'bangboo'].filter((page) => {
-  const src = tplSource.get(`${page}.html`) || ''
-  return !/fit-text\.js/.test(src) || !/<span class="param-seg" data-fit>/.test(src)
-})
-check('角色/邦布模板：参数段带 data-fit 且引用脚本', needFit.length === 0, needFit.join('、'))
-// 精炼正文整块缩放
-const weaponSrc = tplSource.get('weapon.html') || ''
-check('武器模板：精炼正文带 data-fit 且引用脚本',
-  /<div class="refine-desc" data-fit>/.test(weaponSrc) && /fit-text\.js/.test(weaponSrc))
+console.log('\n=== ④ 长文本断点（不缩字号）===')
+// 缩字号方案已撤：模板里不应再出现 fit-text 接线
+const fitRefs = templates.filter((t) => /fit-text|data-fit/.test(tplSource.get(t) || ''))
+check('模板不再引用缩字号脚本', fitRefs.length === 0, fitRefs.join('、'))
+
+const { splitTextSegments } = await import(mod('components/sections/character/skillParams.js'))
+const longCell = splitTextSegments('每层伪秘之帷+技能伤害')
+check('参数长文本在语义边界切段', longCell.length >= 3 && longCell.includes('每层') && !longCell.includes('每层伪秘之帷+技能伤害'), longCell.join('|'))
+check('纯数值段不切', JSON.stringify(splitTextSegments('381.9%')) === '["381.9%"]')
+check('斜杠处可断', splitTextSegments('（12%/15%/18%）').length >= 2, splitTextSegments('（12%/15%/18%）').join('|'))
 
 finish()

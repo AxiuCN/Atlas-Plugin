@@ -64,6 +64,7 @@ function mergeTokens (tokenList) {
 
   // 相邻（之间只有 / 文本）的两个多值槽 → 都加括号
   const wrap = new Set()
+  const softBreak = new Set()
   const numIdx = merged.map((t, i) => (t.type === 'num' ? i : -1)).filter(i => i >= 0)
   for (let k = 1; k < numIdx.length; k++) {
     const prev = numIdx[k - 1]
@@ -73,11 +74,20 @@ function mergeTokens (tokenList) {
     if (slashOnly && merged[prev].multi && merged[cur].multi) {
       wrap.add(prev)
       wrap.add(cur)
+      // 多值槽之间的 `/` 是语义分隔符：这些分隔符后面给软换行点，长串才能在画布内折行
+      for (let bi = prev + 1; bi < cur; bi++) {
+        if (merged[bi].type === 'text') softBreak.add(bi)
+      }
     }
   }
 
   return merged
-    .map((t, i) => (t.type === 'num' && wrap.has(i) ? `(${t.text})` : t.text))
+    .map((t, i) => {
+      if (t.type === 'num' && wrap.has(i)) return `(${t.text})`
+      // 只给「多值槽之间的分隔符」加软换行点，常量文本里的 `/` 不动
+      if (softBreak.has(i)) return `${t.text}<wbr>`
+      return t.text
+    })
     .join('')
 }
 

@@ -32,7 +32,7 @@ out = mergeRefineLevels([
   { level: '5', name: '效果', desc: '获得<color=#99FFFFFF>16/32/56%</color>加成。' }
 ], '精炼')
 check('相邻多值槽 → 各自加括号',
-  out[0]?.desc === '获得<span style="color:#99FFFF">(8/10/12/14/16)/(16/20/24/28/32)/(28%/35%/42%/49%/56%)</span>加成。',
+  out[0]?.desc === '获得<span style="color:#99FFFF">(8/10/12/14/16)/<wbr>(16/20/24/28/32)/<wbr>(28%/35%/42%/49%/56%)</span>加成。',
   out[0]?.desc)
 
 out = mergeRefineLevels([
@@ -149,7 +149,8 @@ for (const [game, pageKey, sectionTitle] of PAGES) {
         : levels
       if (!group.length) continue
       checked++
-      const rebuilt = expand(item.desc, group.length)
+      // <wbr> 只是软换行点，往返比对时忽略
+      const rebuilt = expand(item.desc.replace(/<wbr>/g, ''), group.length)
       for (let i = 0; i < group.length; i++) {
         const want = cleanMarkup(group[i].desc)
         if (rebuilt[i] !== want) {

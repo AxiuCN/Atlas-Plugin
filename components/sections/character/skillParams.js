@@ -124,6 +124,52 @@ function mergeSameRefs (tokens) {
 }
 
 /**
+ * 文本段 → 多个可断行的小段
+ *
+ * 单元格里长文本（`每层伪秘之帷+技能伤害`、`生命值上限`）在窄格里会压到相邻格；
+ * 模板会在段之间插 `<wbr/>`，所以这里只在**语义边界**切：
+ *   ① 分隔/运算符之后：`/ + × ： ； ， 、 。`
+ *   ② 量词/指代之前：`每 各 该 此`
+ *   ③ 兜底：连续中文 > 6 字仍没有断点时每 4 字切一次
+ * 纯数值（`381.9%`）不切。
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function splitTextSegments (text) {
+  const source = String(text ?? '')
+  if (!source) return []
+  if (/^[\d.,+\-/%]+$/.test(source)) return [source]
+
+  // ① 标点/运算符：把分隔符并到前一段
+  const merged = []
+  for (const chunk of source.split(/([/+×：；，、。])/).filter(Boolean)) {
+    if (/^[/+×：；，、。]$/.test(chunk) && merged.length) merged[merged.length - 1] += chunk
+    else merged.push(chunk)
+  }
+
+  // ② 量词/指代前断开（`每层` 整词保留，断在它之后）
+  const splitByWord = []
+  for (const chunk of merged) splitByWord.push(...chunk.split(/(?=[每各该此])/).filter(Boolean))
+  const splitByMei = []
+  for (const chunk of splitByWord) {
+    // `每层伪秘之帷` → `每层` + `伪秘之帷`；单字 `每` 也断在其后
+    const marked = chunk.replace(/每层/g, '每层\u0001').replace(/每(?!层)/g, '每\u0001')
+    splitByMei.push(...marked.split('\u0001').filter(Boolean))
+  }
+
+  // ③ 超长中文兜底
+  const out = []
+  for (const chunk of splitByMei) {
+    if (/^[\u4e00-\u9fff]{7,}$/.test(chunk)) {
+      for (let i = 0; i < chunk.length; i += 4) out.push(chunk.slice(i, i + 4))
+    } else {
+      out.push(chunk)
+    }
+  }
+  return out.length ? out : [source]
+}
+
+/**
  * 将 token 流渲染为段数组：引用段取值、文本段归一化，
  * 每段是独立原子（模板中 nowrap），换行只发生在段边界、不会断在段内
  * @param {Array} tokens
@@ -133,15 +179,22 @@ function mergeSameRefs (tokens) {
 function renderTokens (tokens, param) {
   const segs = []
   for (const t of tokens) {
-    const s = t.type === 'ref' ? fmtParam(param[t.paramIndex], t.format) : normalizeText(t.text)
-    if (s) segs.push(s)
+    if (t.type === 'ref') {
+      const value = fmtParam(param[t.paramIndex], t.format)
+      if (value) segs.push(value)
+      continue
+    }
+    for (const piece of splitTextSegments(normalizeText(t.text))) {
+      if (piece) segs.push(piece)
+    }
   }
   return segs
 }
 
-/** 单元格值 → 段数组（原子多段，模板逐段 nowrap；字符串值包为单段） */
+/** 单元格值 → 段数组（原子多段，模板逐段 nowrap；字符串值按语义边界切段） */
 function toSegs (v) {
-  return Array.isArray(v) ? v : [String(v ?? '')]
+  if (Array.isArray(v)) return v
+  return splitTextSegments(String(v ?? ''))
 }
 
 /**
