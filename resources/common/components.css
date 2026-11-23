@@ -614,3 +614,13 @@
   color: #9a9a9a !important;
   margin-left: 1px;
 }
+/* 页脚两行：数据来源 + 署名与三处版本 */
+.copyright > div + div {
+  margin-top: 2px;
+}
+
+/* 页脚版本号（.version）：比正文淡一点、加粗一档 */
+.copyright .version {
+  font-weight: 600;
+  color: #4a4a4a;
+}

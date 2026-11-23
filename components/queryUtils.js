@@ -187,6 +187,7 @@ export function buildDetailData (gameId, result) {
         image: resolveRecordImage(record),
         hero: typeData.hero || null,
         versionBadge: getVersionBadge(gameId),
+        sources: [meta.source].filter(Boolean),
         metaFields: typeData.metaFields || [],
         sections: typeData.sections || [],
         rawFields: [],
@@ -272,6 +273,7 @@ export function buildListData (gameId, result) {
   return {
     gameName: result.gameName || GAME_NAMES[gameId],
     versionBadge: getVersionBadge(gameId),
+    sources: [...new Set((result.results || []).map((item) => item.source).filter(Boolean))],
     keyword: result.keyword,
     groups,
     results: result.results,

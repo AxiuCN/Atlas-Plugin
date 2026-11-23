@@ -79,6 +79,13 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
 
   const data = {
     gameName: GAME_NAMES[gameId],
+    gameId,
+    // 页脚来源：主源 + 预览源（月亮网/强度研究院）+ 强度研究院解析用到的源
+    sources: [...new Set([
+      result.source,
+      period.previewSource || '',
+      gameId === 'gi' && result.pageKey === 'leyline' ? 'gensri' : ''
+    ].filter(Boolean))],
     pageTitle: result.pageTitle,
     // 期名优先，但玉璃索引里的「期名」经常是关卡名（异相仲裁就是「隐藏关卡」），不能直接当标题；
     // 异相仲裁改用「版本 + 页名」；绝区零没有期名，记录标题（「剧变节点」）才是用户认得的叫法

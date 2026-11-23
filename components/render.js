@@ -1,6 +1,8 @@
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
 import { CHALLENGE_PAGE_KEYS, GAME_NAMES } from './constants.js'
 import { getVersionBadge } from './versionBadge.js'
+import { buildCopyright } from './pluginVersion.js'
+import { buildCredit } from './sourceCredit.js'
 import { getPluginConfig } from './config.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -99,6 +101,10 @@ export async function renderAtlas (tpl, data = {}, opts = {}) {
 
   // 渲染缩放：模板 body 上的 CSS zoom（见 renderScale() 说明）
   data.renderScale = renderScale()
+
+  // 页脚第一行：这页实际用到的数据库；第二行：云崽 / 插件 / 引擎 三处版本
+  data.credit = data.credit || buildCredit(data.sources)
+  data.copyright = data.copyright || buildCopyright()
 
   // 游戏名 → 游戏 id（版本徽标用）
 const GAME_ID_BY_NAME = Object.fromEntries(Object.entries(GAME_NAMES).map(([id, name]) => [name, id]))

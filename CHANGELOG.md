@@ -2,11 +2,12 @@
 
 ## 1.6.8
 
-**Hero 右上角加版本徽标**
+**Hero 右上角加版本徽标，版权行显示实际数据库与三处版本号**
 
 - 所有带 hero 的页面（角色/武器/怪物/圣遗物/邦布/终局/成就/列表等）右上角显示两行：`原神7.3 v3测试服` + `GI 7.2.52`。
 - 规则：原神/星铁 `x.y.N`（N≥50）表示下一版本的测试服（`.50` = v1、`.51` = v2…），大版本最后的小版本进位到新大版本（原神 `x.8`、星铁 `x.8`；历史例外原神 1.6、星铁 6.7 分别进位到 2.0 / 7.0）；`x.y` 视为正式服。绝区零 `x.y.N+build` 的 N 即测试服序号（`+` 后构建号原样带出），无 N 为正式服。
 - 数据来自 Hesperides 的 `upstream/nanoka.json`（`games.<game>.latest`），读取失败时整块不渲染。
+- **页脚拆两行**：第一行 `Data from <这页实际用到的数据库>`（nanoka.cc / 玉璃 alioth.wiki / Lunaris lunaris.moe / 强度研究院 gensri.wiki，按来源去重拼接，混源如危战会显示「玉璃 alioth.wiki · 强度研究院 gensri.wiki」）；第二行 `Created By TRSS-Yunzai <云崽版本> & Atlas-Plugin <插件版本> & Hesperides <引擎版本>`，版本号从三处 `package.json` 读取（参照 Axiu-Plugin 的 `components/pluginVersion.js`）。
 
 ## 1.6.7
 

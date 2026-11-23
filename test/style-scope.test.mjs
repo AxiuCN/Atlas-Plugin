@@ -107,6 +107,22 @@ const heroTemplates = templates.filter((t) => /class="hero"/.test(tplSource.get(
 const missingBadge = heroTemplates.filter((t) => !/\{\{if versionBadge\}\}/.test(tplSource.get(t) || ''))
 check('所有 hero 模板都渲染版本徽标', heroTemplates.length > 0 && missingBadge.length === 0,
   missingBadge.length ? missingBadge.join('、') : `${heroTemplates.length} 个模板`)
+// 页脚两行：第一行动态数据库（{{credit}}），第二行版本署名（{{@copyright}}）
+const footerBad = templates.filter((t) => /copyright[^\n]*nanoka\.cc/.test(tplSource.get(t) || ''))
+check('页脚不再写死 nanoka.cc', footerBad.length === 0, footerBad.join('、'))
+const footerCredit = templates.filter((t) => /Data from \{\{credit\}\}/.test(tplSource.get(t) || ''))
+check('页脚第一行用动态数据库列表', footerCredit.length >= 10, `${footerCredit.length} 个模板`)
+const footerCopyright = templates.filter((t) => /\{\{@copyright\}\}/.test(tplSource.get(t) || ''))
+check('页脚第二行用版本署名', footerCopyright.length >= 10, `${footerCopyright.length} 个模板`)
+
+const { buildCredit } = await import(mod('components/sourceCredit.js'))
+check('来源去重且按出现顺序', buildCredit(['alioth', 'gensri', 'alioth']) === '玉璃 alioth.wiki · 强度研究院 gensri.wiki', buildCredit(['alioth', 'gensri', 'alioth']))
+check('缺来源时回落四源', buildCredit([]) === 'nanoka.cc · 玉璃 alioth.wiki · Lunaris lunaris.moe · 强度研究院 gensri.wiki', buildCredit([]))
+const { buildCopyright, pluginVersion, yunzaiVersion, hesperidesVersion } = await import(mod('components/pluginVersion.js'))
+const copyright = buildCopyright()
+check('版权行带三处版本号',
+  copyright.includes('Atlas-Plugin') && (!pluginVersion || copyright.includes(pluginVersion)) && (!yunzaiVersion || copyright.includes(yunzaiVersion)) && (!hesperidesVersion || copyright.includes(hesperidesVersion)),
+  copyright)
 check('hero.css 有版本徽标样式', /\.hero-version\s*\{/.test(fs.readFileSync(path.join(pluginRoot, 'resources/common/hero.css'), 'utf8')))
 
 finish()
