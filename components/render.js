@@ -1,5 +1,6 @@
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
-import { CHALLENGE_PAGE_KEYS } from './constants.js'
+import { CHALLENGE_PAGE_KEYS, GAME_NAMES } from './constants.js'
+import { getVersionBadge } from './versionBadge.js'
 import { getPluginConfig } from './config.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -98,6 +99,15 @@ export async function renderAtlas (tpl, data = {}, opts = {}) {
 
   // 渲染缩放：模板 body 上的 CSS zoom（见 renderScale() 说明）
   data.renderScale = renderScale()
+
+  // 游戏名 → 游戏 id（版本徽标用）
+const GAME_ID_BY_NAME = Object.fromEntries(Object.entries(GAME_NAMES).map(([id, name]) => [name, id]))
+
+  // Hero 右上角版本徽标：按游戏附一次（数据自带就不覆盖）
+  if (!data.versionBadge) {
+    const gameId = data.gameId || GAME_ID_BY_NAME[data.gameName]
+    if (gameId) data.versionBadge = getVersionBadge(gameId)
+  }
 
   const name = `Atlas-Plugin/${app}/${tpl}`
   return opts.multiPage ? await puppeteer.screenshots(name, data) : await puppeteer.screenshot(name, data)

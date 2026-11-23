@@ -39,6 +39,25 @@ check('绝区零 3.0 开启日命中 3.0', getVersionAt('zzz', at('2026-06-17 06
 check('早于序列起点返回 null', getVersionAt('gi', at('2020-01-01 00:00:00')) === null)
 check('非法日期返回 null', getVersionAt('gi', null) === null)
 
+console.log('\n=== 版本徽标（Hero 右上角）===')
+const { parseVersionBadge } = await import(mod('components/versionBadge.js'))
+const badge = (game, raw) => parseVersionBadge(game, raw) || {}
+check('原神 7.2.52 = 7.3 v3 测试服',
+  badge('gi', '7.2.52').label === '原神7.3 v3测试服' && badge('gi', '7.2.52').short === 'GI 7.2.52',
+  JSON.stringify(badge('gi', '7.2.52')))
+check('原神 7.2.50 = 7.3 v1 测试服', badge('gi', '7.2.50').label === '原神7.3 v1测试服', badge('gi', '7.2.50').label)
+check('原神 7.8.50 进位到 8.0 v1', badge('gi', '7.8.50').label === '原神8.0 v1测试服', badge('gi', '7.8.50').label)
+check('原神 1.6 是历史最后小版本（进位到 2.0）', badge('gi', '1.6.50').label === '原神2.0 v1测试服', badge('gi', '1.6.50').label)
+check('原神正式服 7.2', badge('gi', '7.2').label === '原神7.2 正式服', badge('gi', '7.2').label)
+check('星铁正式服 4.3', badge('hsr', '4.3').label === '崩坏·星穹铁道 4.3 正式服', badge('hsr', '4.3').label)
+check('星铁 6.7 是历史最后小版本（进位到 7.0）', badge('hsr', '6.7.50').label === '崩坏·星穹铁道 7.0 v1测试服', badge('hsr', '6.7.50').label)
+check('星铁 4.7.52 = 4.8 v3 测试服', badge('hsr', '4.7.52').label === '崩坏·星穹铁道 4.8 v3测试服', badge('hsr', '4.7.52').label)
+check('绝区零 3.4.5+构建号 = 3.4 v5 测试服',
+  badge('zzz', '3.4.5+20694646').label === '绝区零3.4 v5测试服' && badge('zzz', '3.4.5+20694646').short === 'ZZZ 3.4.5+20694646',
+  JSON.stringify(badge('zzz', '3.4.5+20694646')))
+check('绝区零正式服 3.4', badge('zzz', '3.4').label === '绝区零3.4 正式服', badge('zzz', '3.4').label)
+check('无法解析的版本返回 null', parseVersionBadge('gi', 'not-a-version') === null)
+
 console.log('\n=== 版本 → 日期区间 ===')
 const gi70 = getVersionRange('gi', '7.0')
 check('原神 7.0 开启日 = 锚点 + 10 个周期（按天口径，归一到 00:00）', !!gi70 &&

@@ -10,6 +10,12 @@
 </head>
 <body style="zoom:{{renderScale}}">
   <div class="hero">
+    {{if versionBadge}}
+    <div class="hero-version">
+      <div class="hero-version-line">{{versionBadge.label}}</div>
+      <div class="hero-version-line hero-version-short">{{versionBadge.short}}</div>
+    </div>
+    {{/if}}
     {{if image}}<img class="hero-portrait" src="{{image}}"/>{{/if}}
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · {{pageTitle}}{{if rarity}} · {{rarity}}{{/if}}</div>

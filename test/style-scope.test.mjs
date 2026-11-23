@@ -102,4 +102,11 @@ check('参数长文本在语义边界切段', longCell.length >= 3 && longCell.i
 check('纯数值段不切', JSON.stringify(splitTextSegments('381.9%')) === '["381.9%"]')
 check('斜杠处可断', splitTextSegments('（12%/15%/18%）').length >= 2, splitTextSegments('（12%/15%/18%）').join('|'))
 
+console.log('\n=== ⑤ Hero 版本徽标接线 ===')
+const heroTemplates = templates.filter((t) => /class="hero"/.test(tplSource.get(t) || ''))
+const missingBadge = heroTemplates.filter((t) => !/\{\{if versionBadge\}\}/.test(tplSource.get(t) || ''))
+check('所有 hero 模板都渲染版本徽标', heroTemplates.length > 0 && missingBadge.length === 0,
+  missingBadge.length ? missingBadge.join('、') : `${heroTemplates.length} 个模板`)
+check('hero.css 有版本徽标样式', /\.hero-version\s*\{/.test(fs.readFileSync(path.join(pluginRoot, 'resources/common/hero.css'), 'utf8')))
+
 finish()

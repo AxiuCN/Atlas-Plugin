@@ -12,6 +12,7 @@ import {
   zzzRankOf
 } from './constants.js'
 import { getSectionBuilder } from './sections/index.js'
+import { getVersionBadge } from './versionBadge.js'
 
 /**
  * 显示名清洗：索引里的名字可能带 `<unbreak>` / `<color>` 这类标记（如星铁「<unbreak>4.4</unbreak>异相仲裁」）
@@ -185,6 +186,7 @@ export function buildDetailData (gameId, result) {
         rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
         image: resolveRecordImage(record),
         hero: typeData.hero || null,
+        versionBadge: getVersionBadge(gameId),
         metaFields: typeData.metaFields || [],
         sections: typeData.sections || [],
         rawFields: [],
@@ -269,6 +271,7 @@ export function buildListData (gameId, result) {
 
   return {
     gameName: result.gameName || GAME_NAMES[gameId],
+    versionBadge: getVersionBadge(gameId),
     keyword: result.keyword,
     groups,
     results: result.results,

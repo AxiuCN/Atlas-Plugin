@@ -9,6 +9,12 @@
 </head>
 <body style="zoom:{{renderScale}}">
   <div class="hero">
+    {{if versionBadge}}
+    <div class="hero-version">
+      <div class="hero-version-line">{{versionBadge.label}}</div>
+      <div class="hero-version-line hero-version-short">{{versionBadge.short}}</div>
+    </div>
+    {{/if}}
     <div class="hero-text">
       <div class="hero-game">{{gameName}} · 图鉴查询</div>
       <div class="hero-title">"{{keyword}}" 的搜索结果</div>
