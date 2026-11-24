@@ -480,21 +480,45 @@ function readIndex () {
   }
 }
 
+/** 状态页数据库的固定顺序（索引里还可能出现过别的源，按字母排在后面） */
+const STATUS_SOURCE_ORDER = ['nanoka', 'alioth', 'lunaris', 'gensri']
+
 /**
  * 数据状态（供 `#图鉴状态` 与更新通知使用）
- * @returns {{games: object, images: {total: number, downloaded: number, placeholder: number}, pages: number}}
+ *
+ * - `images`：按引用状态统计，`missing` = 总数 − 已下载 − 占位图（既没文件也不是占位图，即抓取失败/未抓）；
+ * - `databases`：按源汇总页数、条目数、最近抓取时间与异常频道数（源 id 与引擎通道表一致）；
+ * - `engine`：产物自身的元信息（schema 版本、索引生成时间）+ 当前是否正在抓取。
+ * @returns {{games: object, images: {total: number, downloaded: number, placeholder: number, missing: number},
+ *   pages: number, databases: object[], engine: object, initialized: boolean, fetchedAt: string}}
  */
 export function getDataStatus () {
   const index = readIndex()
   const games = {}
+  const databases = new Map()
   let pages = 0
   for (const game of GAMES) {
-    const pagesOfGame = index?.games?.[game]?.sources?.nanoka?.pages || {}
+    const sourcesOfGame = index?.games?.[game]?.sources || {}
+    const pagesOfGame = sourcesOfGame.nanoka?.pages || {}
     let recordCount = 0
-    for (const [page, value] of Object.entries(pagesOfGame)) {
+    for (const value of Object.values(pagesOfGame)) {
       recordCount += value?.records || 0
       pages += 1
-      void page
+    }
+    for (const [source, group] of Object.entries(sourcesOfGame)) {
+      const stat = databases.get(source) || { id: source, pages: 0, records: 0, fetchedAt: '', errors: 0 }
+      for (const value of Object.values(group?.pages || {})) {
+        stat.pages += 1
+        stat.records += value?.records || 0
+      }
+      databases.set(source, stat)
+    }
+    // 抓取状态挂在频道上（键为 `<source>:<game>:<page>`），汇进对应源
+    for (const channel of Object.values(index?.games?.[game]?.channels || {})) {
+      const stat = databases.get(channel?.source)
+      if (!stat) continue
+      if (channel?.status && channel.status !== 'ok') stat.errors += 1
+      if (channel?.fetchedAt && channel.fetchedAt > stat.fetchedAt) stat.fetchedAt = channel.fetchedAt
     }
     games[game] = {
       name: { gi: '原神', hsr: '星铁', zzz: '绝区零' }[game],
@@ -518,8 +542,9 @@ export function getDataStatus () {
           for (const list of Object.values(data.records || {})) {
             for (const ref of list) {
               total += 1
-              if (ref.placeholder) placeholder += 1
-              else if (ref.status === 'downloaded' && ref.localPath) downloaded += 1
+              // 占位图是「上游没这张图」时落盘的替代图；有本地文件（含 fallback 借图）都算已下载
+              if (ref.placeholder || ref.status === 'placeholder') placeholder += 1
+              else if (ref.localPath) downloaded += 1
             }
           }
         }
@@ -535,7 +560,25 @@ export function getDataStatus () {
       if (channel.fetchedAt && channel.fetchedAt > fetchedAt) fetchedAt = channel.fetchedAt
     }
   }
-  return { games, images: { total, downloaded, placeholder }, pages, initialized: isInitialized(), fetchedAt }
+  const ordered = [...databases.values()].sort((a, b) => {
+    const left = STATUS_SOURCE_ORDER.indexOf(a.id)
+    const right = STATUS_SOURCE_ORDER.indexOf(b.id)
+    return (left < 0 ? STATUS_SOURCE_ORDER.length : left) - (right < 0 ? STATUS_SOURCE_ORDER.length : right) ||
+      String(a.id).localeCompare(String(b.id))
+  })
+  return {
+    games,
+    images: { total, downloaded, placeholder, missing: Math.max(0, total - downloaded - placeholder) },
+    pages,
+    databases: ordered,
+    engine: {
+      schemaVersion: Number(index?.schemaVersion) || 0,
+      generatedAt: index?.generatedAt || '',
+      scraping: isScraping()
+    },
+    initialized: isInitialized(),
+    fetchedAt
+  }
 }
 
 /**

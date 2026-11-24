@@ -18,6 +18,16 @@ const SOURCE_LABELS = {
 export const ALL_SOURCES = Object.keys(SOURCE_LABELS)
 
 /**
+ * 源 id → 带域名的展示名（单个源用，如状态页的数据库行）
+ * @param {string} source
+ * @returns {string}
+ */
+export function sourceLabel (source) {
+  const id = String(source || '').trim().toLowerCase()
+  return SOURCE_LABELS[id]?.full || String(source || '')
+}
+
+/**
  * 源 id 列表 → 展示文本
  * @param {string[]} sources
  * @returns {string}

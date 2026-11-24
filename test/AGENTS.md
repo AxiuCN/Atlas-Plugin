@@ -30,7 +30,7 @@
 |------|------|------|
 | `alias-loader.test.mjs` | 别名层（**数据无关**）：`normalizeForMatch` 六种间隔号归一、键幂等、`{value,game,source}` 形状、按游戏过滤与过滤缓存、`buildKeywordVariants` 双向展开、高来源覆盖低来源（临时自定义 YAML 后回退）、reload 换新与 watcher 幂等、`aliasVersion` 与缓存失效一致性、对外门面 `modules/aliasApi.js` 的返回形状与只读契约、**专武索引**（官名/别名/全名闭包、修饰词过滤、简写「专」补全、未登记为空、按游戏过滤）、**专武简写派生**（`X专武`→`X专` 兄弟键不变量、对外 API 可解析）、**套装别名补读**（gs `setAlias` 错字/非子串/带「套」别名、sr `aliasCfg` 属性套与简称、跨游戏同名隔离） | 无（只读文件） |
 | `variant-family.test.mjs` | 形态族（旅行者/奇偶/开拓者/三月七）、同名折叠、重名条目 id 别名合并、`resolveEntryPageKey` | 图鉴数据 |
-| `suffix-routing.test.mjs` | 子视图 / 页面类型 / 泛用「套」/ 专武（含简写「专」）后缀的消费与放行、面板黑名单放行（93 例，含 miao 面板换装放行、专武落点渲染比对与别名+修饰词、未命中文案区分、套装别名落点） | 图鉴数据 |
+| `suffix-routing.test.mjs` | 子视图 / 页面类型 / 泛用「套」/ 专武（含简写「专」）后缀的消费与放行、面板与协议端指令（`sl` / `napcat`）的黑名单放行（101 例，含 miao 面板换装放行、专武落点渲染比对与别名+修饰词、未命中文案区分、套装别名落点） | 图鉴数据 |
 | `style-scope.test.mjs` | 样式归属：页面 CSS 不得定义共享词汇、页面 CSS 只被同前缀模板引用、模板 link 与 CSS `url()` 的资源必须存在 | 无（只读文件） |
 | `record-cache.test.mjs` | `loadRecord` LRU 上限、签名自愈、冻结诊断、缓存实例与现读现套补丁逐字一致 | 图鉴数据 |
 | `text-cache.test.mjs` | 全文兜底文本缓存：二次查询 0 读盘、`reloadIndex` 作废、单条 mtime 自愈、结果不变 | 图鉴数据 |
@@ -41,7 +41,7 @@
 | `render-scale.test.mjs` | `renderScale` 端到端：模板 zoom 注入 + 1 与 1.5 输出尺寸成比例 + 配置按原字节还原 | 图鉴数据 + 浏览器 |
 | `weapon-refine.test.mjs` | 精炼/叠影/音擎天赋合并的合成用例 + 全量 512 条往返无损 | 图鉴数据 |
 | `patches.test.mjs` | 补丁结构 / `_patch.upstream` 与上游一致 / 圣遗物补丁覆盖与误伤 / map 索引补丁 | 图鉴数据 |
-| `status-page.test.mjs` | `#图鉴状态` 状态页：真实 `buildStatusData()` + art-template 渲染一次，各游戏版本行齐全 | 图鉴数据 |
+| `status-page.test.mjs` | `#图鉴状态` 状态页：真实 `buildStatusData()` + art-template 渲染一次，各游戏版本行齐全、**版本判定行**与 `parseVersionBadge` 一致且不带游戏名前缀、「引擎 · 数据库」卡（Hesperides 版本 / schema / 索引生成 / 抓取状态 / 四源页数·条目数·异常频道）、图片统计恒等式（总数 = 已下载 + 占位图 + 缺失）与缺失数渲染 | 图鉴数据 |
 | `challenge-spec.test.mjs` | 期修饰（**`parsePeriodSpec` 纯函数 + 真实 `handleQuery` 端到端**）：月份/版本（含 `a`/`b` 与缺 `b` 回落 `a`）/本期·上期·下期的前缀解析、非法前缀不误判（`202613`、`2026`、`4星武器`）、选期（月份命中与未命中文案、本期未开放时上期=最近已开期/下期=最早未开期、无更晚期回 `no-next`、未知版本与空版本区间的文案）、端到端 `#202001深渊`（未命中）/`#99.9深渊`（不支持）/`#7.0深渊` 与 `#7.0b深渊`（出图）/`#本期深渊`（出图或未开放）/`#深渊`（无期修饰行为不变）、**期标识**（`formatPeriodLabel` 含期号/版本/起止、估算标推定、空期空串）与模板渲染（`challenge.html` 把 `periodLine` 渲染进 hero 且无残留 `{{`） | 图鉴数据 |
 | `submodules.test.mjs` | 子模块同步（`model/Submodules.js`，注入 runner）：`.gitmodules` 路径解析（url 不误当 path）、登记校验（未登记的子模块不同步、没有 `.gitmodules` 不跑 git）、提交未变回 skipped 且 `updated` 为空、提交变化时指出变化路径、失败透传 stderr、HEAD 读取容错 | 无（只读文件） |
 | `legacy-cleanup.test.mjs` | 历史遗留清理（`model/LegacyCleanup.js`，**整套对应临时机制**）：攻略目录整目录删除 / 同级目录不受影响 / 幂等 / 符号链接只摘链接、退役子模块三处残留清理 / 外层目录保留 / 幂等 / `dryRun` 只报计划、仍登记在 `.gitmodules` 时跳过、统一入口两处都跑 | 无（只读文件） |
@@ -53,7 +53,7 @@
 | `challenge-index.test.mjs` | 挑战期表选期（`model/ChallengePeriod.js`）：时间解析按本地时区（04:00 日切不错天）、本期判定（时间窗命中优先、**未来期不得当本期**、`closed` 时最近已开期与最早未开期分开给、全无日期回落最后一期、空表）、期标识格式（期号/版本/起止、估算标推定）、期修饰选期（月份/版本命中与未命中、本期·上期·下期、空表），以及**真实 Hesperides 期表**下 9 个玩法的期序号连续 / 带 Date / 按序递增 / 本期状态合法 / 期→版本非递减 / 各游戏期表来源（gi·hsr → alioth、zzz → nanoka） | 图鉴数据 |
 | `challenge-version.test.mjs` | 版本时间轴（`model/ChallengeVersion.js`，**数据无关**）：序列按 `minorMaxByMajor` 正确进位（gi 5.8→6.0、hsr 3.8→4.0、zzz 2.7→3.0，且不生成 5.9/3.9/2.8）、日期→版本（锚点当日命中锚点版本、早于序列起点与非法日期返回 null）、版本→区间（开启日 = 锚点 + N 周期、区间到下一版本前 1 秒、未知版本 null）、版本距离（跨代按实际版本数、反向为负） | 无（只读常量） |
 | `error-reply.test.mjs` | 查询异常只回通用文案、细节只进日志、正常查询不误报 | 图鉴数据 |
-| `patch-paths.test.mjs` | 公开命令（`#图鉴补丁` / `#图鉴状态`）不回显服务器绝对路径 | 图鉴数据 |
+| `patch-paths.test.mjs` | 公开命令（`#图鉴状态` / `#图鉴版本`）不回显服务器绝对路径；命令面（`#图鉴版本` 别名生效、`#图鉴补丁` 已删除、版本更新记录的 5 种写法与 3 种前缀命中且不误捕 `#图鉴更新`） | 图鉴数据 |
 | `custom-alias-edit.test.mjs` | 自定义别名写入与权限裁决（**在临时副本里跑真实模块**）：含标点的别名写后仍可解析且旧别名保留、后续设置不丢已有项、配置损坏时拒绝覆盖原文件、并发 set 与 set+del 均不丢更新、rule 权限交给 `checkPerm`（all 允许普通成员 / group_admin 允许管理员 / 缺省 master 只允许主人） | 无（临时副本） |
 | `weapon-skin.test.mjs` | 武器外观（`record.skin === true`，数据无关+真实产物）：构建器 `hero.skin` 标记、不额外造面板字段、「皮肤」方框只在皮肤条目渲染（art-template 实渲染且无残留 `{{`）、真数据 26 条外观的标记一致性与「无 atk/sub」前提、按 id 搜到外观自己而本体仍独立 | 图鉴数据 |
 | `hesperides-period-end.test.mjs` | 挑战期日粒度结束值：`YYYY-MM-DD` 的 end 补到当天 23:59:59.999（月末最后一天中午仍属本期、次月零点不再是），上游显式给时刻的保持原语义（4:00 前后边界） | 无（打桩 periods.json） |

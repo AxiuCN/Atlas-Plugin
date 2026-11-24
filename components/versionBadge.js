@@ -29,7 +29,8 @@ const DEFAULT_LAST_MINOR = 8
  * 解析一个上游版本号 → Hero 徽标文案
  * @param {string} gameId - gi/hsr/zzz
  * @param {string} raw - 上游 `latest` 版本号
- * @returns {{label: string, short: string}|null}
+ * @returns {{label: string, short: string, tag: string}|null} `label` 带游戏名（Hero 用），
+ *   `tag` 只有版本与状态（状态页 `版本判定` 行用）
  */
 export function parseVersionBadge (gameId, raw) {
   const meta = GAMES[gameId]
@@ -37,34 +38,28 @@ export function parseVersionBadge (gameId, raw) {
   if (!meta || !text) return null
   const gap = meta.spaced ? ' ' : ''
 
+  const make = (tag, short) => ({ label: `${meta.name}${gap}${tag}`, short, tag })
+
   if (gameId === 'zzz') {
     const matched = text.match(/^(\d+)\.(\d+)(?:\.(\d+))?(?:\+(.+))?$/)
     if (!matched) return null
     const [, major, minor, patch, build] = matched
     if (patch) {
-      return {
-        label: `${meta.name}${gap}${major}.${minor} v${Number(patch)}测试服`,
-        short: `${meta.code} ${major}.${minor}.${patch}${build ? `+${build}` : ''}`
-      }
+      return make(`${major}.${minor} v${Number(patch)}测试服`, `${meta.code} ${major}.${minor}.${patch}${build ? `+${build}` : ''}`)
     }
-    return { label: `${meta.name}${gap}${major}.${minor} 正式服`, short: `${meta.code} ${major}.${minor}` }
+    return make(`${major}.${minor} 正式服`, `${meta.code} ${major}.${minor}`)
   }
 
   const matched = text.match(/^(\d+)\.(\d+)(?:\.(\d+))?$/)
   if (!matched) return null
   const [, major, minor, patch] = matched
   const beta = patch !== undefined && Number(patch) >= 50
-  if (!beta) {
-    return { label: `${meta.name}${gap}${major}.${minor} 正式服`, short: `${meta.code} ${major}.${minor}` }
-  }
+  if (!beta) return make(`${major}.${minor} 正式服`, `${meta.code} ${major}.${minor}`)
 
   const step = Number(patch) - 49
   const lastMinor = LAST_MINOR[gameId]?.[major] ?? DEFAULT_LAST_MINOR
   const next = Number(minor) >= lastMinor ? `${Number(major) + 1}.0` : `${major}.${Number(minor) + 1}`
-  return {
-    label: `${meta.name}${gap}${next} v${step}测试服`,
-    short: `${meta.code} ${major}.${minor}.${patch}`
-  }
+  return make(`${next} v${step}测试服`, `${meta.code} ${major}.${minor}.${patch}`)
 }
 
 /** 当前三个游戏的版本徽标（读上游 manifest 快照；没数据就返回 null） */

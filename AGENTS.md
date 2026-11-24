@@ -22,8 +22,8 @@ Atlas-Plugin — TRSS-Yunzai v3 多游戏图鉴查询插件（原神 `#` / 星�
 | 关键词查询 | `apps/atlas.js`（~10000） | `#` / `*` / `%` + 关键词 | 搜索 → 加载条目 → builder → 模板 → 出图 |
 | 后缀抢占 | `apps/atlasShortcut.js`（-99999） | 子视图 / 页面类型后缀 | 先于 miao 拦截 `#xxx图鉴` 类查询 |
 | 别名管理 | `apps/alias.js`（8000） | `#图鉴别名设置` / `#图鉴别名删除` / `#图鉴别名列表` | 权限由 `checkPerm` 按 `config.yaml → alias.*` 统一裁决，缺省 master |
-| 版本更新记录 | `apps/updateLog.js`（9000） | `#版本更新记录` / `#变更项目` / `#新版本改动` / `#版本新增内容` | 必须早于常规查询；新增内容读 nanoka manifest 的 `new` |
-| 状态 / 帮助 / 管理 | `apps/status.js` · `apps/help.js` · `apps/admin.js` | `#图鉴状态` / `#图鉴帮助` / `#图鉴初始化` / `#图鉴强制初始化` / `#图鉴更新` / `#图鉴补丁` | 管理指令 master |
+| 版本更新记录 | `apps/updateLog.js`（9000） | `#版本更新记录` / `#版本更新日志` / `#更新记录` / `#变更项目` / `#新版本改动` / `#版本新增内容` | 必须早于常规查询；新增内容读 nanoka manifest 的 `new` |
+| 状态 / 帮助 / 管理 | `apps/status.js` · `apps/help.js` · `apps/admin.js` | `#图鉴状态` / `#图鉴版本` / `#图鉴帮助` / `#图鉴初始化` / `#图鉴强制初始化` / `#图鉴更新` | 管理指令 master |
 | 定时任务 | `apps/admin.js` | 每日 5:00 | 版本检查 → 增量（nanoka 全量 + 玉璃终局 + 前瞻源）→ 重试 → 全量兜底 → diff 抓取 |
 | 图片去重 | `model/AtlasUpdater.js` | 每次抓取结束后 | 清理同资源多格式重复（`imagePrune.enabled` 默认开），只删多余格式并修引用 |
 

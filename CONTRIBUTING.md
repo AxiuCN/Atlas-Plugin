@@ -145,7 +145,7 @@ config/config.yaml          运行时（git-ignored）——不要提交
 ```
 
 - 一文件一条目，便于 diff 与回退
-- `_patch.upstream` 与上游当前值不一致时，`#图鉴补丁` 会列 ⚠（补丁仍然生效，需要人工复核）
+- `_patch.upstream` 与上游当前值不一致时，加载补丁会 `logger.warn`（补丁仍然生效，需要人工复核）
 - **改名 / 改索引字段**（如套装星级）需要同时改 `resources/patch/map.json`
 - 补丁改动在 `#图鉴更新` 或重启后生效（缓存按数据版本失效）
 

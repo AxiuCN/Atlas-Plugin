@@ -2,11 +2,29 @@
  * 状态数据构建 + 状态图渲染 — status.html 数据共享层
  *
  * 供两处复用：
- *   apps/status.js   #图鉴状态 命令
+ *   apps/status.js   #图鉴状态 / #图鉴版本 命令
  *   apps/admin.js    初始化/更新完成通知（渲染状态图代替文字）
+ *
+ * 页面内容：各游戏（版本 + 版本号解析 + 条目数）→ 本次更新（可选）→ 引擎与数据库 → 图片资源。
  */
 import { getDataStatus } from '../model/AtlasUpdater.js'
+import { parseVersionBadge } from './versionBadge.js'
+import { sourceLabel } from './sourceCredit.js'
+import { hesperidesVersion } from './pluginVersion.js'
 import { renderAtlas } from './render.js'
+
+/**
+ * ISO 时间 → `YYYY-MM-DD HH:mm`（本地时区）；解析不了就原样返回
+ * @param {string} value
+ * @returns {string}
+ */
+function formatTime (value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 /**
  * 构建 status.html 模板数据
@@ -21,26 +39,36 @@ export function buildStatusData (extra = {}) {
   const status = getDataStatus()
   if (!status.initialized) return null
 
-  // 格式化游戏数据
+  // 各游戏：保留原始版本号，另给解析出的状态（如 7.2.53 → 7.3 v4 测试服）
   const games = status.games
-    ? Object.entries(status.games).map(([id, g]) => ({
+    ? Object.entries(status.games).map(([id, game]) => ({
         id,
-        name: g.name,
-        version: g.version || '未知',
-        recordCount: g.recordCount.toLocaleString()
+        name: game.name,
+        version: game.version || '未知',
+        versionTag: parseVersionBadge(id, game.version)?.tag || '',
+        recordCount: game.recordCount.toLocaleString()
       }))
     : []
 
-  // 格式化更新时间
-  let fetchedAt = ''
-  if (status.fetchedAt) {
-    try {
-      const d = new Date(status.fetchedAt)
-      fetchedAt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-    } catch {
-      fetchedAt = status.fetchedAt
-    }
+  // 引擎与数据库：引擎是产物本身（版本 + schema + 生成时间 + 抓取状态），数据库按源汇总
+  const engine = {
+    version: hesperidesVersion ? `Hesperides ${hesperidesVersion}` : 'Hesperides',
+    schema: status.engine?.schemaVersion ? `v${status.engine.schemaVersion}` : '',
+    generatedAt: formatTime(status.engine?.generatedAt),
+    scraping: status.engine?.scraping ? '进行中' : '空闲'
   }
+  const databases = (status.databases || []).map((item) => ({
+    name: sourceLabel(item.id),
+    detail: [
+      `${item.pages} 页`,
+      `${Number(item.records).toLocaleString()} 条`,
+      formatTime(item.fetchedAt)
+    ].filter(Boolean).join(' · '),
+    warn: item.errors > 0 ? `${item.errors} 个频道异常` : ''
+  }))
+
+  // 格式化更新时间
+  const fetchedAt = formatTime(status.fetchedAt)
 
   // 「本次更新」：模板只负责展示，文案在这里拼好（避免模板里写表达式）
   const changes = Array.isArray(extra?.changes)
@@ -55,6 +83,8 @@ export function buildStatusData (extra = {}) {
 
   return {
     games,
+    engine,
+    databases,
     images: status.images || { total: 0, downloaded: 0, placeholder: 0, missing: 0 },
     fetchedAt,
     mode: status.mode || '',

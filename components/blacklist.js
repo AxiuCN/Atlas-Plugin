@@ -27,8 +27,10 @@ export const blacklistExample = path.join(pluginRoot, 'config', 'blacklist.yaml.
  * 内建黑名单（始终生效，不受配置文件影响）
  * - `面板`：miao 的面板与面板变换指令（`#丝柯克面板 换千织专武`、`#胡桃面板`）常以
  *   `专武` / `专` / `套` 结尾，会被图鉴的后缀抢占误捕
+ * - `sl` / `napcat`：协议端（NapCat / LLOneBot）自己的管理指令，与图鉴无关；
+ *   之前会被图鉴当关键词读进来，回一堆无用的列表
  */
-export const DEFAULT_PATTERNS = ['面板']
+export const DEFAULT_PATTERNS = ['面板', 'sl', 'napcat']
 
 /** 缓存：{ mtimeMs, raw: string[], regexps: RegExp[] } */
 let cache = null

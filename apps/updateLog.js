@@ -7,8 +7,8 @@
  * 另外提供「版本新增内容」：读 nanoka 根 manifest 的 `new` 字段（本版本新增条目 id），
  * 按实体分组并补出名称——数据来自抓取时落盘的 `data/nanoka-manifest.json`。
  *
- * 例：#版本更新记录 / #变更项目 / #新版本改动 / #版本新增内容（原神）
- *     #星铁版本更新记录 / #绝区零新增内容（前缀路由）
+ * 例：#版本更新记录 / #版本更新日志 / #更新记录 / #变更项目 / #新版本改动（原神）
+ *     #星铁版本更新记录 / #绝区零更新记录（前缀路由）
  */
 import plugin from '../../../lib/plugins/plugin.js'
 import common from '../../../lib/common/common.js'
@@ -16,17 +16,20 @@ import { renderAtlas } from '../components/render.js'
 import { loadVersionDiff } from '../model/VersionDiff.js'
 import { loadNewContent, formatNewContent } from '../model/NewContent.js'
 
+/** 「版本更新记录」这一族写法（记录 / 日志 / 更新记录 都是同一份数据） */
+const VERSION_LOG_SUFFIX = '(版本更新记录|版本更新日志|更新记录|变更项目|新版本改动)'
+
 export class AtlasUpdateLog extends plugin {
   constructor () {
     super({
       name: 'Atlas版本更新记录',
-      dsc: '#版本更新记录 / #变更项目 / #新版本改动',
+      dsc: '#版本更新日志 / #新版本内容',
       event: 'message',
       priority: 9000, // 高于常规查询（10000），低于快捷入口（-99999）与别名管理（8000）
       rule: [
-        { reg: /^#(版本更新记录|变更项目|新版本改动)$/, fnc: 'updateLogGI', permission: 'all' },
-        { reg: /^#(?:星铁|星穹)(版本更新记录|变更项目|新版本改动)$/, fnc: 'updateLogHSR', permission: 'all' },
-        { reg: /^#(?:绝区零)(版本更新记录|变更项目|新版本改动)$/, fnc: 'updateLogZZZ', permission: 'all' },
+        { reg: new RegExp(`^#${VERSION_LOG_SUFFIX}$`), fnc: 'updateLogGI', permission: 'all' },
+        { reg: new RegExp(`^#(?:星铁|星穹)${VERSION_LOG_SUFFIX}$`), fnc: 'updateLogHSR', permission: 'all' },
+        { reg: new RegExp(`^#(?:绝区零)${VERSION_LOG_SUFFIX}$`), fnc: 'updateLogZZZ', permission: 'all' },
         { reg: /^#(?:版本新增内容|新增内容|新版本内容)$/, fnc: 'newContentGI', permission: 'all' },
         { reg: /^#(?:星铁|星穹)(?:版本新增内容|新增内容|新版本内容)$/, fnc: 'newContentHSR', permission: 'all' },
         { reg: /^#(?:绝区零)(?:版本新增内容|新增内容|新版本内容)$/, fnc: 'newContentZZZ', permission: 'all' }

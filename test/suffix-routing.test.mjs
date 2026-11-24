@@ -199,6 +199,10 @@ check('#温迪新专 与 #黎明破晓之史 渲染同一页（新专 = 新专�
 // 面板类消息必须整体放行（miao 的 #xxx面板 / 换装 / 补装 会带 专武·专·套 后缀，被后缀抢占误捕）
 const panelMsg = '#丝柯克面板 换千织专武'
 check('黑名单命中「面板」消息', isBlacklisted(panelMsg), panelMsg)
+// 协议端自己的管理指令（NapCat / LLOneBot）不该被图鉴读成关键词
+for (const protocolMsg of ['#sl', '#napcat', '#napcat 帮助', '#sl 用户']) {
+  check(`黑名单命中协议端指令「${protocolMsg}」`, isBlacklisted(protocolMsg), protocolMsg)
+}
 const shortcut = new atlasShortcut()
 check('快捷入口 accept 对面板消息放行（不抢 miao 的 accept）',
   await shortcut.accept({ msg: panelMsg, message: [{ type: 'text', text: panelMsg }] }) === false)

@@ -13,6 +13,8 @@ requireAtlasData()
 ensureTmpDir()
 
 const { buildStatusData } = await import(mod('components/status.js'))
+const { parseVersionBadge } = await import(mod('components/versionBadge.js'))
+const { sourceLabel } = await import(mod('components/sourceCredit.js'))
 const real = buildStatusData()
 
 let pass = 0
@@ -42,6 +44,35 @@ for (const g of real.games) {
 }
 check('不再含已剥离的「角色攻略」卡', !html.includes('角色攻略'))
 check('未传 changes 时不出「本次更新」卡', !html.includes('本次更新'))
+check('不再有 #图鉴补丁 相关文案', !html.includes('补丁'))
+
+console.log('\n=== 版本号解析（版本判定行）===')
+const withTag = real.games.filter((g) => g.versionTag)
+check('版本判定与 parseVersionBadge 一致', withTag.every((g) => g.versionTag === parseVersionBadge(g.id, g.version)?.tag),
+  withTag.map((g) => `${g.version} → ${g.versionTag}`).join('、') || '(无测试服数据)')
+check('版本判定不带游戏名前缀', withTag.every((g) => !g.versionTag.includes(g.name)), withTag.map((g) => g.versionTag).join('、'))
+if (withTag.length) check('版本判定渲染进模板', html.includes('版本判定') && html.includes(withTag[0].versionTag))
+check('解析不出时整行为空（不造占位）', real.games.filter((g) => !parseVersionBadge(g.id, g.version)).every((g) => g.versionTag === ''))
+
+console.log('\n=== 引擎 · 数据库卡 ===')
+check('引擎行带 Hesperides 版本', real.engine.version.startsWith('Hesperides'), real.engine.version)
+check('抓取状态只有进行中/空闲', ['进行中', '空闲'].includes(real.engine.scraping), real.engine.scraping)
+check('数据库行覆盖四个源', ['nanoka', 'alioth', 'lunaris', 'gensri'].every((id) => (real.databases || []).some((db) => db.name === sourceLabel(id))),
+  (real.databases || []).map((db) => db.name).join('、'))
+check('数据库行含页数与条目数', (real.databases || []).every((db) => /^\d+ 页 · [\d,]+ 条/.test(db.detail)),
+  (real.databases || [])[0]?.detail || '')
+check('引擎卡渲染进模板', html.includes('引擎 · 数据库') && html.includes(real.engine.version) && !html.includes('{{'))
+for (const db of real.databases || []) {
+  check(`数据库 ${db.name} 出现在模板`, html.includes(db.name))
+}
+
+console.log('\n=== 图片统计（缺失数）===')
+const { total, downloaded, placeholder, missing } = real.images
+check('总数 = 已下载 + 占位图 + 缺失', total === downloaded + placeholder + missing,
+  `${total} = ${downloaded} + ${placeholder} + ${missing}`)
+check('缺失是非负整数', Number.isInteger(missing) && missing >= 0, String(missing))
+check('缺失数渲染进模板（0 也显示）', html.includes(`<div class="num">${missing}</div>`), String(missing))
+check('没有既无文件也不是占位图的引用', missing === 0, `${missing} 张`)
 
 console.log('\n=== 「本次更新」卡片（更新完成通知用）===')
 const withChanges = buildStatusData({

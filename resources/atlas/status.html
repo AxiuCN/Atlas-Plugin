@@ -8,12 +8,12 @@
     .status-card {
       background: #fdfcfb;
       border-radius: 8px;
-      padding: 14px 18px;
+      padding: 16px 20px;
       margin-bottom: 12px;
       border: 1px solid #d4d1cd;
     }
     .status-card h3 {
-      font-size: 23px;
+      font-size: 27px;
       color: #8f6b2f;
       margin: 0 0 10px 0;
       padding-bottom: 8px;
@@ -22,18 +22,36 @@
     .status-row {
       display: flex;
       justify-content: space-between;
-      padding: 3px 0;
-      font-size: 20px;
+      align-items: baseline;
+      gap: 24px;
+      padding: 5px 0;
+      font-size: 24px;
+      line-height: 1.45;
     }
     .status-label {
-      color: #6b6b6b;
+      color: #5f5f5f;
+      flex-shrink: 0;
     }
     .status-value {
-      color: #3a3a3a;
+      color: #2f2f2f;
+      text-align: right;
     }
     .status-value.changed {
       color: #8f6b2f;
       font-weight: 600;
+    }
+    /* 引擎 / 数据库：同一张卡里，数据库行前加一条浅分隔 */
+    .status-split {
+      margin: 10px 0 4px;
+      border-top: 1px dashed #e0dcd7;
+    }
+    .status-warn {
+      display: block;
+      color: #b4541f;
+      font-weight: 600;
+      font-size: 21px;
+      line-height: 1.35;
+      margin-top: 2px;
     }
     /* 抓取未完全成功时的提醒（如「有未抓到的条目」） */
     .subtitle.warn {
@@ -50,17 +68,20 @@
       text-align: center;
     }
     .image-stat .num {
-      font-size: 33px;
+      font-size: 34px;
       font-weight: 700;
       color: #8f6b2f;
     }
     .image-stat .lbl {
-      font-size: 17px;
-      color: #6b6b6b;
+      font-size: 20px;
+      color: #5f5f5f;
       margin-top: 2px;
     }
+    .image-stat.missing .num {
+      color: #b4541f;
+    }
     .status-meta {
-      font-size: 18px;
+      font-size: 21px;
       color: #6b6b6b;
       text-align: center;
       margin-top: 16px;
@@ -88,6 +109,12 @@
       <span class="status-label">版本</span>
       <span class="status-value">{{game.version}}</span>
     </div>
+    {{if game.versionTag}}
+    <div class="status-row">
+      <span class="status-label">版本判定</span>
+      <span class="status-value">{{game.versionTag}}</span>
+    </div>
+    {{/if}}
     <div class="status-row">
       <span class="status-label">条目数</span>
       <span class="status-value">{{game.recordCount}}</span>
@@ -107,6 +134,43 @@
   </div>
   {{/if}}
 
+  {{if engine || (databases && databases.length > 0)}}
+  <div class="status-card">
+    <h3>引擎 · 数据库</h3>
+    {{if engine}}
+    <div class="status-row">
+      <span class="status-label">引擎</span>
+      <span class="status-value">{{engine.version}}</span>
+    </div>
+    {{if engine.schema}}
+    <div class="status-row">
+      <span class="status-label">产物 schema</span>
+      <span class="status-value">{{engine.schema}}</span>
+    </div>
+    {{/if}}
+    {{if engine.generatedAt}}
+    <div class="status-row">
+      <span class="status-label">索引生成</span>
+      <span class="status-value">{{engine.generatedAt}}</span>
+    </div>
+    {{/if}}
+    <div class="status-row">
+      <span class="status-label">抓取状态</span>
+      <span class="status-value">{{engine.scraping}}</span>
+    </div>
+    {{/if}}
+    {{if databases && databases.length > 0}}
+    <div class="status-split"></div>
+    {{each databases db}}
+    <div class="status-row">
+      <span class="status-label">{{db.name}}</span>
+      <span class="status-value">{{db.detail}}{{if db.warn}}<span class="status-warn">⚠ {{db.warn}}</span>{{/if}}</span>
+    </div>
+    {{/each}}
+    {{/if}}
+  </div>
+  {{/if}}
+
   {{if images && images.total > 0}}
   <div class="status-card">
     <h3>图片资源</h3>
@@ -123,7 +187,7 @@
         <div class="num">{{images.placeholder}}</div>
         <div class="lbl">占位图</div>
       </div>
-      <div class="image-stat">
+      <div class="image-stat{{if images.missing}} missing{{/if}}">
         <div class="num">{{images.missing}}</div>
         <div class="lbl">缺失</div>
       </div>
