@@ -23,7 +23,7 @@ const snapshot = () => {
   return {
     mapLoaderMap: map,
     itemRecords: itemAssets.pageEntries('gi', 'item'),
-    itemAllRecords: itemAssets.pageEntries('gi', 'item-all'),
+    itemAllRecords: itemAssets.pageEntries('gi', 'item_all'),
     relicIcon: gi.getGIRelicByIcon('UI_RelicIcon_10005_4'),
     zzzIcon: zzz.getZZZItemIcon(100),
     monsterVariants: monsterIndex.getMonsterVariants('gi', monsterPath),

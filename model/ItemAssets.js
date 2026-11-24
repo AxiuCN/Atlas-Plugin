@@ -3,8 +3,11 @@
  *
  * 数据来源（都是 `index.json` 的 `pages[<dir>].entries`，含 `name` / `icon` / `imageCount`）：
  *   - `item`      物品页：素材 id → 名称
- *   - `item-all`  物品详情页：item 页查不到时的名称兜底（经验/好感度这类无详情条目）
+ *   - `item_all`  物品全集：item 页查不到时的兜底（经验/好感度这类无详情条目，以及只在全集里的物品）
  *   - `icon`      记录主图相对路径（`images/<game>/…`），直接拼 file:// URL
+ *
+ * 注意页目录名用产物里的原样写法：物品全集是 `item_all`（下划线），不是 `item-all`——
+ * nanoka 的 `item` 页只收有图标的条目，剩下的都在 `item_all`，写错名字会让兜底恒为空。
  *
  * 图标不再按「id → 文件名约定」猜（旧后端靠 `gallery/gi/UI_ItemIcon_<id>.webp` 这类直拼），
  * 而是用产物里已经落好的那一张；按资源名查询时扫一次 `images/<game>` 建文件名索引（进程内缓存）。
@@ -42,7 +45,7 @@ function ensureCache () {
 /**
  * 某页目录对应的「游戏 → entries」桶（按需构建、进程内缓存）
  *
- * 以前只认 item / item-all / artifact 三个 dir，其余一律落到 artifact 桶——
+ * 以前只认 item / item_all / artifact 三个 dir，其余一律落到 artifact 桶——
  * `HardLevelGroup` 这样的页因此永远读到空表。现在按 dir 懒构建，未知目录得到自己的桶。
  * @param {object} data - ensureCache() 的返回值
  * @param {string} dir - 页目录名
@@ -82,7 +85,7 @@ export function assetUrl (localPath) {
 /**
  * 某页的 entries（Hesperides 页目录名）
  *
- * 目录名就是 `index.json` 里 `pages.<dir>` 的键（如 `item` / `item-all` / `artifact` /
+ * 目录名就是 `index.json` 里 `pages.<dir>` 的键（如 `item` / `item_all` / `artifact` /
  * `HardLevelGroup`）；不认识的名字会得到一个空桶，不会再悄悄读成别的页。
  * @param {string} gameId
  * @param {string} dir
@@ -93,7 +96,7 @@ export function pageEntries (gameId, dir) {
 }
 
 /**
- * 素材 id → 名称（item 页优先，item-all 兜底）
+ * 素材 id → 名称（item 页优先，item_all 全集兜底）
  * @param {string} gameId
  * @param {string|number} id
  * @returns {string} 查不到返回空串
@@ -101,7 +104,7 @@ export function pageEntries (gameId, dir) {
 export function getItemName (gameId, id) {
   if (id == null) return ''
   const key = String(id)
-  const hit = pageEntries(gameId, 'item')[key] || pageEntries(gameId, 'item-all')[key]
+  const hit = pageEntries(gameId, 'item')[key] || pageEntries(gameId, 'item_all')[key]
   return hit?.name ? String(hit.name) : ''
 }
 
@@ -114,7 +117,7 @@ export function getItemName (gameId, id) {
 export function getItemIconUrl (gameId, id) {
   if (id == null) return ''
   const key = String(id)
-  const hit = pageEntries(gameId, 'item')[key] || pageEntries(gameId, 'item-all')[key]
+  const hit = pageEntries(gameId, 'item')[key] || pageEntries(gameId, 'item_all')[key]
   return assetUrl(hit?.icon)
 }
 

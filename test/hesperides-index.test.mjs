@@ -271,4 +271,21 @@ console.log('=== ⑦ 星铁怪物面板等级倍率 ===')
     JSON.stringify(speed))
 }
 
+/* ============================================================
+ *  ⑧ 物品全集：只在 item_all 里的物品（素材兜底）
+ * ============================================================ */
+console.log('\n=== ⑧ 物品全集 item_all 兜底 ===')
+{
+  const { pageEntries, getItemName, getItemIconUrl } = await import(mod('model/ItemAssets.js'))
+  const allEntries = pageEntries('gi', 'item_all')
+  const itemEntries = pageEntries('gi', 'item')
+  check('item_all 目录名可读（产物里是下划线，不是 item-all）', Object.keys(allEntries).length > 0, `${Object.keys(allEntries).length} 条`)
+  // 运行时取样：nanoka 的 item 页只收有图标的条目，其余都只在 item_all 里
+  const onlyAll = Object.keys(allEntries).find((id) => allEntries[id]?.icon && !itemEntries[id])
+  check('只在 item_all 的物品能取到图标', Boolean(onlyAll) && Boolean(getItemIconUrl('gi', onlyAll)), onlyAll || '(取样为空)')
+  check('名称同样可从 item_all 兜底',
+    Boolean(onlyAll) && getItemName('gi', onlyAll) === allEntries[onlyAll].name,
+    `${onlyAll || ''}: ${onlyAll ? getItemName('gi', onlyAll) : ''}`)
+}
+
 finish()

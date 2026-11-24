@@ -64,7 +64,7 @@ export function buildStatusData (extra = {}) {
       `${Number(item.records).toLocaleString()} 条`,
       formatTime(item.fetchedAt)
     ].filter(Boolean).join(' · '),
-    warn: item.errors > 0 ? `${item.errors} 个频道异常` : ''
+    warn: item.failed > 0 ? `${item.failed} 个频道失败（沿用上一轮数据）` : ''
   }))
 
   // 格式化更新时间

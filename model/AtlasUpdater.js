@@ -506,18 +506,20 @@ export function getDataStatus () {
       pages += 1
     }
     for (const [source, group] of Object.entries(sourcesOfGame)) {
-      const stat = databases.get(source) || { id: source, pages: 0, records: 0, fetchedAt: '', errors: 0 }
+      const stat = databases.get(source) || { id: source, pages: 0, records: 0, fetchedAt: '', failed: 0 }
       for (const value of Object.values(group?.pages || {})) {
         stat.pages += 1
         stat.records += value?.records || 0
       }
       databases.set(source, stat)
     }
-    // 抓取状态挂在频道上（键为 `<source>:<game>:<page>`），汇进对应源
+    // 抓取状态挂在频道上（键为 `<source>:<game>:<page>`），汇进对应源。
+    // 只有 `failed` 算异常：`skipped`（304 / 内容未变）与 `absent`（上游 404）、`unverified`（暂不抓）
+    // 都是正常状态，增量更新后大部分频道本来就是 skipped，算进来会天天报警
     for (const channel of Object.values(index?.games?.[game]?.channels || {})) {
       const stat = databases.get(channel?.source)
       if (!stat) continue
-      if (channel?.status && channel.status !== 'ok') stat.errors += 1
+      if (channel?.status === 'failed') stat.failed += 1
       if (channel?.fetchedAt && channel.fetchedAt > stat.fetchedAt) stat.fetchedAt = channel.fetchedAt
     }
     games[game] = {

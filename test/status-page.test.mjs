@@ -62,6 +62,8 @@ check('数据库行覆盖四个源', ['nanoka', 'alioth', 'lunaris', 'gensri'].e
 check('数据库行含页数与条目数', (real.databases || []).every((db) => /^\d+ 页 · [\d,]+ 条/.test(db.detail)),
   (real.databases || [])[0]?.detail || '')
 check('引擎卡渲染进模板', html.includes('引擎 · 数据库') && html.includes(real.engine.version) && !html.includes('{{'))
+check('异常只统计 failed（skipped / absent 不算）', (real.databases || []).every((db) => !db.warn || /个频道失败/.test(db.warn)),
+  (real.databases || []).map((db) => `${db.name}:${db.warn || '-'}`).join(' | '))
 for (const db of real.databases || []) {
   check(`数据库 ${db.name} 出现在模板`, html.includes(db.name))
 }
