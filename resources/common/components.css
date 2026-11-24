@@ -619,8 +619,8 @@
   margin-top: 2px;
 }
 
-/* 页脚版本号（.version）：比正文淡一点、加粗一档 */
+/* 页脚版本号（.version）：用全站高亮色（深金棕）标出，与正文高亮同一套色 */
 .copyright .version {
   font-weight: 600;
-  color: #4a4a4a;
+  color: #8a6b2f;
 }

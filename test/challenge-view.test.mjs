@@ -181,4 +181,15 @@ console.log('\n=== ⑤ 预览期共用同一模板 ===')
   check('预览视图段类型合法', (view?.groups || []).every((group) => KINDS.has(group.kind)))
 }
 
+console.log('\n=== ⑥ 页脚来源按内容源判定 ===')
+{
+  const { challengeSources } = await import(mod('modules/challengeHesperides.js'))
+  check('玉璃页取期表源', challengeSources('gi', 'tower', 'alioth').join(',') === 'alioth', challengeSources('gi', 'tower', 'alioth').join(','))
+  check('危战额外加强度研究院', challengeSources('gi', 'leyline', 'alioth').join(',') === 'alioth,gensri', challengeSources('gi', 'leyline', 'alioth').join(','))
+  check('zzz 走 nanoka', challengeSources('zzz', 'shiyu', 'nanoka').join(',') === 'nanoka', challengeSources('zzz', 'shiyu', 'nanoka').join(','))
+  check('预览期按内容源、不列期表源', challengeSources('gi', 'tower', 'alioth', 'lunaris').join(',') === 'lunaris', challengeSources('gi', 'tower', 'alioth', 'lunaris').join(','))
+  const reward = challengeSources('gi', 'leyline', 'alioth', 'gensri')
+  check('预览期危战不重复列同一源', reward.join(',') === 'gensri', reward.join(','))
+}
+
 finish()

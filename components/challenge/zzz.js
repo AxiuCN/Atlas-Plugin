@@ -7,7 +7,7 @@
  * 房间的 `monster_list` 直接带 `name / image / stats{hp,attack,defence,stun,attribute_infliction}`，
  * 所以怪物行给「HP + ATK/DEF/韧性/异常」；弱点/抗性放在房间卡副标题。
  */
-import { plain, fieldImage, battleGroup, battleMonster, listGroup, pushGroup } from './view.js'
+import { plain, rich, fieldImage, battleGroup, battleMonster, listGroup, pushGroup } from './view.js'
 
 /** 数值加千分位（绝区零的数值都很长，不加分隔看不清） */
 function thousands (value, digits = 0) {
@@ -39,7 +39,7 @@ function goalRows (zone, level = zone?.monster_level) {
 function buffRows (buffs, fallback = '增益') {
   return Object.values(buffs || {})
     .filter((buff) => buff && (buff.title || buff.desc))
-    .map((buff) => ({ label: plain(buff.title) || fallback, value: plain(buff.desc, 240) }))
+    .map((buff) => ({ label: plain(buff.title) || fallback, value: rich(buff.desc, 240) }))
 }
 
 /** 房间 → 战斗卡（房间名 + Lv/波次/弱点抗性 + 怪物数值行） */

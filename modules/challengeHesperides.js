@@ -17,6 +17,24 @@ import { pickCurrent, resolvePeriodSpec, periodMissReply, formatPeriodLabel, for
 import { GAME_NAMES } from '../components/constants.js'
 
 /**
+ * 挑战页页脚要列的来源
+ *
+ * 内容源就是期表与条目所在的那个源；预览期的期表在玉璃、内容在预览源，按内容算。
+ * 危战另加强度研究院（页内「强度研究院」段解析它的敌阵与机制）。
+ * @param {string} gameId
+ * @param {string} pageKey
+ * @param {string} source - 期表源（`hes.source`）
+ * @param {string} [previewSource] - 预览源（`period.previewSource`）
+ * @returns {string[]}
+ */
+export function challengeSources (gameId, pageKey, source, previewSource = '') {
+  return [...new Set([
+    previewSource || source,
+    gameId === 'gi' && pageKey === 'leyline' ? 'gensri' : ''
+  ].filter(Boolean))]
+}
+
+/**
  * 用 Hesperides 的期与条目渲染挑战详情
  * @param {object} e - Runtime 实例
  * @param {string} gameId
@@ -80,12 +98,9 @@ export async function handleHesperidesChallenge (e, gameId, result, hes, periodS
   const data = {
     gameName: GAME_NAMES[gameId],
     gameId,
-    // 页脚来源：主源 + 预览源（月亮网/强度研究院）+ 强度研究院解析用到的源
-    sources: [...new Set([
-      result.source,
-      period.previewSource || '',
-      gameId === 'gi' && result.pageKey === 'leyline' ? 'gensri' : ''
-    ].filter(Boolean))],
+    // 页脚来源：内容源（预览期用预览源）+ 危战的强度研究院解析。
+    // 不能用 result.source —— 特殊触发结果只有 type/gameId/pageKey/pageTitle，没有来源字段
+    sources: challengeSources(gameId, result.pageKey, hes.source, isPreview ? period.previewSource : ''),
     pageTitle: result.pageTitle,
     // 期名优先，但玉璃索引里的「期名」经常是关卡名（异相仲裁就是「隐藏关卡」），不能直接当标题；
     // 异相仲裁改用「版本 + 页名」；绝区零没有期名，记录标题（「剧变节点」）才是用户认得的叫法

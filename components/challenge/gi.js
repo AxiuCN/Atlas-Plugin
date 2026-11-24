@@ -7,7 +7,7 @@
 import { giCurveValue } from '../../model/monsterIndex/curve.js'
 import { listMonsterEntries } from '../../model/monsterIndex/index.js'
 import {
-  plain, num, percent, fieldImage, makeMonsterResolver, nameByIcon, monsterIconImage, entryNameById, characterIcon,
+  plain, rich, num, percent, fieldImage, makeMonsterResolver, nameByIcon, monsterIconImage, entryNameById, characterIcon,
   listGroup, iconGroup, cardsGroup, battleGroup, battleMonster, block, pushGroup
 } from './view.js'
 
@@ -60,7 +60,7 @@ export function giAbyssView (record) {
   const blessings = Array.isArray(list.Blessings) ? list.Blessings : []
   pushGroup(groups, cardsGroup('月之祝福', blessings.map((item) => ({
     title: plain(item?.Name),
-    fields: [{ label: '效果', value: plain(item?.Desc, 220) }]
+    fields: [{ label: '效果', value: rich(item?.Desc, 220, { highlight: true }) }]
   }))))
 
   for (const floor of Array.isArray(list.Floors) ? list.Floors : []) {
@@ -68,7 +68,7 @@ export function giAbyssView (record) {
     if (floor?.Disorder || floor?.HPRatio) {
       pushGroup(groups, listGroup(`第 ${floorNo} 层 · 地脉异常`, [
         { label: '生命倍率', value: floor?.HPRatio ? `×${num(floor.HPRatio, 2)}` : '' },
-        { label: '效果', value: floor?.Disorder ? plain(floor.Disorder, 240) : '' }
+        { label: '效果', value: floor?.Disorder ? rich(floor.Disorder, 240, { highlight: true }) : '' }
       ]))
     }
     // 一层一个段，段内一间一张卡；同一间的上半/下半并到一张卡里（六张 → 三张）
@@ -259,7 +259,7 @@ export function giTheaterView (record, ctx = {}) {
       title: `第 ${chamberId} 幕`,
       sub: chamber?.Level ? `Lv.${chamber.Level}` : '',
       lineups,
-      lead: plain(list.MonDesc?.[configs[0]], 200)
+      lead: rich(list.MonDesc?.[configs[0]], 200, { highlight: true })
     })
   }
   pushGroup(groups, battleGroup('各幕', chamberCards, { cols: 2, dense: true }))
@@ -302,11 +302,11 @@ export function giStygianView (record, ctx = {}) {
     // 「首领特性」= Buff[]（同名机制的一段式概述）——两者顺序不能反
     pushGroup(blocks, block('「玉璃的研究」', (raw.Tutorial || []).map((tutorial) => ({
       name: plain(tutorial?.Title),
-      paragraphs: (tutorial?.DescList || []).map((text) => plain(stripHighlight(text), 220))
+      paragraphs: (tutorial?.DescList || []).map((text) => rich(stripHighlight(text), 220, { highlight: true }))
     }))))
     pushGroup(blocks, block('首领特性', (raw.Buff || []).map((buff) => ({
       name: plain(buff?.Name),
-      paragraphs: [plain(stripHighlight(buff?.Desc), 200)]
+      paragraphs: [rich(stripHighlight(buff?.Desc), 200, { highlight: true })]
     }))))
     // 其他难度：N4 与 N1-3（N1/N2 无血量数据就不写）
     // 其他难度：逐档列出（N3 常形 / N4 各有自己的名字与血量，不能合并成「1-3」）
@@ -314,7 +314,7 @@ export function giStygianView (record, ctx = {}) {
     for (const difficulty of [4, 3]) {
       const tier = findTierMonster(monsters, levels, difficulty, id, levels.length - 1)
       if (tier && (tier.name || tier.hp)) {
-        others.push({ name: `难度 ${difficulty}`, paragraphs: [[tier.name, tier.hp].filter(Boolean).join(' · ')] })
+        others.push({ name: `难度 ${difficulty}`, paragraphs: [rich([tier.name, tier.hp].filter(Boolean).join(' · '))] })
       }
     }
     pushGroup(blocks, block('其他难度', others))
@@ -329,7 +329,7 @@ export function giStygianView (record, ctx = {}) {
         hp: hpText,
         chips: [...new Set([...roleChips(raw.Advantage), ...roleChips(raw.Disadvantage), ...resChips(raw.RES)])]
       })],
-      lead: plain(raw.Desc, 160),
+      lead: rich(raw.Desc, 160, { highlight: true }),
       blocks
     })
   }
@@ -365,7 +365,7 @@ export function lunarisAbyssView (record, raw, ctx = {}) {
   const detail = raw?.detail || {}
   const groups = []
   const buffName = plain(raw?.chsBuffName) || plain(detail?.buffName)
-  const buffDesc = plain(detail?.monthlyBuff?.description, 240)
+  const buffDesc = rich(detail?.monthlyBuff?.description, 240)
   if (buffName || buffDesc) {
     pushGroup(groups, cardsGroup('月之祝福', [{ title: buffName, fields: buffDesc ? [{ label: '效果', value: buffDesc }] : [] }]))
   }
@@ -399,8 +399,8 @@ export function lunarisAbyssView (record, raw, ctx = {}) {
     const floorNo = floor?.floorIndex ?? '?'
     if (floor?.firstHalfBuff || floor?.secondHalfBuff) {
       pushGroup(groups, listGroup(`第 ${floorNo} 层 · 地脉异常`, [
-        { label: '上半', value: plain(floor.firstHalfBuff?.description || floor.firstHalfBuff, 200) },
-        { label: '下半', value: plain(floor.secondHalfBuff?.description || floor.secondHalfBuff, 200) }
+        { label: '上半', value: rich(floor.firstHalfBuff?.description || floor.firstHalfBuff, 200) },
+        { label: '下半', value: rich(floor.secondHalfBuff?.description || floor.secondHalfBuff, 200) }
       ]))
     }
     // 一层一个段，段内一间一张卡；同一间的上半/下半并到一张卡里（六张 → 三张）
@@ -463,7 +463,7 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
         title: `第 ${no} 幕 · ${plain(room.bossName)}`,
         sub: room?.monsterLevel ? `Lv.${room.monsterLevel}` : '',
         monsters: [battleMonster({ icon: monsterIconImage('gi', boss?.icon), hp: '' })],
-        lead: plain(room?.bossDescription, 220)
+        lead: rich(room?.bossDescription, 220)
       }
     })
   // 段名与正式服一致（正式页剧诗叫「首领」），缺失的数据（如圣牌以外的幕）按原则省略
@@ -482,7 +482,7 @@ export function lunarisTheaterView (record, raw, ctx = {}) {
           name: plain(monster?.name),
           icon: monsterIconImage('gi', monster?.icon)
         })).filter((monster) => monster.name || monster.icon),
-        lead: plain(room?.bossDescription, 220)
+        lead: rich(room?.bossDescription, 220)
       }
     })
   pushGroup(groups, battleGroup('圣牌', extraCards, { cols: 2 }))
@@ -509,7 +509,7 @@ export function gensriStygianView (record, raw) {
       monsters: [battleMonster({ icon: fieldImage(record, `detail.enemies.${index}.image`), hp: hpText })],
       blocks: [block('强敌机制', (enemy?.mechanism || []).map((text, i) => ({
         name: `解析 ${i + 1}`,
-        paragraphs: [plain(text, 260)]
+        paragraphs: [rich(text, 260)]
       })))].filter(Boolean)
     }
   })
@@ -560,7 +560,7 @@ function buildGensriResearch (ctx) {
     const blocks = []
     pushGroup(blocks, block('强敌机制', (enemy?.mechanism || []).map((text, index) => ({
       name: `解析 ${index + 1}`,
-      paragraphs: [plain(text, 220)]
+      paragraphs: [rich(text, 220)]
     }))))
     return {
       title: plain(enemy?.name) || '敌人',

@@ -116,13 +116,35 @@ const footerCopyright = templates.filter((t) => /\{\{@copyright\}\}/.test(tplSou
 check('页脚第二行用版本署名', footerCopyright.length >= 10, `${footerCopyright.length} 个模板`)
 
 const { buildCredit } = await import(mod('components/sourceCredit.js'))
-check('来源去重且按出现顺序', buildCredit(['alioth', 'gensri', 'alioth']) === '玉璃 alioth.wiki · 强度研究院 gensri.wiki', buildCredit(['alioth', 'gensri', 'alioth']))
-check('缺来源时回落四源', buildCredit([]) === 'nanoka.cc · 玉璃 alioth.wiki · Lunaris lunaris.moe · 强度研究院 gensri.wiki', buildCredit([]))
+check('来源去重且按出现顺序', buildCredit(['alioth', 'gensri', 'alioth']) === 'alioth.wiki · gensri.wiki', buildCredit(['alioth', 'gensri', 'alioth']))
+check('单源用带域名的全名', buildCredit(['alioth']) === '玉璃 alioth.wiki', buildCredit(['alioth']))
+check('多源并列用短名（一行放得下）', buildCredit(['nanoka', 'alioth']) === 'nanoka.cc · alioth.wiki', buildCredit(['nanoka', 'alioth']))
+check('缺来源时回落四源短名', buildCredit([]) === 'nanoka.cc · alioth.wiki · lunaris.moe · gensri.wiki', buildCredit([]))
+
+const heroCss = fs.readFileSync(path.join(pluginRoot, 'resources/common/hero.css'), 'utf8')
+check('hero.css 有版本徽标样式', /\.hero-version\s*\{/.test(heroCss))
+// 徽标与立绘/遮罩同为绝对定位且排在它们之前，没有 z-index 就会被压住（只剩缝隙里的半截字）
+check('版本徽标压在立绘与遮罩之上', /\.hero-version\s*\{[^}]*z-index:\s*\d+/.test(heroCss))
+
+const componentsCss = fs.readFileSync(path.join(pluginRoot, 'resources/common/components.css'), 'utf8')
+check('页脚版本号用高亮色（深金棕）', /\.copyright \.version\s*\{[^}]*#8a6b2f/.test(componentsCss))
+
+// 玉璃正文高亮：只有 rich() 产标签，模板对正文用 {{@…}}，样式在 detail.css
+const { rich } = await import(mod('components/challenge/view.js'))
+check('rich 保留 <color> 为 .hl', rich('A<color style="color:var(--alioth-highlight-color)">B</color>C', 200, { highlight: true }).includes('<span class="hl">B</span>'),
+  rich('A<color style="color:var(--alioth-highlight-color)">B</color>C', 200, { highlight: true }))
+check('rich 默认不解析 <color>', !rich('A<color=#FFD780>B</color>C').includes('hl'), rich('A<color=#FFD780>B</color>C'))
+check('rich 剥标签但转义残留尖括号与 &', !rich('<b>x</b> & y').includes('<b>') && rich('HP<50% & 冰').includes('&lt;50%') && rich('a & b').includes('&amp;'),
+  `${rich('<b>x</b> & y')} / ${rich('HP<50% & 冰')}`)
+const detailCss = fs.readFileSync(path.join(pluginRoot, 'resources/common/detail.css'), 'utf8')
+check('detail.css 有 .hl 高亮样式', /\.hl\s*\{[^}]*#8a6b2f/.test(detailCss))
+const challengeTpl = fs.readFileSync(path.join(pluginRoot, 'resources/atlas/challenge.html'), 'utf8')
+check('challenge 正文槽位按 HTML 渲染', /\{\{@text\}\}/.test(challengeTpl) && /\{\{@card\.lead\}\}/.test(challengeTpl) && /\{\{@field\.value\}\}/.test(challengeTpl))
+check('challenge 怪物名等仍是转义槽位', /\{\{monster\.name\}\}/.test(challengeTpl) && /\{\{card\.title\}\}/.test(challengeTpl))
 const { buildCopyright, pluginVersion, yunzaiVersion, hesperidesVersion } = await import(mod('components/pluginVersion.js'))
 const copyright = buildCopyright()
 check('版权行带三处版本号',
   copyright.includes('Atlas-Plugin') && (!pluginVersion || copyright.includes(pluginVersion)) && (!yunzaiVersion || copyright.includes(yunzaiVersion)) && (!hesperidesVersion || copyright.includes(hesperidesVersion)),
   copyright)
-check('hero.css 有版本徽标样式', /\.hero-version\s*\{/.test(fs.readFileSync(path.join(pluginRoot, 'resources/common/hero.css'), 'utf8')))
 
 finish()

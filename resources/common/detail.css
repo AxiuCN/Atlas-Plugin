@@ -390,6 +390,12 @@
   color: #4a4a4a;
 }
 
+/* 上游正文内联高亮（玉璃 `<color>`，经 rich() 转成 .hl）：与全站高亮色统一 */
+.hl {
+  font-weight: 600;
+  color: #8a6b2f;
+}
+
 /* ===== 大图战斗卡（危战强敌：头部居中放大，正文靠左） ===== */
 .battle-card--big {
   padding: 16px 18px 18px;

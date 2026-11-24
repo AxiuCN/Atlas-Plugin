@@ -226,11 +226,14 @@
   object-fit: contain;
   margin-bottom: 0;
 }
-/* ===== Hero 右上角版本徽标 .hero-version ===== */
+/* ===== Hero 右上角版本徽标 .hero-version =====
+ * 必须 z-index 高于 .hero-strip / .hero-landscape / .hero-bg 三层背景（它们在 DOM 里排在徽标之后，
+ * 同为绝对定位会把徽标压住），否则立绘与遮罩一盖，徽标只剩缝隙里的半截字 */
 .hero-version {
   position: absolute;
   top: 14px;
   right: 18px;
+  z-index: 2;
   text-align: right;
   line-height: 1.45;
   font-size: 20px;

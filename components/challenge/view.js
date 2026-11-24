@@ -43,6 +43,81 @@ export function plain (value, max = TEXT_MAX) {
   return text.length > max ? `${text.slice(0, max)}…` : text
 }
 
+/** HTML 转义（`rich()` 自己产标签，正文一律先转义再拼） */
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>]/g, (char) => ESCAPES[char])
+
+/** 单段文本清洗：换行压成中文分号、去标签、压空白（`rich()` 与 `plain()` 共用口径） */
+function cleanText (value) {
+  return String(value ?? '')
+    .replace(/<br\s*\/?>/gi, '；')
+    .replace(/[。！？]；/g, (matched) => matched[0])
+    .replace(/；+/g, '；')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\\[nr]/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+/** 把 `<color …>…</color>` 切成「普通段 / 高亮段」，其余标签留给 cleanText 剥掉 */
+function splitHighlight (value) {
+  const source = String(value ?? '')
+  const parts = []
+  const re = /<color[^>]*>([\s\S]*?)<\/color>/gi
+  let last = 0
+  let matched
+  while ((matched = re.exec(source))) {
+    if (matched.index > last) parts.push({ text: source.slice(last, matched.index), highlight: false })
+    parts.push({ text: matched[1], highlight: true })
+    last = re.lastIndex
+  }
+  if (last < source.length) parts.push({ text: source.slice(last), highlight: false })
+  return parts
+}
+
+/**
+ * 正文富文本（模板用 `{{@…}}` 渲染）
+ *
+ * 上游正文里的 `<color>`（玉璃的 `var(--alioth-highlight-color)` 等）转成 `<span class="hl">`，
+ * 其余标签照旧剥除、文本一律转义 —— 只有这里产出的标签可以被当成 HTML。
+ * @param {*} value - 上游正文
+ * @param {number} [max] - 可见字数上限（超出补 `…`）
+ * @param {{highlight?: boolean}} [options] - 是否解析 `<color>`（只有玉璃终局页开）
+ * @returns {string}
+ */
+export function rich (value, max = TEXT_MAX, options = {}) {
+  if (value === null || value === undefined) return ''
+  const parts = options.highlight ? splitHighlight(value) : [{ text: String(value), highlight: false }]
+  const segments = parts
+    .map((part) => ({ text: cleanText(part.text), highlight: part.highlight }))
+    .filter((part) => part.text)
+
+  let rest = max
+  let truncated = false
+  const kept = []
+  for (const segment of segments) {
+    if (rest <= 0) {
+      truncated = true
+      break
+    }
+    if (segment.text.length > rest) {
+      kept.push({ text: segment.text.slice(0, rest), highlight: segment.highlight })
+      truncated = true
+      rest = 0
+      break
+    }
+    kept.push(segment)
+    rest -= segment.text.length
+  }
+  if (kept.length) {
+    kept[0].text = kept[0].text.replace(/^\s+/, '')
+    kept[kept.length - 1].text = kept[kept.length - 1].text.replace(/\s+$/, '')
+  }
+  const html = kept
+    .map((segment) => (segment.highlight ? `<span class="hl">${escapeHtml(segment.text)}</span>` : escapeHtml(segment.text)))
+    .join('')
+  return truncated ? `${html}…` : html
+}
+
 /** 数值 → 文本（保留一位小数，避免 0.7 显示成 0.70 之外的噪声） */
 export function num (value, digits = 1) {
   const n = Number(value)
@@ -313,6 +388,9 @@ export function pushGroup (groups, group) {
 /** 旧通用 sections → 视图段（未知玩法/字段变化时兜底，不空白） */
 export function groupsFromSections (sections) {
   return (sections || [])
-    .map((section) => listGroup(section?.title || '详情', section?.fields || []))
+    .map((section) => listGroup(
+      section?.title || '详情',
+      (section?.fields || []).map((field) => ({ label: field?.label, value: rich(field?.value, 400) }))
+    ))
     .filter(Boolean)
 }

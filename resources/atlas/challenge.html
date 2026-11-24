@@ -113,7 +113,7 @@
               {{each sect.items item}}
               <div class="battle-block-item">
                 {{if item.name}}<div class="battle-block-name">{{item.name}}</div>{{/if}}
-                {{each item.paragraphs text}}<div class="battle-block-text">{{text}}</div>{{/each}}
+                {{each item.paragraphs text}}<div class="battle-block-text">{{@text}}</div>{{/each}}
               </div>
               {{/each}}
             </div>
@@ -123,12 +123,12 @@
               {{each card.fields field}}
               <tr>
                 <td class="label">{{field.label}}</td>
-                <td class="value">{{field.value}}</td>
+                <td class="value">{{@field.value}}</td>
               </tr>
               {{/each}}
             </table>
             {{/if}}
-            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
+            {{if card.lead}}<div class="battle-lead">{{@card.lead}}</div>{{/if}}
           </div>
           {{/each}}
         </div>
@@ -153,14 +153,14 @@
           {{each group.cards card}}
           <div class="challenge-card">
             {{if card.title}}<div class="challenge-card-title">{{card.title}}{{if card.sub}}<span class="challenge-card-sub">{{card.sub}}</span>{{/if}}</div>{{/if}}
-            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
+            {{if card.lead}}<div class="battle-lead">{{@card.lead}}</div>{{/if}}
             {{each card.blocks sect}}
             <div class="battle-block">
               <div class="battle-block-title">{{sect.title}}</div>
               {{each sect.items item}}
               <div class="battle-block-item">
                 {{if item.name}}<div class="battle-block-name">{{item.name}}</div>{{/if}}
-                {{each item.paragraphs text}}<div class="battle-block-text">{{text}}</div>{{/each}}
+                {{each item.paragraphs text}}<div class="battle-block-text">{{@text}}</div>{{/each}}
               </div>
               {{/each}}
             </div>
@@ -170,12 +170,12 @@
               {{each card.fields field}}
               <tr>
                 <td class="label">{{field.label}}</td>
-                <td class="value">{{field.value}}</td>
+                <td class="value">{{@field.value}}</td>
               </tr>
               {{/each}}
             </table>
             {{/if}}
-            {{if card.lead}}<div class="battle-lead">{{card.lead}}</div>{{/if}}
+            {{if card.lead}}<div class="battle-lead">{{@card.lead}}</div>{{/if}}
           </div>
           {{/each}}
         </div>
@@ -187,7 +187,7 @@
           {{each group.fields field}}
           <tr>
             <td class="label">{{field.label}}</td>
-            <td class="value">{{field.value}}</td>
+            <td class="value">{{@field.value}}</td>
           </tr>
           {{/each}}
         </table>
@@ -199,7 +199,7 @@
           {{each group.fields field}}
           <tr>
             <td class="label">{{field.label}}</td>
-            <td class="value">{{field.value}}</td>
+            <td class="value">{{@field.value}}</td>
           </tr>
           {{/each}}
         </table>
@@ -213,7 +213,7 @@
         {{each rawFields field}}
         <tr>
           <td class="label">{{field.label}}</td>
-          <td class="value">{{field.value}}</td>
+          <td class="value">{{@field.value}}</td>
         </tr>
         {{/each}}
       </table>

@@ -11,7 +11,7 @@
  *   - 异相仲裁换成 `Knight` / `King` / `KnightFormation`，血量档位在 `HP_*`。
  */
 import {
-  plain, num, fieldImage,
+  plain, rich, num, fieldImage,
   listGroup, cardsGroup, battleGroup, battleMonster, collapseGroup, pushGroup
 } from './view.js'
 
@@ -28,7 +28,7 @@ const elemsText = (list) => (Array.isArray(list) ? list.map(elemLabel).join(' / 
 function buffCards (list) {
   return (Array.isArray(list) ? list : []).map((item) => ({
     title: plain(item?.Name),
-    fields: item?.Desc ? [{ label: '效果', value: plain(item.Desc, 220) }] : []
+    fields: item?.Desc ? [{ label: '效果', value: rich(item.Desc, 220, { highlight: true }) }] : []
   }))
 }
 
@@ -39,7 +39,7 @@ function tagCards (tags, unit = '层') {
     for (const item of Array.isArray(list) ? list : []) {
       cards.push({
         title: `${key !== null && key !== undefined ? `第 ${key} ${unit} · ` : ''}${plain(item?.Name) || '特性'}`,
-        fields: item?.Desc ? [{ label: '效果', value: plain(item.Desc, 220) }] : []
+        fields: item?.Desc ? [{ label: '效果', value: rich(item.Desc, 220, { highlight: true }) }] : []
       })
     }
   }
@@ -163,7 +163,7 @@ export function hsrAsView (record) {
   pushGroup(groups, cardsGroup('楼层特性', tagCards(list.Tags, '关'), { cols: 2 }))
   pushGroup(groups, collapseGroup('机制说明', (Array.isArray(list.Tutorials) ? list.Tutorials : []).map((item, index) => ({
     label: plain(item?.Name) || `说明 ${index + 1}`,
-    value: plain(item?.Desc, 200)
+    value: rich(item?.Desc, 200, { highlight: true })
   }))))
   return groups
 }
