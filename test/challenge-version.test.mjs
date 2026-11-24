@@ -48,9 +48,14 @@ check('原神 7.2.52 = 7.3 v3 测试服',
 check('原神 7.2.50 = 7.3 v1 测试服', badge('gi', '7.2.50').label === '原神7.3 v1测试服', badge('gi', '7.2.50').label)
 check('原神 7.8.50 进位到 8.0 v1', badge('gi', '7.8.50').label === '原神8.0 v1测试服', badge('gi', '7.8.50').label)
 check('原神 1.6 是历史最后小版本（进位到 2.0）', badge('gi', '1.6.50').label === '原神2.0 v1测试服', badge('gi', '1.6.50').label)
+check('原神 6.7 是历史最后小版本（进位到 7.0）', badge('gi', '6.7.50').label === '原神7.0 v1测试服', badge('gi', '6.7.50').label)
+check('原神 6.6 仍在 6.x 内（进位到 6.7）', badge('gi', '6.6.50').label === '原神6.7 v1测试服', badge('gi', '6.6.50').label)
 check('原神正式服 7.2', badge('gi', '7.2').label === '原神7.2 正式服', badge('gi', '7.2').label)
 check('星铁正式服 4.3', badge('hsr', '4.3').label === '崩坏·星穹铁道 4.3 正式服', badge('hsr', '4.3').label)
-check('星铁 6.7 是历史最后小版本（进位到 7.0）', badge('hsr', '6.7.50').label === '崩坏·星穹铁道 7.0 v1测试服', badge('hsr', '6.7.50').label)
+check('星铁 1.6 是历史最后小版本（进位到 2.0）', badge('hsr', '1.6.50').label === '崩坏·星穹铁道 2.0 v1测试服', badge('hsr', '1.6.50').label)
+check('星铁 2.7 是历史最后小版本（进位到 3.0）', badge('hsr', '2.7.50').label === '崩坏·星穹铁道 3.0 v1测试服', badge('hsr', '2.7.50').label)
+check('星铁 3.x 仍按默认 x.8 收尾（3.8 → 4.0）', badge('hsr', '3.8.50').label === '崩坏·星穹铁道 4.0 v1测试服', badge('hsr', '3.8.50').label)
+check('星铁 6.7 不特殊（默认 x.8 收尾）', badge('hsr', '6.7.50').label === '崩坏·星穹铁道 6.8 v1测试服', badge('hsr', '6.7.50').label)
 check('星铁 4.7.52 = 4.8 v3 测试服', badge('hsr', '4.7.52').label === '崩坏·星穹铁道 4.8 v3测试服', badge('hsr', '4.7.52').label)
 check('绝区零 3.4.5+构建号 = 3.4 v5 测试服',
   badge('zzz', '3.4.5+20694646').label === '绝区零3.4 v5测试服' && badge('zzz', '3.4.5+20694646').short === 'ZZZ 3.4.5+20694646',

@@ -4,8 +4,9 @@
  * 上游版本号规则（nanoka manifest 的 `latest`）：
  *   - 原神 / 星铁：`x.y` 是正式服；`x.y.N`（N ≥ 50）是**下一版本**的测试服，
  *     `x.y.50` = 下一版本 v1、`.51` = v2、`.52` = v3……；大版本最后一个小的
- *     `.N` 再 +1 就进新大版本（原神 `x.8.50` → `(x+1).0 v1`）。
- *     历史例外：原神 1.x 最后是 1.6、星铁 6.x 最后是 6.7，这两个不再套 x.8 规则。
+ *     `.N` 再 +1 就进新大版本（`x.8.50` → `(x+1).0 v1`）。
+ *     历史例外（官方没按 x.8 收尾）：原神 1.6、6.7，星铁 1.6、2.7 —— 这四个
+ *     才是各自大版本的最后一个小版本，再往后直接进位到下一个大版本。
  *   - 绝区零：`x.y.N+build` 的 N 就是测试服序号（`3.4.5+...` = 3.4 v5 测试服），
  *     `+` 后面的构建号原样带出、不参与计算；没有 N 就是正式服。
  */
@@ -17,11 +18,12 @@ const GAMES = {
   zzz: { name: '绝区零', code: 'ZZZ', spaced: false }
 }
 
-/** 大版本的最后一个小版本号（默认 8，历史例外见上） */
+/** 大版本的最后一个小版本号：默认 8，历史例外见上（`{ 大版本: 最后小版本 }`） */
 const LAST_MINOR = {
-  gi: (major) => (Number(major) === 1 ? 6 : 8),
-  hsr: (major) => (Number(major) === 6 ? 7 : 8)
+  gi: { 1: 6, 6: 7 },
+  hsr: { 1: 6, 2: 7 }
 }
+const DEFAULT_LAST_MINOR = 8
 
 /**
  * 解析一个上游版本号 → Hero 徽标文案
@@ -57,7 +59,7 @@ export function parseVersionBadge (gameId, raw) {
   }
 
   const step = Number(patch) - 49
-  const lastMinor = LAST_MINOR[gameId](major)
+  const lastMinor = LAST_MINOR[gameId]?.[major] ?? DEFAULT_LAST_MINOR
   const next = Number(minor) >= lastMinor ? `${Number(major) + 1}.0` : `${major}.${Number(minor) + 1}`
   return {
     label: `${meta.name}${gap}${next} v${step}测试服`,
