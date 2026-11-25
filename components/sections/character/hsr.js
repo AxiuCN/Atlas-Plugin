@@ -28,7 +28,7 @@
 import { buildSkillParams, varyingIndexes } from './skillParams.js'
 import { matchParamNames } from '../../../model/MiaoParams.js'
 import { imgUrl, skillTag, cleanMarkup, resolveHsrParams, hsrLabel } from '../util.js'
-import { HSR_MAX_LEVEL } from '../../constants.js'
+import { HSR_MAX_LEVEL, rarityLabel } from '../../constants.js'
 
 /** 属性加成为固定数值（非比例）的星铁属性类型 */
 const HSR_STAT_FLAT = new Set(['SpeedDelta'])
@@ -225,7 +225,7 @@ export function buildHSR (list, detail, meta, opts = {}) {
     weapon: hsrLabel(list.baseType || detail.base_type || ''),
     birthday: '',
     constellation: '',
-    rarity: meta?.rarity || list.rarity || ''
+    rarity: rarityLabel(meta?.rarity || list.rarity)
   }
 
   // 行迹节点：每棵树只取首个等级节点（同一节点的各级重复）

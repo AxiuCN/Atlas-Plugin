@@ -6,7 +6,7 @@ import { cleanMarkup, hsrLabel, resolveHsrParams } from '../util.js'
 import { mergeRefineLevels } from './refine.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
 import { getHsrItemName } from '../../../model/itemIndex/hsr.js'
-import { HSR_MAX_LEVEL } from '../../constants.js'
+import { HSR_MAX_LEVEL, rarityLabel } from '../../constants.js'
 
 /**
  * 构建星铁光锥数据
@@ -19,7 +19,7 @@ export function buildHSRLightcone (list, detail, meta) {
   // 命途在 list.baseType / detail.base_type（数据源职业码，如 Rogue），与角色页「命途」同用 hsrLabel 映射
   const pathCn = hsrLabel(list.baseType || detail.base_type || '')
   const metaFields = [
-    { label: '稀有度', value: meta?.rarity || list.rarity || '' }
+    { label: '稀有度', value: rarityLabel(meta?.rarity || list.rarity) }
   ].filter(f => f.value)
 
   // 满级基础属性（Lv.80）：stats 末档 = 基准值 + (80-1) × 成长值（与角色基础属性同款算法，已与 miao baseAttr 对齐）

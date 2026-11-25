@@ -18,7 +18,7 @@ node test/variant-family.test.mjs # 单个（任意 cwd 都行）
 
 | 前置 | 何时缺 | 怎么补 |
 |------|--------|--------|
-| 图鉴数据（`tool/nanoka-atlas-backend/.../data/map.json`） | 未初始化 | `#图鉴初始化` / `#图鉴更新` |
+| 图鉴数据（Hesperides 三游戏角色页，`tool/Hesperides/Hesperides/data/index.json`） | 未初始化 | `#图鉴初始化` / `#图鉴更新` |
 | 浏览器（Edge / Chromium） | 没装或非 Windows | 设 `ATLAS_TEST_BROWSER=<可执行文件路径>`，或跳过渲染类套件 |
 | git 替身（`test/.test-tmp/fake-git/git.exe`） | 首次运行 | 套件会自动执行 `test/fixtures/fake-git/build.ps1` 编译；编不出则跳过 |
 

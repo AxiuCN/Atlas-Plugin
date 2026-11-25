@@ -11,9 +11,9 @@
 
 | 项 | 要求 |
 |----|------|
-| Node.js | **18+**（本项目在 Node 24 上开发） |
-| 包管理 | pnpm（机器人框架用 pnpm workspace 管理插件）；子模块抓取用 corepack + yarn 4 |
-| corepack | `corepack enable` |
+| Node.js | **20+**（引擎 `engines.node` 要求 ≥20；本项目在 Node 24 上开发） |
+| 包管理 | pnpm（机器人框架用 pnpm workspace 管理插件，插件自身只依赖 `yaml`） |
+| 数据引擎 | git 子模块 `tool/Hesperides/Hesperides`，**零依赖**，直接 `node src/cli.mjs` 运行，不需要 corepack / yarn |
 | 系统 | Windows / Linux 均可（本插件主要在 Windows 下开发） |
 
 ```bash
@@ -22,16 +22,16 @@ git clone --depth=1 https://github.com/AxiuCN/Atlas-Plugin.git ./plugins/Atlas-P
 pnpm install --filter=Atlas-Plugin
 ```
 
-**数据不是仓库的一部分**：图鉴数据来自 git 子模块 `tool/nanoka-atlas-backend/nanoka-atlas-backend`，条目 JSON 与图片都由抓取产生。首次使用：
+**数据不是仓库的一部分**：图鉴数据来自 git 子模块 `tool/Hesperides/Hesperides`，条目 JSON 与图片都由抓取产生（产物在 `data/`，不入库）。首次使用：
 
-- 在 Bot 内发 `#图鉴初始化`（自动：拉子模块 → 装依赖 → 全量抓取，后台异步）；或
+- 在 Bot 内发 `#图鉴初始化`（自动：同步子模块 → 全量抓取，后台异步）；或
 - 手动抓（只要 JSON 最快）：
 
 ```bash
-cd plugins/Atlas-Plugin/tool/nanoka-atlas-backend/nanoka-atlas-backend
-node src/scrape.mjs --game gi,hsr,zzz --locales zh --no-images   # 仅 JSON
-node src/scrape.mjs --game gi,hsr,zzz --locales zh              # 含图片（耗时）
-corepack yarn versions                                          # 查看可用版本
+cd plugins/Atlas-Plugin/tool/Hesperides/Hesperides
+node src/cli.mjs --all --no-textmap --with-details            # 仅 JSON
+node src/cli.mjs --all --no-textmap --with-details --images   # 含图片（与 #图鉴更新 同口径）
+node src/cli.mjs --export                                     # 只重建 index.json / periods.json
 ```
 
 > 测试套件在**缺少前置时自动跳过**（打印 `⏭ 跳过：原因` 并 exit 0）。若你看到大量「跳过」，说明图鉴数据 / 浏览器还没就绪——**跳过不等于通过**，请先把数据准备好再判断自己的改动。
@@ -44,18 +44,20 @@ corepack yarn versions                                          # 查看可用�
 Atlas-Plugin/
 ├── index.js          # 单入口：配置 → 子模块同步 + 预加载索引 → Promise.allSettled 载入 apps/*.js
 ├── apps/             # 事件绑定（命令注册处）：atlasShortcut / atlas / admin / alias / status / help / updateLog
-├── modules/          # 业务编排：atlasQuery（查询主流程）
-├── model/            # 数据访问：AtlasService（搜索/索引/记录读取）· AtlasRepository（记录与缓存）
-│                     # AliasLoader · CustomAlias · LinkResolver · MiaoParams · AtlasUpdater · VersionDiff
+├── modules/          # 业务编排：atlasQuery（查询主流程）· challengeHesperides · aliasApi（对外门面）
+├── model/            # 数据访问：AtlasService（搜索/索引/记录读取）· AtlasRepository（补丁与记录缓存）
+│                     # Hesperides · HesperidesRepository（合成路径 ↔ 记录）· HesperidesIndex · HesperidesPreview
+│                     # ItemAssets · AtlasUpdater · Submodules · ChallengePeriod · ChallengeVersion
+│                     # AliasLoader · CustomAlias · LinkResolver · MiaoParams · NewContent · VersionDiff · LegacyCleanup
 │                     # itemIndex/ · monsterIndex/
-├── components/       # 可复用件：config · constants · render · queryUtils · protagonist · patch · util
+├── components/       # 可复用件：config · constants · render · queryUtils · protagonist · patch · util · status
 │   └── sections/     # 页面数据构建器：character | weapon | relic | monster | bangboo | item
-├── resources/        # 模板与静态资源：atlas/*.html（15 个模板）· common/*.css + font/ + image/
+├── resources/        # 模板与静态资源：atlas/*.html（14 个模板）· common/*.css + font/
 │                     #   · alias/ · patch/ · data/ · help/
 ├── config/           # config.yaml.example（入库）+ config.yaml / alias/（运行时，git-ignored）
 ├── defSet/ + guoba/  # 锅巴配置模板与 schema
 ├── test/             # 回归套件（入库）
-└── tool/             # nanoka-atlas-backend（子模块）
+└── tool/             # Hesperides（引擎子模块）；nanoka-atlas-backend 是已退役引擎的残留目录，等清理
 ```
 
 ### 新文件放哪里：四步判据
@@ -111,12 +113,12 @@ config/config.yaml          运行时（git-ignored）——不要提交
 - **日志**：`logger?.info/warn/error`，标签统一 `[Atlas]` 前缀（如 `[Atlas][Updater]`）。**没有** `logger?.debug`
 - **中文**：注释、`name`、`dsc`、用户可见文案一律简体中文
 - **注释写什么**：每个函数写明**功能 / 输入 / 输出**（JSDoc）；对边界条件与设计决策写注释，对「调了什么 API」不写。注释服务于长期理解，不记录单次修复过程
-- **不写死环境**：路径从 `pluginPath`/`backendRoot`/`dataDir` 推导，不写盘符绝对路径
+- **不写死环境**：路径从 `pluginRoot` / `HESPERIDES_DIR` / `DATA_DIR` 推导，不写盘符绝对路径
 - **错误不回显内部细节**：查询链路异常只回通用文案（`modules/atlasQuery.js` 的 `QUERY_ERROR_REPLY`），异常名 / 绝对路径 / 堆栈只进日志
 - **优先级**（数值越小越先执行）：`atlasShortcut -99999` < `alias 8000` < `updateLog 9000` < `atlas ~10000`。新命令请避开既有区间
 - **未匹配要放行**：返回 `false`，不回复、不影响其他插件。典型例子：`#胡桃圣遗物` 这类要被 miao-plugin 接管的查询，图鉴必须原样放行
 - **需要同步登记的地方**（漏一处就会出现「有的后缀能用、有的不能」）：
-  - `components/constants.js`：`SUB_VIEW_SUFFIXES` / `PAGE_TYPE_SUFFIXES` / `SHORTCUT_SUFFIXES` / `SPECIAL_TRIGGERS` / `PAGE_PRIORITY`
+  - `components/constants.js`：`SHORTCUT_SUFFIXES`（入口后缀全集）+ `SUFFIX_TO_SUBVIEW`（后缀 → 子视图；**只登记入口不登记映射会静默落到 materials 兜底**）+ `PAGE_TYPE_SUFFIXES` / `SPECIAL_TRIGGERS` / `PAGE_PRIORITY`
   - `resources/help/help-cfg.js`：`#图鉴帮助` 的文案
   - `README.md` 与文档站：命令或行为变更
   - `config/config.yaml.example` + `defSet/config.yaml` + 锅巴 schema：新增配置项
@@ -125,12 +127,12 @@ config/config.yaml          运行时（git-ignored）——不要提交
 
 ## 4. 数据修正：优先用本地补丁层
 
-子模块内容会在 `#图鉴更新` 时被整体覆盖，所以**不要直接改 `tool/nanoka-atlas-backend/**` 里的数据**，也不要为了改数据去动子模块指针。仓库内提供了补丁层，在**读取时**叠加：
+子模块内容会在 `#图鉴更新` 时被整体覆盖，所以**不要直接改 `tool/Hesperides/**` 里的数据**，也不要为了改数据去动子模块指针。仓库内提供了补丁层，在**读取时**叠加：
 
 | 目录 | 用途 |
 |------|------|
-| `resources/patch/data/<与 data/ 相同的相对路径>.json` | 条目补丁（对象递归合并、数组整体替换、标量覆盖） |
-| `resources/patch/gallery/<game>/<资源名>.webp` | 图片补丁（按 `meta.images[].originalValue` 匹配，补缺图或覆盖错图） |
+| `resources/patch/records/<game>/<source>/<page>/<id>.json` | 条目补丁（对象递归合并、数组整体替换、标量覆盖；路径 = 合成路径 `hes/…` 去掉前缀） |
+| `resources/patch/gallery/<game>/<资源名>.webp` | 图片补丁（按资源名匹配，补缺图或覆盖错图；扩展名固定 `.webp`） |
 | `resources/patch/map.json` | 索引补丁（改条目名 / 稀有度等索引层字段） |
 
 ```jsonc
@@ -157,7 +159,7 @@ config/config.yaml          运行时（git-ignored）——不要提交
 2. **模板必须保留 `<body style="zoom:{{renderScale}}">`**。渲染缩放靠它实现（框架渲染后端不暴露 DPR 旋钮），删掉会让 `renderScale` 配置静默失效。
 3. **行尾**：`.gitattributes` 是 `* text=auto eol=lf`，Windows 工作副本会显示 CRLF。**不要整文件重写/格式化**（会产出全文件 diff）；只改必要的行。
 4. **渲染链按 cwd 解析**：框架的 `lib/renderer/loader.js` 用 cwd 找 `renderers/` 与 `temp/`。所以渲染相关代码在测试里需要 cwd = Bot 根——`test/_helper.mjs` 已经处理，**不要**在套件里自己去 `chdir`。
-5. **子模块指针**：除非你确实要升级数据引擎版本，否则别把 `tool/nanoka-atlas-backend/nanoka-atlas-backend` 的 gitlink 改动混进 PR。
+5. **子模块指针**：除非你确实要升级数据引擎版本，否则别把 `tool/Hesperides/Hesperides` 的 gitlink 改动混进 PR。
 6. **`test/.test-tmp/`** 是套件临时产物目录（gitignore）。别把里面的文件提交上来。
 7. **别写死数据**：套件里不要硬编码角色名/条目数（图鉴数据在持续增长），数据依赖要**运行时取样**。
 8. **别为了跑绿改测试**：断言失败先假设实现有问题。只有确认契约本身变了，才改测试，并在 PR 里说明为什么旧契约不再成立。
@@ -175,7 +177,7 @@ pnpm test -- --list       # 只列套件
 pnpm test -- --filter=cache   # 只跑文件名含 cache 的
 ```
 
-- 当前 **21 个套件**；每套末尾输出 `结果：通过 N / 失败 N`，运行器最后给汇总
+- 当前 **35 个套件**；每套末尾输出 `结果：通过 N / 失败 N`，运行器最后给汇总
 - **缺前置打印「跳过」并 exit 0**：图鉴数据 / 浏览器 / git 替身三类
 - 需要浏览器时用系统 Edge/Chrome（可用 `ATLAS_TEST_BROWSER` 指定）；Windows 下 git 替身会编译成真 `.exe`（`.cmd`/`.ps1` 不行）
 
@@ -245,8 +247,8 @@ Review 会关注：是否放行了本不该接管的查询、是否破坏既有�
 | 你想改的东西 | 提到哪里 |
 |-------------|---------|
 | 插件代码、模板、样式、补丁层、测试、文档 | **本仓库** |
-| 图鉴抓取逻辑、条目 JSON 结构（引擎侧） | [`nanoka-atlas-backend`](https://github.com/AxiuCN/nanoka-atlas-backend)（本插件的子模块） |
-| 图鉴数据本身抓错了 | 先用本仓库的 `resources/patch/**` 打补丁；数据源问题可反馈给上游 [nanoka.cc](https://nanoka.cc/) |
+| 图鉴抓取逻辑、条目 JSON 结构（引擎侧） | [`Hesperides`](https://github.com/AxiuCN/Hesperides)（本插件的子模块） |
+| 图鉴数据本身抓错了 | 先用本仓库的 `resources/patch/**` 打补丁；数据源问题可反馈给对应上游（nanoka.cc / 玉璃 / 月亮网 / 强度研究院） |
 
 > 仓库里的 `AGENTS.md` 与 `docs/`（除 `docs/private/`）是**入库**的维护者文档，贡献者可按需阅读、也欢迎随改动同步；`CLAUDE.md`、`.claude/`、`.dsh/`、`docs/private/` 是本地工作区，**不入库**，不需要创建或提交。
 

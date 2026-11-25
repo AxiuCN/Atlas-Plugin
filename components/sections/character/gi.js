@@ -5,7 +5,7 @@
 import { resolveLinks } from '../../../model/LinkResolver.js'
 import { buildSkillParams } from './skillParams.js'
 import { imgUrl, galleryUrl, weaponLabel, formatBirthday, cleanMarkup, skillTag, passiveUnlock, giPropInfo, formatGiProp, GI_PROP_KEYS } from '../util.js'
-import { ELEMENT_CN } from '../../constants.js'
+import { ELEMENT_CN, rarityLabel } from '../../constants.js'
 import { familyName } from '../../protagonist.js'
 
 /**
@@ -73,7 +73,7 @@ export function buildGI (list, detail, meta, opts = {}) {
     weapon: weaponLabel(list.weapon || detail.weapon || ''),
     birthday: formatBirthday(list.birth || detail.chara_info?.birth),
     constellation: detail.chara_info?.constellation || '',
-    rarity: meta?.rarity || list.rarity || ''
+    rarity: rarityLabel(meta?.rarity || list.rarity)
   }
 
   // ── 属性概览（已去重：移除 hero 已展示的字段）──

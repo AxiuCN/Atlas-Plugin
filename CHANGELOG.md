@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.12
+
+**修复稀有度中文失效（换后端后记录里是游戏枚举），README 整理信息层次**
+
+- **稀有度中文恢复**：旧后端的 `meta.rarity` 是「五星」这类中文目录名，换 Hesperides 后记录直接来自游戏原始数据——原神角色是 `QUALITY_ORANGE` / `QUALITY_ORANGE_SP`、星铁角色与光锥是 `CombatPowerAvatarRarityType5` / `CombatPowerLightconeRarity5`、原神武器与圣遗物是数字（数组取最高档）。`pickRarity()` 原来只认数字，枚举一律丢弃，导致原神/星铁角色页、光锥页**完全不显示星级**，武器等页显示裸数字 `5`。
+- 新增 `constants.js → rarityNumber()` / `rarityLabel()`：枚举/数字/数组/中文四种输入归一到 1~5 并输出「五星」；`HesperidesRepository.pickRarity()` 同步解析枚举（`meta.rarity` 变数字），`buildDetailData()`、角色 `hero.rarity`、武器「稀有度」行统一走 `rarityLabel()`。**绝区零不变**（仍 `zzkRank()` 出 S/A/B/C）；**搜索列表不改**（仍是索引原值）。
+- **README 大幅精简**：删掉「指定哪一期」这类细化的表格与说明，只留安装 / 用法要点 / 管理指令 / 常用配置 / 数据抓取 / 别名 API，其余统一由文末「文档索引」指向 `docs/`；开篇数据源口径改为四源；旧引擎残留清理细节移入 `docs/待办与规划.md`；`CONTRIBUTING` 与 `test/README`、`docs/测试` 里过期的引擎路径、corepack 与套件数一并更正。**「交流与讨论」与鸣谢原文保留**。
+- `constants.js` 的后缀列表注释更正：同组长后缀在前只是可读性约定，功能上不依赖顺序（`atlasQuery` 会按长度重排、入口正则靠 `$` 锚点）。
+
 ## 1.6.11
 
 **修「玉璃的研究」正文不高亮：`@高亮#` 标记也要转 `.hl`**

@@ -5,6 +5,7 @@
 import { cleanMarkup, propLabel, giPropInfo, formatGiProp, weaponLabel } from '../util.js'
 import { mergeRefineLevels } from './refine.js'
 import { aggregateMats, buildMatItems } from '../materials.js'
+import { rarityLabel } from '../../constants.js'
 
 /**
  * 构建原神武器数据
@@ -17,7 +18,7 @@ export function buildGIWeapon (list, detail, meta) {
   // 武器类型码在 list.type / detail.weapon_type（无 list.weapontype 字段），与角色页「武器」同用 weaponLabel 映射
   const weaponType = list.type || detail.weapon_type || ''
   const metaFields = [
-    { label: '稀有度', value: meta?.rarity || list.rarity || '' }
+    { label: '稀有度', value: rarityLabel(meta?.rarity || list.rarity) }
   ].filter(f => f.value)
 
   // list.atk 为满级 ATK（Lv.90），副属性从 stats_modifier 取满级值

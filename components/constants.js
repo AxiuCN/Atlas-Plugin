@@ -21,30 +21,40 @@ export const GAME_FOLDERS = {
   zzz: '绝区零'
 }
 
-// 快捷入口/子视图后缀集合（atlasShortcut 正则与 atlasQuery 子视图解析共用）
+// 快捷入口/子视图后缀集合（atlasShortcut 的正则与 atlasQuery 的子视图解析共用这一份）
 // 三游戏子视图命名以原神为基准，此处额外收录各游戏独有叫法（星魂/影画/行迹/晋阶材料…），
 // 玩家混着叫也能命中（如 #下的星魂 等同命座）——后缀不按游戏过滤
-// 注意顺序：长后缀在前（"养成素材"需在"养成"/"素材"前匹配，"忆灵技"在"忆灵"前）
+// 顺序约定：**同组内长后缀写在前**（读起来清楚，也方便人工核对）；功能上不依赖顺序——
+//   - atlasQuery 的 SUB_VIEW_SUFFIXES 会自己按长度重排后逐个 endsWith，长后缀先命中；
+//   - atlasShortcut 的 `^#(.+)(后缀)$` 有 `$` 锚点，短后缀不可能截胡同位置的长后缀
+//     （`#胡桃天赋倍率` 会先被 `倍率` 命中入口，进 handleQuery 后仍按 `天赋倍率` 解析）。
 export const SHORTCUT_SUFFIXES = [
-  // 倍率视图（技能/天赋倍率 — 全等级宽表，长后缀优先）
-  '天赋倍率', '技能倍率', '倍率表', '倍率',
+  /* ===== 页面类型入口专属项（非子视图：剥离后缀并把搜索结果限定到对应页面类型） ===== */
+  // 通用入口（入口抢占）
   '图鉴',
-  // 素材类（原神 升级材料/养成素材，星铁 晋阶材料，绝区零 突破素材；怪物页的掉落同此视图）
-  '养成素材', '升级素材', '升级材料', '晋阶材料', '晋阶素材', '突破材料', '突破素材', '掉落',
-  // 技能类（星铁把天赋叫行迹，忆灵体系另有忆灵技/忆灵天赋）
-  '天赋', '技能', '行迹', '忆灵技', '忆灵',
-  // 命座类（星铁 星魂，绝区零 影画）
-  '命座', '星魂', '影画',
-  // 页面类型类（非子视图：剥离后缀并把搜索结果限定到对应页面类型）
+  // 圣遗物类（星铁 遗器，绝区零 驱动盘）
   '圣遗物', '遗器', '驱动盘',
   // 泛用套装后缀（按游戏映射到各自的套装页面类型，见 SET_PAGE_TYPE_BY_GAME）
   '套',
   // 专武（`<角色>专武` / `<角色>新专武` / 简写 `<角色>专` / `<角色>新专`：由别名表登记的专武归一成武器页）
   '专武', '专',
+
+  /* ===== 子视图后缀项 ===== */
+  // 技能类（星铁把天赋叫行迹，忆灵体系另有忆灵技/忆灵天赋）
+  '天赋', '技能', '行迹', '忆灵技', '忆灵',
+  // 倍率视图（技能/天赋倍率 — 全等级宽表，长后缀优先）
+  '天赋倍率', '技能倍率', '倍率表', '倍率',
+  // 命座类（星铁 星魂，绝区零 影画）
+  '命座', '命之座', '星魂', '影画',
+  // 素材类（原神 升级材料/养成素材，星铁 晋阶材料，绝区零 突破素材；怪物页的掉落同此视图）
+  '升级素材', '养成素材', '突破素材', '晋阶素材',
+  '升级材料', '养成材料', '突破材料', '晋阶材料',
+  '养成', '素材', '材料', '升级', '掉落',
+  // 资料页
   '资料', '描述', '故事', '语音',
   // 怪物页专有（变种个体的完整叫法与简称）
-  '变种个体', '变种', '变体',
-  '养成', '素材', '材料', '升级'
+  '变种个体', '变种', '变体'
+  // 兜底（未登记的后缀都归到 materials）
 ]
 
 // 页面类型后缀 → pageKey（atlasQuery.parseSubView 使用）
@@ -77,14 +87,18 @@ export const SET_PAGE_TYPE_BY_GAME = {
 // 素材类另收「晋阶材料」「突破素材」等——玩家混着叫都能落到同一子视图
 // 新增后缀必须在此登记，否则会落到 materials 兜底
 export const SUFFIX_TO_SUBVIEW = {
+  // 技能类
   天赋: 'skills', 技能: 'skills', 行迹: 'skills', 忆灵技: 'skills', 忆灵: 'skills',
+  // 倍率视图
   天赋倍率: 'rates', 技能倍率: 'rates', 倍率表: 'rates', 倍率: 'rates',
-  命座: 'constellations', 星魂: 'constellations', 影画: 'constellations',
-  资料: 'profile', 描述: 'profile',
-  故事: 'stories', 语音: 'stories',
-  养成: 'materials', 素材: 'materials', 材料: 'materials', 掉落: 'materials',
-  升级素材: 'materials', 养成素材: 'materials', 升级材料: 'materials', 升级: 'materials',
-  晋阶材料: 'materials', 晋阶素材: 'materials', 突破材料: 'materials', 突破素材: 'materials',
+  // 命座类
+  命座: 'constellations',命之座: 'constellations', 星魂: 'constellations', 影画: 'constellations',
+  // 素材类
+  养成: 'materials', 素材: 'materials', 材料: 'materials', 升级: 'materials', 掉落: 'materials',
+  升级素材: 'materials', 养成素材: 'materials', 突破素材: 'materials', 晋阶素材: 'materials',
+  升级材料: 'materials', 养成材料: 'materials', 突破材料: 'materials', 晋阶材料: 'materials',
+  // 资料页
+  资料: 'profile', 描述: 'profile', 故事: 'stories', 语音: 'stories',
   // 怪物页专有：同名折叠后的战斗变种个体列表
   变种个体: 'variants', 变种: 'variants', 变体: 'variants'
 }
@@ -115,17 +129,20 @@ export const PAGE_LABELS = {
   // 绝区零特有
   equipment: '驱动盘',
   bangboo: '邦布',
-  boss: '危局强袭战',
   shiyu: '式舆防卫战',
+  boss: '危局强袭战',
   simul: '作战影像回顾'
 }
 
 // 页面优先级权重（用于搜索评分，数值越高排名越前）
 export const PAGE_PRIORITY = Object.freeze({
-  // 角色/武器 — 最高优先级
+  // 角色 — 最高优先级
   '角色': 240,
+  '代理人': 240,
+  // 武器 — 次高优先级
   '武器': 220,
   '光锥': 220,
+  '音擎': 220,
   // 挑战类
   '深境螺旋': 200,
   '地脉异常': 200,
@@ -153,34 +170,37 @@ export const PAGE_PRIORITY = Object.freeze({
 export const SPECIAL_TRIGGERS = {
   gi: {
     '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
-    '深渊': { pageKey: 'tower', type: 'page_detail' },
     '深境螺旋': { pageKey: 'tower', type: 'page_detail' },
-    '剧诗': { pageKey: 'rolecombat', type: 'page_detail' },
+    '深渊': { pageKey: 'tower', type: 'page_detail' },
     '幻想真境剧诗': { pageKey: 'rolecombat', type: 'page_detail' },
+    '剧诗': { pageKey: 'rolecombat', type: 'page_detail' },
     // 危战：页是玉璃的 stygian（地脉异常是 nanoka 的 leyline，两者不同页，标题按玩法给）
-    '危战': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' },
     '幽境危战': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' },
+    '危战': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' },
     '幽境': { pageKey: 'leyline', type: 'page_detail', title: '幽境危战' }
   },
   hsr: {
     '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
-    '混沌': { pageKey: 'maze', type: 'page_detail' },
     '混沌回忆': { pageKey: 'maze', type: 'page_detail' },
-    '末日': { pageKey: 'maze_boss', type: 'page_detail' },
+    '混沌': { pageKey: 'maze', type: 'page_detail' },
     '末日幻影': { pageKey: 'maze_boss', type: 'page_detail' },
-    '虚构': { pageKey: 'maze_extra', type: 'page_detail' },
+    '末日': { pageKey: 'maze_boss', type: 'page_detail' },
+    '幻影': { pageKey: 'maze_boss', type: 'page_detail' },
     '虚构叙事': { pageKey: 'maze_extra', type: 'page_detail' },
-    '仲裁': { pageKey: 'maze_peak', type: 'page_detail' },
+    '虚构': { pageKey: 'maze_extra', type: 'page_detail' },
+    '异相仲裁': { pageKey: 'maze_peak', type: 'page_detail' },
     '异相': { pageKey: 'maze_peak', type: 'page_detail' },
-    '异相仲裁': { pageKey: 'maze_peak', type: 'page_detail' }
+    '仲裁': { pageKey: 'maze_peak', type: 'page_detail' }
   },
   zzz: {
     '成就': { pageKey: 'achievement/achievement', type: 'page_list' },
-    '防卫战': { pageKey: 'shiyu', type: 'page_detail' },
+    '式舆防卫战': { pageKey: 'shiyu', type: 'page_detail' },
     '式舆': { pageKey: 'shiyu', type: 'page_detail' },
+    '防卫战': { pageKey: 'shiyu', type: 'page_detail' },
+    '危局强袭战': { pageKey: 'boss', type: 'page_detail' },
+    '危局强袭': { pageKey: 'boss', type: 'page_detail' },
     '危局': { pageKey: 'boss', type: 'page_detail' },
-    '强袭': { pageKey: 'boss', type: 'page_detail' },
-    '危局强袭战': { pageKey: 'boss', type: 'page_detail' }
+    '强袭': { pageKey: 'boss', type: 'page_detail' }
   }
 }
 
@@ -351,6 +371,53 @@ const ZZZ_RANK_LETTERS = 'SABCD'
 
 /** 中文数字 → 数字（稀有度标签形如「四星」） */
 const ZZZ_RANK_CN = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5 }
+
+/* ===== 原神 / 星铁星级（记录里是**枚举字符串或数字**，不是中文） =====
+ * 换 Hesperides 后记录来自游戏原始数据：
+ *   - 原神角色 `rank: "QUALITY_ORANGE"`（旅行者是 `QUALITY_ORANGE_SP`）
+ *   - 星铁角色 `rank: "CombatPowerAvatarRarityType5"`、光锥 `"CombatPowerLightconeRarity5"`
+ *   - 原神武器 / 圣遗物 / 摆设 / 物品是数字（圣遗物为数组，取最大档）
+ * 旧后端的 `meta.rarity` 是「五星」这类中文目录名，换成新引擎后中文全靠这里补。
+ */
+const RARITY_QUALITY = { GREY: 1, WHITE: 1, GREEN: 2, BLUE: 3, PURPLE: 4, ORANGE: 5 }
+
+/** 星级数字（1~5）→ 中文（1 起有效，越界返回空串） */
+const RARITY_CN = ['', '一星', '二星', '三星', '四星', '五星']
+
+/**
+ * 稀有度归一成 1~5 的数字（认不出返回 0，不猜）
+ * @param {number|string|number[]} value - `5` / `"四星"` / `"QUALITY_ORANGE"` / `"CombatPowerLightconeRarity4"` / `[4,5]`
+ * @returns {number} 0 表示没有星级（物品 rank 0、套装无 rank 等）
+ */
+export function rarityNumber (value) {
+  if (value == null || value === '') return 0
+  if (Array.isArray(value)) {
+    const nums = value.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+    return nums.length ? Math.min(5, Math.round(Math.max(...nums))) : 0
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.min(5, Math.round(value)) : 0
+  }
+  const text = String(value).trim()
+  if (!text) return 0
+  const cn = text.match(/^([一二三四五])星$/)
+  if (cn) return ZZZ_RANK_CN[cn[1]]
+  if (/^\d+$/.test(text)) return Math.min(5, Number(text))
+  const quality = text.match(/QUALITY_(GREY|WHITE|GREEN|BLUE|PURPLE|ORANGE)/i)
+  if (quality) return RARITY_QUALITY[quality[1].toUpperCase()] || 0
+  const typed = text.match(/(?:Avatar|Lightcone)Rarity(?:Type)?(\d+)$/i)
+  if (typed) return Math.min(5, Number(typed[1]))
+  return 0
+}
+
+/**
+ * 稀有度 → 展示文本（原神 / 星铁用星级中文；绝区零走 zzzRank 的 S/A/B/C，别调这个）
+ * @param {number|string|number[]} value
+ * @returns {string} 如 `五星`；无星级返回空串
+ */
+export function rarityLabel (value) {
+  return RARITY_CN[rarityNumber(value)] || ''
+}
 
 /**
  * 绝区零稀有度归一：数值 / 「N星」标签 → S/A/B/C(/D)

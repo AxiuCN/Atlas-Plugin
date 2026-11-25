@@ -15,6 +15,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { HESPERIDES_DIR, getHesperidesRecordImages } from './Hesperides.js'
+import { rarityNumber } from '../components/constants.js'
 
 /** 合成路径前缀 */
 export const HES_PATH_PREFIX = 'hes/'
@@ -166,16 +167,21 @@ function pickName (record) {
   return ''
 }
 
-/** 从原始记录里取稀有度 */
+/**
+ * 从原始记录里取稀有度
+ *
+ * 返回 1~5 的数字：数字直接用，枚举（`QUALITY_ORANGE` / `CombatPowerAvatarRarityType5`）
+ * 交给 `rarityNumber()` 归一，数组取最高档——展示时再转「五星」（见 `rarityLabel()`）。
+ * @param {object} record
+ * @returns {number|string} 数字；取不到返回空串
+ */
 function pickRarity (record) {
   if (!record || typeof record !== 'object') return ''
   for (const key of ['Rarity', 'rarity', 'rank', 'Rank', 'star']) {
     const value = record[key]
-    if (typeof value === 'number') return value
-    if (Array.isArray(value) && value.length) {
-      const nums = value.filter((item) => typeof item === 'number')
-      if (nums.length) return Math.max(...nums)
-    }
+    if (value === null || value === undefined || value === '') continue
+    const num = rarityNumber(value)
+    if (num > 0) return num
   }
   return ''
 }

@@ -9,7 +9,8 @@ import {
   GAME_NAMES,
   PAGE_LABELS,
   CHALLENGE_PAGE_KEYS,
-  zzzRankOf
+  zzzRankOf,
+  rarityLabel
 } from './constants.js'
 import { getSectionBuilder } from './sections/index.js'
 import { getVersionBadge } from './versionBadge.js'
@@ -183,7 +184,7 @@ export function buildDetailData (gameId, result) {
         gameName: GAME_NAMES[gameId],
         pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
         name: cleanDisplayName(typeData.recordName || meta.name || result.name),
-        rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
+        rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : rarityLabel(meta.rarity || result.rarity),
         image: resolveRecordImage(record),
         hero: typeData.hero || null,
         versionBadge: getVersionBadge(gameId),
@@ -236,7 +237,7 @@ export function buildDetailData (gameId, result) {
     gameName: GAME_NAMES[gameId],
     pageTitle: result.pageTitle || (PAGE_LABELS[pageKey] || pageKey),
     recordName: cleanDisplayName(meta.name || result.name),
-    rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : (meta.rarity || result.rarity || ''),
+    rarity: gameId === 'zzz' ? zzzRankOf(record, pageKey) : rarityLabel(meta.rarity || result.rarity),
     desc: desc.length > 200 ? '' : desc,
     // 挑战页的期标识（第 N 期 · 版本 · 起止时间），只在按期查询/本期查询时才有
     periodLine: result.period ? formatPeriodLabel(gameId, result.period) : '',
