@@ -133,6 +133,11 @@ check('页脚版本号用高亮色（深金棕）', /\.copyright \.version\s*\{[
 const { rich } = await import(mod('components/challenge/view.js'))
 check('rich 保留 <color> 为 .hl', rich('A<color style="color:var(--alioth-highlight-color)">B</color>C', 200, { highlight: true }).includes('<span class="hl">B</span>'),
   rich('A<color style="color:var(--alioth-highlight-color)">B</color>C', 200, { highlight: true }))
+// 玉璃的官方解析文案用 `@高亮#` 标记（Buff 才用 <color>），两套都得转成 .hl，且不残留标记字符
+const atMarked = rich('受到@雷元素攻击#时，扣除 @0.1%# / 每单位 @0.25%#', 200, { highlight: true })
+check('rich 把 @高亮# 也转成 .hl',
+  atMarked.includes('<span class="hl">雷元素攻击</span>') && atMarked.includes('<span class="hl">0.1%</span>') && !atMarked.includes('@') && !atMarked.includes('#'),
+  atMarked)
 check('rich 默认不解析 <color>', !rich('A<color=#FFD780>B</color>C').includes('hl'), rich('A<color=#FFD780>B</color>C'))
 check('rich 剥标签但转义残留尖括号与 &', !rich('<b>x</b> & y').includes('<b>') && rich('HP<50% & 冰').includes('&lt;50%') && rich('a & b').includes('&amp;'),
   `${rich('<b>x</b> & y')} / ${rich('HP<50% & 冰')}`)

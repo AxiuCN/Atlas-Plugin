@@ -58,9 +58,22 @@ function cleanText (value) {
     .replace(/\s+/g, ' ')
 }
 
-/** 把 `<color …>…</color>` 切成「普通段 / 高亮段」，其余标签留给 cleanText 剥掉 */
+/**
+ * 上游高亮写法 → `<color>` 统一形态
+ *
+ * 玉璃两套并存：机制概述（`Buff[].Desc`）用 `<color style=…>…</color>`，
+ * 官方解析（`Tutorial[].DescList`、`Blessings[].Desc`、星铁各页的 `Desc`）用 `@高亮#` 标记。
+ * 后者先转成 `<color>`，下面统一切成高亮段；否则这些正文一个字都不会高亮。
+ * @param {string} value
+ * @returns {string}
+ */
+function normalizeHighlight (value) {
+  return String(value ?? '').replace(/@([^@#\n]+?)#/g, '<color style="color:var(--alioth-highlight-color)">$1</color>')
+}
+
+/** 把 `<color …>…</color>`（含 `@…#` 转来的）切成「普通段 / 高亮段」，其余标签留给 cleanText 剥掉 */
 function splitHighlight (value) {
-  const source = String(value ?? '')
+  const source = normalizeHighlight(value)
   const parts = []
   const re = /<color[^>]*>([\s\S]*?)<\/color>/gi
   let last = 0
@@ -77,8 +90,8 @@ function splitHighlight (value) {
 /**
  * 正文富文本（模板用 `{{@…}}` 渲染）
  *
- * 上游正文里的 `<color>`（玉璃的 `var(--alioth-highlight-color)` 等）转成 `<span class="hl">`，
- * 其余标签照旧剥除、文本一律转义 —— 只有这里产出的标签可以被当成 HTML。
+ * 上游正文里的 `<color>`（玉璃的 `var(--alioth-highlight-color)` 等）与 `@高亮#` 标记
+ * 都转成 `<span class="hl">`，其余标签照旧剥除、文本一律转义 —— 只有这里产出的标签可以被当成 HTML。
  * @param {*} value - 上游正文
  * @param {number} [max] - 可见字数上限（超出补 `…`）
  * @param {{highlight?: boolean}} [options] - 是否解析 `<color>`（只有玉璃终局页开）

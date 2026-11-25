@@ -302,11 +302,11 @@ export function giStygianView (record, ctx = {}) {
     // 「首领特性」= Buff[]（同名机制的一段式概述）——两者顺序不能反
     pushGroup(blocks, block('「玉璃的研究」', (raw.Tutorial || []).map((tutorial) => ({
       name: plain(tutorial?.Title),
-      paragraphs: (tutorial?.DescList || []).map((text) => rich(stripHighlight(text), 220, { highlight: true }))
+      paragraphs: (tutorial?.DescList || []).map((text) => rich(text, 220, { highlight: true }))
     }))))
     pushGroup(blocks, block('首领特性', (raw.Buff || []).map((buff) => ({
       name: plain(buff?.Name),
-      paragraphs: [rich(stripHighlight(buff?.Desc), 200, { highlight: true })]
+      paragraphs: [rich(buff?.Desc, 200, { highlight: true })]
     }))))
     // 其他难度：N4 与 N1-3（N1/N2 无血量数据就不写）
     // 其他难度：逐档列出（N3 常形 / N4 各有自己的名字与血量，不能合并成「1-3」）
@@ -526,11 +526,6 @@ function secondsText (text) {
   const raw = String(text ?? '').trim()
   const matched = raw.match(/^(\d+(?:\.\d+)?)\s*(?:s|秒)?$/i)
   return matched ? `${matched[1]} 秒` : raw
-}
-
-/** 官方文案里的 `@高亮#` 标记：只留正文 */
-function stripHighlight (text) {
-  return String(text ?? '').replace(/[@#]/g, '')
 }
 
 /** 同一 Boss 在指定难度档里的名字与血量（玉璃 Levels 按档给 id，档内位置对齐） */

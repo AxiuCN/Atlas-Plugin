@@ -99,6 +99,14 @@ console.log('\n=== ③ 怪物信息（战斗卡：图标 / 元素 / 抗性 / 血
   check('危战强敌是战斗卡（大图 + 血量 + 抗性）',
     Boolean(strong?.cards.some((card) => card.monsters.some((monster) => monster.hp && monster.chips.length > 0))))
   check('危战不再单列血量档位（N5/N6 在强敌卡头部）', !stygian?.view?.groups.some((group) => group.title === '血量档位'))
+  // 玉璃的官方解析用 `@高亮#` 标记（机制概述才用 <color>）：两套都要落成 .hl，且不残留标记字符
+  const tutorialTexts = (strong?.cards || [])
+    .flatMap((card) => (card.blocks || []).filter((block) => block.title === '「玉璃的研究」'))
+    .flatMap((block) => block.items.flatMap((item) => item.paragraphs))
+  check('「玉璃的研究」正文有高亮（@高亮# 也要解析）', tutorialTexts.some((text) => text.includes('<span class="hl">')),
+    `${tutorialTexts.length} 段 / ${tutorialTexts.filter((text) => text.includes('hl')).length} 段含高亮`)
+  check('「玉璃的研究」不残留 @ 与 # 标记', tutorialTexts.every((text) => !text.includes('@') && !text.includes('#')),
+    tutorialTexts.find((text) => text.includes('@') || text.includes('#')) || '')
   const arb = views.get('hsr/maze_peak')
   check('仲裁血量以「骑士/王棋」两条列表呈现',
     ['骑士 · 血量', '王棋 · 血量'].every((title) => arb?.view?.groups.some((group) => group.title === title)))
